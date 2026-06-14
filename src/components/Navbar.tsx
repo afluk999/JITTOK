@@ -1,181 +1,391 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Search, User, ShoppingBag } from "lucide-react";
+import { usePathname } from "next/navigation";
+import { Menu, Search, ShoppingBag, X } from "lucide-react";
 
 export default function Navbar() {
-  const leftLinks = [
+  const pathname = usePathname();
+
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [cartCount, setCartCount] = useState(0);
+  const [isPhone, setIsPhone] = useState(false);
+
+  const navLinks = [
     { label: "Home", href: "/" },
-    { label: "Explore", href: "/#iconic-products" },
+    { label: "Collections", href: "/collections" },
     { label: "Contact", href: "/contact" },
-    { label: "Orders", href: "/orders" },
   ];
 
+  useEffect(() => {
+    function checkPhone() {
+      const phoneUserAgent =
+        /Android|iPhone|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
+          navigator.userAgent
+        );
+
+      const smallScreen = window.innerWidth <= 768;
+
+      setIsPhone(phoneUserAgent && smallScreen);
+    }
+
+    checkPhone();
+    window.addEventListener("resize", checkPhone);
+
+    return () => window.removeEventListener("resize", checkPhone);
+  }, []);
+
+  useEffect(() => {
+    function loadCartCount() {
+      try {
+        const cartData =
+          localStorage.getItem("jittok-cart") ||
+          localStorage.getItem("cart") ||
+          "[]";
+
+        const cartItems = JSON.parse(cartData);
+
+        if (Array.isArray(cartItems)) {
+          const total = cartItems.reduce((sum, item) => {
+            return sum + Number(item.quantity || 1);
+          }, 0);
+
+          setCartCount(total);
+        }
+      } catch {
+        setCartCount(0);
+      }
+    }
+
+    loadCartCount();
+
+    window.addEventListener("storage", loadCartCount);
+    window.addEventListener("cart-updated", loadCartCount);
+
+    return () => {
+      window.removeEventListener("storage", loadCartCount);
+      window.removeEventListener("cart-updated", loadCartCount);
+    };
+  }, []);
+
+  useEffect(() => {
+    setMenuOpen(false);
+  }, [pathname]);
+
+  useEffect(() => {
+    document.body.style.overflow = menuOpen ? "hidden" : "";
+
+    return () => {
+      document.body.style.overflow = "";
+    };
+  }, [menuOpen]);
+
   return (
-    <header
-      style={{
-        position: "fixed",
-        top: 0,
-        left: 0,
-        width: "100%",
-        height: "82px",
-        zIndex: 999,
-        display: "grid",
-        gridTemplateColumns: "1fr auto 1fr",
-        alignItems: "center",
-        padding: "0 42px",
-        background: "rgba(246, 242, 235, 0.78)",
-        backdropFilter: "blur(20px)",
-        WebkitBackdropFilter: "blur(20px)",
-        borderBottom: "1px solid rgba(30, 25, 20, 0.08)",
-        boxShadow: "0 14px 45px rgba(40, 30, 20, 0.06)",
-        fontFamily: '"Outfit", sans-serif',
-      }}
-    >
-      {/* LEFT LINKS */}
-      <nav
+    <>
+      <header
         style={{
-          display: "flex",
+          width: "100%",
+          height: isPhone ? "64px" : "76px",
+          background: "rgba(246, 242, 235, 0.96)",
+          backdropFilter: "blur(18px)",
+          WebkitBackdropFilter: "blur(18px)",
+          borderBottom: "1px solid rgba(17,17,17,0.08)",
+          display: "grid",
+          gridTemplateColumns: isPhone ? "38px 1fr 76px" : "1fr auto 1fr",
           alignItems: "center",
-          gap: "30px",
-          justifySelf: "start",
+          padding: isPhone ? "0 12px" : "0 42px",
+          position: "sticky",
+          top: 0,
+          zIndex: 1000,
+          fontFamily: '"Outfit", sans-serif',
         }}
       >
-        {leftLinks.map((item) => (
-          <Link
-            key={item.label}
-            href={item.href}
+        {isPhone ? (
+          <button
+            type="button"
+            onClick={() => setMenuOpen(true)}
+            aria-label="Open menu"
+            style={mobileIconButtonStyle}
+          >
+            <Menu size={21} strokeWidth={1.8} />
+          </button>
+        ) : (
+          <nav
             style={{
-              color: "#111",
-              textDecoration: "none",
-              fontSize: "13px",
-              fontWeight: 600,
-              letterSpacing: "0.8px",
-              textTransform: "uppercase",
-              lineHeight: 1,
+              display: "flex",
+              alignItems: "center",
+              gap: "28px",
             }}
           >
-            {item.label}
-          </Link>
-        ))}
-      </nav>
+            {navLinks.map((link) => (
+              <Link
+                key={link.href}
+                href={link.href}
+                style={{
+                  color: "#111",
+                  textDecoration: "none",
+                  fontSize: "11.5px",
+                  fontWeight: 900,
+                  letterSpacing: "1.1px",
+                  textTransform: "uppercase",
+                  borderBottom:
+                    pathname === link.href
+                      ? "1px solid #111"
+                      : "1px solid transparent",
+                  paddingBottom: "7px",
+                }}
+              >
+                {link.label}
+              </Link>
+            ))}
+          </nav>
+        )}
 
-      {/* CENTER LOGO */}
-      <Link
-        href="/"
-        style={{
-          color: "#111",
-          textDecoration: "none",
-          justifySelf: "center",
-          textAlign: "center",
-          lineHeight: 1,
-        }}
-      >
-        <div
+        <Link
+          href="/"
+          aria-label="JITTOK Home"
           style={{
-            fontFamily: '"Bebas Neue", Impact, "Arial Narrow", sans-serif',
-            fontSize: "25px",
-            letterSpacing: "4px",
-            lineHeight: 0.85,
+            color: "#111",
+            textDecoration: "none",
+            textAlign: "center",
+            display: "inline-flex",
+            flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "center",
+            lineHeight: 1,
+            justifySelf: "center",
           }}
         >
-          JITTOK
-          <sup
+          <span
             style={{
-              fontFamily: "Arial, sans-serif",
-              fontSize: "7px",
-              marginLeft: "3px",
-              position: "relative",
-              top: "-10px",
+              fontFamily: '"Bebas Neue", Impact, sans-serif',
+              fontSize: isPhone ? "26px" : "31px",
+              letterSpacing: isPhone ? "4.5px" : "6.2px",
+              fontWeight: 400,
+              lineHeight: 0.9,
             }}
           >
-            ®
-          </sup>
-        </div>
-
-        <div
-          style={{
-            marginTop: "4px",
-            fontSize: "8px",
-            fontWeight: 800,
-            letterSpacing: "1.7px",
-            textTransform: "uppercase",
-          }}
-        >
-          Essentials
-        </div>
-      </Link>
-
-      {/* RIGHT ICONS */}
-      <div
-        style={{
-          justifySelf: "end",
-          display: "flex",
-          alignItems: "center",
-          gap: "28px",
-          color: "#111",
-        }}
-      >
-        <button
-          aria-label="Search"
-          style={{
-            border: "none",
-            background: "transparent",
-            padding: 0,
-            color: "#111",
-            cursor: "pointer",
-            display: "flex",
-            alignItems: "center",
-          }}
-        >
-          <Search size={21} strokeWidth={1.7} />
-        </button>
-
-        <Link
-          href="/account"
-          aria-label="Account"
-          style={{
-            color: "#111",
-            display: "flex",
-            alignItems: "center",
-          }}
-        >
-          <User size={20} strokeWidth={1.7} />
-        </Link>
-
-        <Link
-          href="/cart"
-          aria-label="Cart"
-          style={{
-            color: "#111",
-            display: "flex",
-            alignItems: "center",
-            position: "relative",
-          }}
-        >
-          <ShoppingBag size={21} strokeWidth={1.7} />
+            JITTOK
+          </span>
 
           <span
             style={{
-              position: "absolute",
-              top: "-10px",
-              right: "-11px",
-              width: "18px",
-              height: "18px",
-              borderRadius: "50%",
-              background: "#111",
-              color: "#fff",
-              fontSize: "10px",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              fontWeight: 800,
+              marginTop: isPhone ? "4px" : "5px",
+              fontSize: isPhone ? "6px" : "8px",
+              fontWeight: 900,
+              letterSpacing: isPhone ? "1.6px" : "1.8px",
+              textTransform: "uppercase",
             }}
           >
-            0
+            Essentials
           </span>
         </Link>
-      </div>
-    </header>
+
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "flex-end",
+            gap: isPhone ? "2px" : "14px",
+          }}
+        >
+          <Link href="/search" aria-label="Search" style={iconLinkStyle}>
+            <Search size={isPhone ? 19 : 20} strokeWidth={1.8} />
+          </Link>
+
+          <Link href="/cart" aria-label="Cart" style={iconLinkStyle}>
+            <ShoppingBag size={isPhone ? 19 : 20} strokeWidth={1.8} />
+
+            {cartCount > 0 ? (
+              <span
+                style={{
+                  position: "absolute",
+                  top: "0px",
+                  right: "0px",
+                  minWidth: "16px",
+                  height: "16px",
+                  padding: "0 5px",
+                  borderRadius: "999px",
+                  background: "#111",
+                  color: "#fff",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  fontSize: "8.5px",
+                  fontWeight: 900,
+                  lineHeight: 1,
+                }}
+              >
+                {cartCount}
+              </span>
+            ) : null}
+          </Link>
+        </div>
+      </header>
+
+      {isPhone && menuOpen ? (
+        <div
+          onClick={() => setMenuOpen(false)}
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(17,17,17,0.48)",
+            zIndex: 3000,
+          }}
+        >
+          <aside
+            onClick={(event) => event.stopPropagation()}
+            style={{
+              width: "min(86vw, 360px)",
+              height: "100%",
+              background: "#f6f2eb",
+              color: "#111",
+              padding: "22px 22px 30px",
+              display: "flex",
+              flexDirection: "column",
+              fontFamily: '"Outfit", sans-serif',
+              boxShadow: "24px 0 60px rgba(0,0,0,0.18)",
+            }}
+          >
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                paddingBottom: "22px",
+                borderBottom: "1px solid rgba(17,17,17,0.1)",
+              }}
+            >
+              <p
+                style={{
+                  margin: 0,
+                  fontSize: "12px",
+                  fontWeight: 900,
+                  letterSpacing: "1.4px",
+                  textTransform: "uppercase",
+                }}
+              >
+                Menu
+              </p>
+
+              <button
+                type="button"
+                onClick={() => setMenuOpen(false)}
+                aria-label="Close menu"
+                style={{
+                  width: "40px",
+                  height: "40px",
+                  border: "1px solid rgba(17,17,17,0.12)",
+                  background: "transparent",
+                  color: "#111",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  cursor: "pointer",
+                }}
+              >
+                <X size={21} strokeWidth={1.8} />
+              </button>
+            </div>
+
+            <nav
+              style={{
+                display: "grid",
+                padding: "24px 0",
+              }}
+            >
+              {navLinks.map((link) => (
+                <Link
+                  key={link.href}
+                  href={link.href}
+                  style={{
+                    color: pathname === link.href ? "#77736c" : "#111",
+                    textDecoration: "none",
+                    padding: "18px 0",
+                    borderBottom: "1px solid rgba(17,17,17,0.08)",
+                    fontFamily: '"Bebas Neue", Impact, sans-serif',
+                    fontSize: "46px",
+                    lineHeight: 0.9,
+                    fontWeight: 400,
+                    letterSpacing: "1px",
+                    textTransform: "uppercase",
+                  }}
+                >
+                  {link.label}
+                </Link>
+              ))}
+            </nav>
+
+            <div
+              style={{
+                marginTop: "auto",
+                display: "grid",
+                gap: "14px",
+              }}
+            >
+              <Link
+                href="/cart"
+                style={{
+                  height: "52px",
+                  background: "#111",
+                  color: "#fff",
+                  textDecoration: "none",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: "10px",
+                  fontSize: "12px",
+                  fontWeight: 900,
+                  letterSpacing: "1px",
+                  textTransform: "uppercase",
+                }}
+              >
+                <ShoppingBag size={17} />
+                View Cart {cartCount > 0 ? `(${cartCount})` : ""}
+              </Link>
+
+              <p
+                style={{
+                  margin: 0,
+                  color: "#77736c",
+                  fontSize: "12px",
+                  lineHeight: 1.7,
+                }}
+              >
+                Premium everyday essentials for comfort, movement, and timeless
+                streetwear style.
+              </p>
+            </div>
+          </aside>
+        </div>
+      ) : null}
+    </>
   );
 }
+
+const iconLinkStyle: React.CSSProperties = {
+  width: "36px",
+  height: "36px",
+  border: "none",
+  background: "transparent",
+  color: "#111",
+  display: "inline-flex",
+  alignItems: "center",
+  justifyContent: "center",
+  cursor: "pointer",
+  position: "relative",
+  textDecoration: "none",
+};
+
+const mobileIconButtonStyle: React.CSSProperties = {
+  width: "36px",
+  height: "36px",
+  border: "none",
+  background: "transparent",
+  color: "#111",
+  display: "inline-flex",
+  alignItems: "center",
+  justifyContent: "center",
+  cursor: "pointer",
+};

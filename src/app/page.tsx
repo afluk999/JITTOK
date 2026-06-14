@@ -1,5 +1,5 @@
 import Navbar from "@/components/Navbar";
-import HeroSection from "@/components/HeroSection";
+import HeroWall from "@/components/HeroWall";
 import IconicProductsCurve from "@/components/IconicProductsCurve";
 import NewArrivals from "@/components/NewArrivals";
 import Editorial from "@/components/Editorial";
@@ -12,7 +12,7 @@ export default function Home() {
   return (
     <>
       <Navbar />
-      <HeroSection />
+      <HeroWall />
       <IconicProductsCurve />
       <NewArrivals />
       <Editorial />
