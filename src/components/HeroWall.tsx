@@ -3,12 +3,20 @@
 import { useEffect, useMemo, useState } from "react";
 import { getHomeContent } from "@/lib/contentService";
 
+const MIN_HERO_IMAGES = 3;
+
+const DESKTOP_COLUMN_WIDTH = 45;
+const TABLET_COLUMN_WIDTH = 50;
+const MOBILE_COLUMN_WIDTH = 82;
+const SMALL_MOBILE_COLUMN_WIDTH = 92;
+
 function preloadImages(images: string[]) {
   return Promise.all(
     images.map(
       (src) =>
         new Promise<void>((resolve) => {
           const img = new Image();
+
           img.src = src;
           img.onload = () => resolve();
           img.onerror = () => resolve();
@@ -27,7 +35,7 @@ export default function HeroWall() {
         const content = await getHomeContent();
         const images = content.heroImages || [];
 
-        if (images.length >= 5) {
+        if (images.length >= MIN_HERO_IMAGES) {
           await preloadImages(images.slice(0, 5));
           setHeroImages(images);
         }
@@ -43,6 +51,7 @@ export default function HeroWall() {
 
   const loopImages = useMemo(() => {
     if (heroImages.length === 0) return [];
+
     return [...heroImages, ...heroImages];
   }, [heroImages]);
 
@@ -53,8 +62,8 @@ export default function HeroWall() {
           .hero-wall {
             position: relative;
             width: 100%;
-            height: calc(100vh - 76px);
-            min-height: 620px;
+            height: calc(100vh - 76px +200px);
+            min-height: 760px;
             background: #111;
             overflow: hidden;
           }
@@ -99,7 +108,7 @@ export default function HeroWall() {
     );
   }
 
-  if (heroImages.length < 5) {
+  if (heroImages.length < MIN_HERO_IMAGES) {
     return (
       <section className="hero-wall hero-wall-fallback">
         <style jsx>{`
@@ -142,7 +151,7 @@ export default function HeroWall() {
 
         <div>
           <h1>JITTOK</h1>
-          <p>Add at least 5 hero images from admin/content</p>
+          <p>Add at least {MIN_HERO_IMAGES} hero images from admin/content</p>
         </div>
       </section>
     );
@@ -179,6 +188,7 @@ export default function HeroWall() {
           from {
             transform: translateX(0);
           }
+
           to {
             transform: translateX(-50%);
           }
@@ -213,10 +223,7 @@ export default function HeroWall() {
 
         .hero-images-wrap {
           position: absolute;
-          top: 0;
-          left: 0;
-          right: 0;
-          bottom: 46px;
+          inset: 0 0 46px;
           overflow: hidden;
         }
 
@@ -224,6 +231,7 @@ export default function HeroWall() {
           from {
             transform: translateX(0);
           }
+
           to {
             transform: translateX(-50%);
           }
@@ -232,14 +240,19 @@ export default function HeroWall() {
         .hero-track {
           height: 100%;
           display: flex;
-          width: ${loopImages.length * 20}vw;
-          animation: heroWallMove 34s linear infinite;
+          width: ${loopImages.length * DESKTOP_COLUMN_WIDTH}vw;
+          animation: heroWallMove 40s linear infinite;
           will-change: transform;
         }
 
+        /*
+          Desktop column width is 45vw.
+          This displays about 2.2 images instead of 5 images.
+        */
         .hero-item {
-          width: 20vw;
-          flex: 0 0 20vw;
+          position: relative;
+          width: ${DESKTOP_COLUMN_WIDTH}vw;
+          flex: 0 0 ${DESKTOP_COLUMN_WIDTH}vw;
           height: 100%;
           overflow: hidden;
           background: #d9d9d9;
@@ -255,7 +268,7 @@ export default function HeroWall() {
 
         .hero-overlay {
           position: absolute;
-          inset: 0 0 46px 0;
+          inset: 0 0 46px;
           pointer-events: none;
           background: linear-gradient(
             180deg,
@@ -289,12 +302,12 @@ export default function HeroWall() {
 
         @media (max-width: 1024px) {
           .hero-track {
-            width: ${loopImages.length * 25}vw;
+            width: ${loopImages.length * TABLET_COLUMN_WIDTH}vw;
           }
 
           .hero-item {
-            width: 25vw;
-            flex-basis: 25vw;
+            width: ${TABLET_COLUMN_WIDTH}vw;
+            flex-basis: ${TABLET_COLUMN_WIDTH}vw;
           }
         }
 
@@ -313,7 +326,7 @@ export default function HeroWall() {
           }
 
           .hero-overlay {
-            inset: 0 0 42px 0;
+            inset: 0 0 42px;
           }
 
           .strip-item {
@@ -324,13 +337,13 @@ export default function HeroWall() {
           }
 
           .hero-track {
-            width: ${loopImages.length * 50}vw;
-            animation-duration: 28s;
+            width: ${loopImages.length * MOBILE_COLUMN_WIDTH}vw;
+            animation-duration: 32s;
           }
 
           .hero-item {
-            width: 50vw;
-            flex-basis: 50vw;
+            width: ${MOBILE_COLUMN_WIDTH}vw;
+            flex-basis: ${MOBILE_COLUMN_WIDTH}vw;
           }
 
           .hero-right-text {
@@ -346,13 +359,13 @@ export default function HeroWall() {
 
         @media (max-width: 480px) {
           .hero-track {
-            width: ${loopImages.length * 72}vw;
-            animation-duration: 24s;
+            width: ${loopImages.length * SMALL_MOBILE_COLUMN_WIDTH}vw;
+            animation-duration: 28s;
           }
 
           .hero-item {
-            width: 72vw;
-            flex-basis: 72vw;
+            width: ${SMALL_MOBILE_COLUMN_WIDTH}vw;
+            flex-basis: ${SMALL_MOBILE_COLUMN_WIDTH}vw;
           }
 
           .strip-item {
@@ -367,7 +380,9 @@ export default function HeroWall() {
             <div key={`${image}-${index}`} className="hero-item">
               <img
                 src={image}
-                alt={`JITTOK hero image ${index + 1}`}
+                alt={`JITTOK hero image ${
+                  (index % heroImages.length) + 1
+                }`}
                 loading={index < 5 ? "eager" : "lazy"}
                 decoding="async"
               />
