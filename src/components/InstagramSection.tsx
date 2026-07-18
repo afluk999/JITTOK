@@ -187,7 +187,7 @@ export default function InstagramSection() {
         width: "100%",
         minHeight: isPhone ? "auto" : "100vh",
         background:
-          "linear-gradient(180deg, #eee6da 0%, #f6f2eb 45%, #fbf7ef 100%)",
+          "linear-gradient(180deg, #eee6da 0%, #ffffff 45%, #ffffff 100%)",
         color: "#111",
         fontFamily: '"Outfit", sans-serif',
         padding: isPhone ? "78px 18px 82px" : "104px 54px",

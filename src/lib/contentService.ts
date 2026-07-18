@@ -11,6 +11,10 @@ export type HomeContent = {
   editorialImages: string[];
   iconicImages: string[];
 
+  // Separate galleries for the 3 signature products.
+  // Each slug can store up to 5 images.
+  signatureProductImages: Record<string, string[]>;
+
   reelsItems: SocialItem[];
   instagramPosts: SocialItem[];
 
@@ -28,6 +32,7 @@ const defaultHomeContent: HomeContent = {
   heroImages: [],
   editorialImages: [],
   iconicImages: [],
+  signatureProductImages: {},
 
   reelsItems: [],
   instagramPosts: [],
@@ -57,6 +62,7 @@ export async function getHomeContent() {
     heroImages: data.heroImages || [],
     editorialImages: data.editorialImages || [],
     iconicImages: data.iconicImages || [],
+    signatureProductImages: data.signatureProductImages || {},
     reelsItems: data.reelsItems || data.instagramItems || [],
     instagramPosts: data.instagramPosts || [],
   } as HomeContent;

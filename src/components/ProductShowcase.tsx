@@ -80,7 +80,7 @@ export default function IconicProductsCurve() {
       style={{
         position: "relative",
         zIndex: 40,
-        background: "#f7f2ea",
+        background: "#ffffff",
         fontFamily: '"Outfit", sans-serif',
         overflow: "hidden",
       }}
@@ -91,7 +91,7 @@ export default function IconicProductsCurve() {
           height: "54px",
           background:
             "linear-gradient(90deg, #101010 0%, #2a2a2a 50%, #101010 100%)",
-          color: "#f7f2ea",
+          color: "#ffffff",
           overflow: "hidden",
           display: "flex",
           alignItems: "center",
@@ -133,7 +133,7 @@ export default function IconicProductsCurve() {
                   width: "6px",
                   height: "6px",
                   borderRadius: "50%",
-                  background: "#f7f2ea",
+                  background: "#ffffff",
                   display: "inline-block",
                   opacity: 0.75,
                 }}
@@ -148,7 +148,7 @@ export default function IconicProductsCurve() {
         style={{
           padding: "70px 54px 82px",
           background:
-            "radial-gradient(circle at 50% 0%, rgba(255,255,255,0.95), transparent 36%), linear-gradient(180deg, #fbf7ef 0%, #f1eadf 100%)",
+            "radial-gradient(circle at 50% 0%, rgba(255,255,255,0.95), transparent 36%), linear-gradient(180deg, #ffffff 0%, #ffffff 100%)",
         }}
       >
         <div

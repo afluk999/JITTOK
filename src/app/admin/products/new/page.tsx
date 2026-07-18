@@ -34,8 +34,13 @@ export default function NewProductPage() {
   const [name, setName] = useState("");
   const [variant, setVariant] = useState("");
   const [category, setCategory] = useState("T-Shirts");
+
+  const [originalPrice, setOriginalPrice] = useState("");
   const [price, setPrice] = useState("");
+  const [prepaidDiscount, setPrepaidDiscount] = useState("50");
+
   const [description, setDescription] = useState("");
+  const [productDetails, setProductDetails] = useState("");
   const [sizes, setSizes] = useState("S,M,L,XL");
   const [stock, setStock] = useState("10");
   const [isNewArrival, setIsNewArrival] = useState(true);
@@ -47,7 +52,7 @@ export default function NewProductPage() {
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       if (!user) {
-        router.push("/admin");
+        router.replace("/admin/login");
         return;
       }
 
@@ -57,9 +62,16 @@ export default function NewProductPage() {
     return () => unsubscribe();
   }, [router]);
 
-  function handleImageChange(event: React.ChangeEvent<HTMLInputElement>) {
-    const files = Array.from(event.target.files || []).slice(0, 5);
+  useEffect(() => {
+    return () => {
+      previewImages.forEach((image) => URL.revokeObjectURL(image));
+    };
+  }, [previewImages]);
 
+  function handleImageChange(event: React.ChangeEvent<HTMLInputElement>) {
+    previewImages.forEach((image) => URL.revokeObjectURL(image));
+
+    const files = Array.from(event.target.files || []).slice(0, 5);
     setImageFiles(files);
     setPreviewImages(files.map((file) => URL.createObjectURL(file)));
   }
@@ -81,7 +93,6 @@ export default function NewProductPage() {
 
     for (const file of imageFiles) {
       const formData = new FormData();
-
       formData.append("file", file);
       formData.append("upload_preset", uploadPreset);
 
@@ -103,8 +114,8 @@ export default function NewProductPage() {
       }
 
       if (!response.ok) {
-        console.error("CLOUDINARY DIRECT UPLOAD ERROR:", data);
         setUploading(false);
+        console.error("CLOUDINARY DIRECT UPLOAD ERROR:", data);
 
         throw new Error(
           data?.error?.message ||
@@ -118,15 +129,26 @@ export default function NewProductPage() {
     }
 
     setUploading(false);
-
     return uploadedUrls;
   }
 
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
 
-    if (!name || !variant || !price || !description) {
+    if (
+      !name ||
+      !variant ||
+      !originalPrice ||
+      !price ||
+      !description ||
+      !productDetails
+    ) {
       alert("Please fill all required fields.");
+      return;
+    }
+
+    if (Number(originalPrice) <= Number(price)) {
+      alert("Original price must be greater than the selling price.");
       return;
     }
 
@@ -140,9 +162,16 @@ export default function NewProductPage() {
         name,
         variant,
         category,
+
         price: Number(price),
         displayPrice: formatPrice(price),
+
+        originalPrice: Number(originalPrice),
+        originalDisplayPrice: formatPrice(originalPrice),
+        prepaidDiscount: Number(prepaidDiscount || 50),
+
         description,
+        productDetails,
         images: uploadedImageUrls,
         sizes: sizes
           .split(",")
@@ -151,7 +180,7 @@ export default function NewProductPage() {
         stock: Number(stock),
         isNewArrival,
         isFeatured,
-      });
+      } as any);
 
       alert("Product added successfully!");
       router.push("/admin/products");
@@ -229,7 +258,7 @@ export default function NewProductPage() {
           onSubmit={handleSubmit}
           style={{
             display: "grid",
-            gridTemplateColumns: "1fr 0.9fr",
+            gridTemplateColumns: "minmax(0, 1fr) minmax(340px, 0.9fr)",
             gap: "34px",
             alignItems: "start",
           }}
@@ -243,17 +272,17 @@ export default function NewProductPage() {
           >
             <div style={twoColStyle}>
               <Input
-                label="Product Name"
+                label="Product Name *"
                 value={name}
                 onChange={setName}
-                placeholder="Oversized Tee"
+                placeholder="Neymar Oversized Tee"
               />
 
               <Input
-                label="Variant / Color"
+                label="Variant / Color *"
                 value={variant}
                 onChange={setVariant}
-                placeholder="Ivory"
+                placeholder="White"
               />
             </div>
 
@@ -275,26 +304,84 @@ export default function NewProductPage() {
               </div>
 
               <Input
-                label="Price"
-                value={price}
-                onChange={setPrice}
-                placeholder="1299"
+                label="Stock"
+                value={stock}
+                onChange={setStock}
+                placeholder="10"
                 type="number"
               />
             </div>
 
+            <div style={threeColStyle}>
+              <Input
+                label="Original Price *"
+                value={originalPrice}
+                onChange={setOriginalPrice}
+                placeholder="999"
+                type="number"
+              />
+
+              <Input
+                label="Selling Price *"
+                value={price}
+                onChange={setPrice}
+                placeholder="799"
+                type="number"
+              />
+
+              <Input
+                label="Prepaid Saving"
+                value={prepaidDiscount}
+                onChange={setPrepaidDiscount}
+                placeholder="50"
+                type="number"
+              />
+            </div>
+
+            <p
+              style={{
+                margin: "-7px 0 20px",
+                color: "#77736c",
+                fontSize: "12px",
+                lineHeight: 1.6,
+              }}
+            >
+              Original price appears with a cut line. Selling price is the
+              current product price.
+            </p>
+
             <div style={{ marginBottom: "18px" }}>
-              <label style={labelStyle}>Description</label>
+              <label style={labelStyle}>Short Description *</label>
 
               <textarea
                 value={description}
                 onChange={(event) => setDescription(event.target.value)}
-                placeholder="Product description..."
+                placeholder="A short product introduction..."
                 style={{
                   ...inputStyle,
-                  height: "140px",
+                  height: "110px",
                   paddingTop: "14px",
                   resize: "vertical",
+                }}
+              />
+            </div>
+
+            <div style={{ marginBottom: "18px" }}>
+              <label style={labelStyle}>Product Details *</label>
+
+              <textarea
+                value={productDetails}
+                onChange={(event) => setProductDetails(event.target.value)}
+                placeholder={`BOXY FIT | 100% COTTON | 280 GSM HEAVYWEIGHT
+PERFECT NECKLINE | SCREEN PRINTED ARTWORK
+
+MODEL IS WEARING SIZE MEDIUM`}
+                style={{
+                  ...inputStyle,
+                  height: "170px",
+                  paddingTop: "14px",
+                  resize: "vertical",
+                  lineHeight: 1.6,
                 }}
               />
             </div>
@@ -307,13 +394,7 @@ export default function NewProductPage() {
                 placeholder="S,M,L,XL"
               />
 
-              <Input
-                label="Stock"
-                value={stock}
-                onChange={setStock}
-                placeholder="10"
-                type="number"
-              />
+              <div />
             </div>
 
             <div
@@ -423,7 +504,7 @@ export default function NewProductPage() {
               </span>
 
               <span style={{ fontSize: "13px" }}>
-                First image will be used as main image.
+                First image will be used as the main image.
               </span>
 
               <input
@@ -523,6 +604,7 @@ function Input({
       <input
         type={type}
         value={value}
+        min={type === "number" ? "0" : undefined}
         onChange={(event) => onChange(event.target.value)}
         placeholder={placeholder}
         style={inputStyle}
@@ -535,6 +617,13 @@ const twoColStyle: React.CSSProperties = {
   display: "grid",
   gridTemplateColumns: "1fr 1fr",
   gap: "18px",
+  marginBottom: "18px",
+};
+
+const threeColStyle: React.CSSProperties = {
+  display: "grid",
+  gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
+  gap: "14px",
   marginBottom: "18px",
 };
 
@@ -554,6 +643,7 @@ const inputStyle: React.CSSProperties = {
   background: "#f6f2eb",
   outline: "none",
   padding: "0 15px",
+  boxSizing: "border-box",
   fontFamily: '"Outfit", sans-serif',
   fontSize: "14px",
   color: "#111",

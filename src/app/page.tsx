@@ -1,10 +1,12 @@
-import Navbar from "@/components/Navbar";
+﻿import Navbar from "@/components/Navbar";
 import HeroWall from "@/components/HeroWall";
 import IconicProductsCurve from "@/components/IconicProductsCurve";
 import NewArrivals from "@/components/NewArrivals";
+import { JittokLineup } from "@/components/JittokLineup";
 import Editorial from "@/components/Editorial";
 import ReelsSection from "@/components/ReelsSection";
 import InstagramSection from "@/components/InstagramSection";
+import CustomerLoveSection from "@/components/CustomerLoveSection";
 import BrandStatement from "@/components/BrandStatement";
 import Footer from "@/components/Footer";
 
@@ -15,9 +17,10 @@ export default function Home() {
       <HeroWall />
       <IconicProductsCurve />
       <NewArrivals />
+      <JittokLineup />
       <Editorial />
       <ReelsSection />
-      <InstagramSection />
+      <CustomerLoveSection />
       <BrandStatement />
       <Footer />
     </>

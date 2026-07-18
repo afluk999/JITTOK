@@ -12,6 +12,7 @@ import {
 } from "@/lib/contentService";
 import { ArrowLeft, Save, Upload, X, Plus } from "lucide-react";
 import { FaInstagram } from "react-icons/fa";
+import { signatureProducts } from "@/data/signatureProducts";
 
 export default function AdminContentPage() {
   const router = useRouter();
@@ -37,6 +38,17 @@ export default function AdminContentPage() {
 const [iconicFiles, setIconicFiles] = useState<File[]>([]);
 const [iconicPreviews, setIconicPreviews] = useState<string[]>([]);
 const [savingIconic, setSavingIconic] = useState(false);
+
+  const [signatureImages, setSignatureImages] = useState<
+    Record<string, string[]>
+  >({});
+  const [signatureFiles, setSignatureFiles] = useState<
+    Record<string, File[]>
+  >({});
+  const [signaturePreviews, setSignaturePreviews] = useState<
+    Record<string, string[]>
+  >({});
+  const [savingSignatureSlug, setSavingSignatureSlug] = useState("");
 
   const [reelsItems, setReelsItems] = useState<SocialItem[]>([]);
   const [reelFile, setReelFile] = useState<File | null>(null);
@@ -81,6 +93,7 @@ const [savingIconic, setSavingIconic] = useState(false);
       setHeroImages(content.heroImages || []);
       setEditorialImages(content.editorialImages || []);
       setIconicImages(content.iconicImages || []);
+      setSignatureImages(content.signatureProductImages || {});
       setReelsItems(content.reelsItems || []);
       setInstagramPosts(content.instagramPosts || []);
     } catch (error) {
@@ -242,6 +255,49 @@ const [savingIconic, setSavingIconic] = useState(false);
   }
 }
 
+
+  async function saveSignatureImages(slug: string) {
+    try {
+      setSavingSignatureSlug(slug);
+
+      const currentImages = signatureImages[slug] || [];
+      const selectedFiles = signatureFiles[slug] || [];
+      const uploaded = await uploadFiles(selectedFiles);
+      const finalImages = [...currentImages, ...uploaded].slice(0, 5);
+
+      if (finalImages.length < 1) {
+        alert("Please add at least 1 image for this signature product.");
+        return;
+      }
+
+      const updatedSignatureImages = {
+        ...signatureImages,
+        [slug]: finalImages,
+      };
+
+      await updateHomeContent({
+        signatureProductImages: updatedSignatureImages,
+      });
+
+      setSignatureImages(updatedSignatureImages);
+      setSignatureFiles((previous) => ({
+        ...previous,
+        [slug]: [],
+      }));
+      setSignaturePreviews((previous) => ({
+        ...previous,
+        [slug]: [],
+      }));
+
+      alert("Signature product gallery saved successfully!");
+    } catch (error: any) {
+      console.error("SAVE SIGNATURE PRODUCT IMAGES ERROR:", error);
+      alert(error?.message || "Failed to save signature product images.");
+    } finally {
+      setSavingSignatureSlug("");
+    }
+  }
+
   async function addReelItem() {
     try {
       if (!reelFile) {
@@ -375,6 +431,26 @@ const [savingIconic, setSavingIconic] = useState(false);
   setIconicPreviews(selectedFiles.map((file) => URL.createObjectURL(file)));
 }
 
+
+  function handleSignatureChange(
+    slug: string,
+    event: React.ChangeEvent<HTMLInputElement>
+  ) {
+    const files = Array.from(event.target.files || []);
+    const existingCount = signatureImages[slug]?.length || 0;
+    const selectedFiles = files.slice(0, Math.max(0, 5 - existingCount));
+
+    setSignatureFiles((previous) => ({
+      ...previous,
+      [slug]: selectedFiles,
+    }));
+
+    setSignaturePreviews((previous) => ({
+      ...previous,
+      [slug]: selectedFiles.map((file) => URL.createObjectURL(file)),
+    }));
+  }
+
   function handleReelChange(event: React.ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
     if (!file) return;
@@ -476,6 +552,97 @@ const [savingIconic, setSavingIconic] = useState(false);
   saving={savingIconic}
   saveText="Save Iconic Images"
 />
+
+        <Spacer />
+
+        <section
+          style={{
+            background: "#111",
+            color: "#f6f2eb",
+            padding: "30px",
+            marginBottom: "22px",
+          }}
+        >
+          <p
+            style={{
+              margin: "0 0 8px",
+              color: "rgba(246,242,235,0.58)",
+              fontSize: "11px",
+              fontWeight: 900,
+              letterSpacing: "1.4px",
+              textTransform: "uppercase",
+            }}
+          >
+            Separate from New Arrivals
+          </p>
+
+          <h2
+            style={{
+              margin: 0,
+              fontFamily: '"Bebas Neue", Impact, sans-serif',
+              fontSize: "54px",
+              lineHeight: 0.88,
+              fontWeight: 400,
+              textTransform: "uppercase",
+            }}
+          >
+            Signature Product Galleries
+          </h2>
+
+          <p
+            style={{
+              maxWidth: "720px",
+              margin: "16px 0 0",
+              color: "rgba(246,242,235,0.7)",
+              fontSize: "13px",
+              lineHeight: 1.7,
+            }}
+          >
+            Upload up to 5 separate images for Messi, Neymar, and Ronaldo.
+            These images are used only on their signature product pages. The
+            first image is also used on the homepage signature card.
+          </p>
+        </section>
+
+        {signatureProducts.map((product, index) => (
+          <div key={product.slug}>
+            <ImageContentBlock
+              title={`${product.name} Gallery`}
+              description="Upload 1 to 5 images. These images will not use or affect New Arrival product images."
+              existingImages={signatureImages[product.slug] || []}
+              previewImages={signaturePreviews[product.slug] || []}
+              maxCount={5}
+              uploadLabel={`Add ${product.name} Images`}
+              inputAccept="image/png,image/jpeg,image/jpg,image/webp"
+              onFileChange={(event) =>
+                handleSignatureChange(product.slug, event)
+              }
+              onRemoveExisting={(image) =>
+                setSignatureImages((previous) => ({
+                  ...previous,
+                  [product.slug]: (
+                    previous[product.slug] || []
+                  ).filter((item) => item !== image),
+                }))
+              }
+              onClearSelected={() => {
+                setSignatureFiles((previous) => ({
+                  ...previous,
+                  [product.slug]: [],
+                }));
+                setSignaturePreviews((previous) => ({
+                  ...previous,
+                  [product.slug]: [],
+                }));
+              }}
+              onSave={() => saveSignatureImages(product.slug)}
+              saving={savingSignatureSlug === product.slug}
+              saveText={`Save ${product.name} Gallery`}
+            />
+
+            {index < signatureProducts.length - 1 ? <Spacer /> : null}
+          </div>
+        ))}
 
         <Spacer />
 

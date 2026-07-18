@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
@@ -12,8 +12,8 @@ export default function Footer() {
     "Premium everyday essentials designed for comfort, movement, and timeless streetwear style."
   );
   const [instagramUsername, setInstagramUsername] = useState("@jittok");
-  const [instagramUrl, setInstagramUrl] = useState("https://www.instagram.com/");
-  const [whatsappNumber, setWhatsappNumber] = useState("910000000000");
+  const [instagramUrl, setInstagramUrl] = useState("https://www.instagram.com/jittok.in?utm_source=ig_web_button_share_sheet&igsh=ZDNlZDc0MzIxNw==");
+  const [whatsappNumber, setWhatsappNumber] = useState("919605300701");
 
   useEffect(() => {
     function checkPhone() {
@@ -43,8 +43,8 @@ export default function Footer() {
             "Premium everyday essentials designed for comfort, movement, and timeless streetwear style."
         );
         setInstagramUsername(content.instagramUsername || "@jittok");
-        setInstagramUrl(content.instagramUrl || "https://www.instagram.com/");
-        setWhatsappNumber(content.whatsappNumber || "910000000000");
+        setInstagramUrl(content.instagramUrl || "https://www.instagram.com/jittok.in?utm_source=ig_web_button_share_sheet&igsh=ZDNlZDc0MzIxNw==");
+        setWhatsappNumber(content.whatsappNumber || "919605300701");
       } catch (error) {
         console.error("LOAD FOOTER SETTINGS ERROR:", error);
       }
@@ -55,14 +55,14 @@ export default function Footer() {
 
   const displayPhone = whatsappNumber
     ? `+${whatsappNumber.replace(/^\+/, "")}`
-    : "+91 00000 00000";
+    : "+91 96053 00701";
 
   return (
     <footer
       style={{
         width: "100%",
-        background: "#111",
-        color: "#f6f2eb",
+        background: "#ffffff",
+        color: "#111111",
         fontFamily: '"Outfit", sans-serif',
         padding: isPhone ? "64px 18px 28px" : "80px 54px 34px",
       }}
@@ -81,46 +81,36 @@ export default function Footer() {
               : "1.4fr 1fr 1fr 1.2fr",
             gap: isPhone ? "38px" : "50px",
             paddingBottom: isPhone ? "44px" : "60px",
-            borderBottom: "1px solid rgba(246,242,235,0.14)",
+            borderBottom: "1px solid rgba(17,17,17,0.14)",
           }}
         >
           <div>
             <Link
               href="/"
               style={{
-                color: "#f6f2eb",
+                color: "#111111",
                 textDecoration: "none",
+                display: "inline-flex",
               }}
             >
-              <div
+              <img
+                src="/jittok-logo.png"
+                alt="JITTOK"
                 style={{
-                  fontFamily: '"Bebas Neue", Impact, sans-serif',
-                  fontSize: isPhone ? "52px" : "58px",
-                  letterSpacing: "6px",
-                  lineHeight: 0.85,
+                  width: isPhone ? "170px" : "235px",
+                  height: isPhone ? "58px" : "120px",
+                  objectFit: "contain",
+                  objectPosition: "left center",
+                  display: "block",
                 }}
-              >
-                JITTOK
-              </div>
-
-              <div
-                style={{
-                  marginTop: "8px",
-                  fontSize: "10px",
-                  fontWeight: 800,
-                  letterSpacing: "2px",
-                  textTransform: "uppercase",
-                }}
-              >
-                Essentials
-              </div>
+              />
             </Link>
 
             <p
               style={{
                 marginTop: "24px",
                 maxWidth: isPhone ? "100%" : "310px",
-                color: "rgba(246,242,235,0.65)",
+                color: "rgba(17,17,17,0.68)",
                 fontSize: "14px",
                 lineHeight: 1.75,
               }}
@@ -171,7 +161,7 @@ export default function Footer() {
             <p
               style={{
                 margin: "0 0 20px",
-                color: "rgba(246,242,235,0.62)",
+                color: "rgba(17,17,17,0.66)",
                 fontSize: "14px",
                 lineHeight: 1.7,
               }}
@@ -183,7 +173,7 @@ export default function Footer() {
               style={{
                 display: "flex",
                 alignItems: "center",
-                borderBottom: "1px solid rgba(246,242,235,0.38)",
+                borderBottom: "1px solid rgba(17,17,17,0.38)",
                 paddingBottom: "12px",
                 marginBottom: "24px",
               }}
@@ -196,7 +186,7 @@ export default function Footer() {
                   border: "none",
                   outline: "none",
                   background: "transparent",
-                  color: "#f6f2eb",
+                  color: "#111111",
                   fontSize: "14px",
                   fontFamily: '"Outfit", sans-serif',
                   minWidth: 0,
@@ -208,7 +198,7 @@ export default function Footer() {
                 style={{
                   border: "none",
                   background: "transparent",
-                  color: "#f6f2eb",
+                  color: "#111111",
                   cursor: "pointer",
                   display: "flex",
                 }}
@@ -221,8 +211,8 @@ export default function Footer() {
               <FaInstagram size={15} /> {instagramUsername || "Instagram"}
             </ContactLink>
 
-            <ContactLink href="mailto:hello@jittok.com">
-              <Mail size={15} /> hello@jittok.com
+            <ContactLink href="jittokoofficial@gmail.com">
+              <Mail size={15} /> jittokoofficial@gmail.com
             </ContactLink>
 
             <ContactLink href={`tel:+${whatsappNumber.replace(/^\+/, "")}`}>
@@ -233,24 +223,33 @@ export default function Footer() {
 
         <div
           style={{
-            padding: isPhone ? "36px 0 24px" : "44px 0 28px",
-            borderBottom: "1px solid rgba(246,242,235,0.14)",
+            padding: isPhone ? "24px 0 20px" : "30px 0 24px",
+            borderBottom: "1px solid rgba(17,17,17,0.14)",
           }}
         >
-          <h2
+          <Link
+            href="/"
+            aria-label="JITTOK Home"
             style={{
-              margin: 0,
-              fontFamily: '"Bebas Neue", Impact, sans-serif',
-              fontSize: isPhone ? "clamp(72px, 28vw, 118px)" : "clamp(90px, 18vw, 250px)",
-              lineHeight: 0.75,
-              letterSpacing: isPhone ? "-1px" : "-3px",
-              textTransform: "uppercase",
-              textAlign: "center",
-              color: "rgba(246,242,235,0.94)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              textDecoration: "none",
             }}
           >
-            JITTOK
-          </h2>
+            <img
+              src="/jittok-logo.png"
+              alt="JITTOK"
+              style={{
+                width: isPhone ? "290px" : "400px",
+                height: isPhone ? "200px" : "400px",
+                maxWidth: "94vw",
+                objectFit: "contain",
+                objectPosition: "center",
+                display: "block",
+              }}
+            />
+          </Link>
         </div>
 
         <div
@@ -260,12 +259,12 @@ export default function Footer() {
             flexDirection: isPhone ? "column" : "row",
             gap: isPhone ? "16px" : "0",
             justifyContent: "space-between",
-            color: "rgba(246,242,235,0.48)",
+            color: "rgba(17,17,17,0.52)",
             fontSize: "12px",
           }}
         >
           <p style={{ margin: 0 }}>
-            © {new Date().getFullYear()} JITTOK. All rights reserved.
+            Â© {new Date().getFullYear()} JITTOK. All rights reserved.
           </p>
 
           <div
@@ -301,7 +300,7 @@ function FooterLink({
       href={href}
       style={{
         display: "block",
-        color: "rgba(246,242,235,0.62)",
+        color: "rgba(17,17,17,0.66)",
         textDecoration: "none",
         fontSize: "14px",
         marginBottom: "13px",
@@ -325,7 +324,7 @@ function ContactLink({
       target={href.startsWith("http") ? "_blank" : undefined}
       rel={href.startsWith("http") ? "noopener noreferrer" : undefined}
       style={{
-        color: "rgba(246,242,235,0.72)",
+        color: "rgba(17,17,17,0.74)",
         textDecoration: "none",
         display: "flex",
         alignItems: "center",
@@ -341,7 +340,7 @@ function ContactLink({
 
 const headingStyle: React.CSSProperties = {
   margin: "0 0 22px",
-  color: "#f6f2eb",
+  color: "#111111",
   fontSize: "12px",
   fontWeight: 800,
   letterSpacing: "1.4px",
@@ -349,6 +348,6 @@ const headingStyle: React.CSSProperties = {
 };
 
 const bottomLinkStyle: React.CSSProperties = {
-  color: "rgba(246,242,235,0.48)",
+  color: "rgba(17,17,17,0.52)",
   textDecoration: "none",
 };

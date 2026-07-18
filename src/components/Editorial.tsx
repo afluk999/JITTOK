@@ -134,7 +134,7 @@ export default function Editorial() {
       style={{
         width: "100%",
         minHeight: isPhone ? "auto" : "100vh",
-        background: "#f6f2eb",
+        background: "#ffffff",
         padding: isPhone ? "72px 18px" : "96px 54px",
         fontFamily: '"Outfit", sans-serif',
         overflow: "hidden",

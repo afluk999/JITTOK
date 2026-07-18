@@ -1,163 +1,395 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 export default function SiteLoader() {
-  const [showLoader, setShowLoader] = useState(true);
-  const [hide, setHide] = useState(false);
+  const [visible, setVisible] = useState(true);
+  const [leaving, setLeaving] = useState(false);
+  const [progress, setProgress] = useState(0);
+
+  const progressTimer = useRef<number | null>(null);
+  const finished = useRef(false);
 
   useEffect(() => {
-    const minimumLoadingTime = 900;
+    const startedAt = Date.now();
+    const minimumVisibleTime = 1250;
 
-    const startTime = Date.now();
+    progressTimer.current = window.setInterval(() => {
+      setProgress((current) => {
+        if (current >= 92) return current;
 
-    function finishLoading() {
-      const passedTime = Date.now() - startTime;
-      const remainingTime = Math.max(0, minimumLoadingTime - passedTime);
+        const increase =
+          current < 35 ? 7 : current < 70 ? 4 : current < 86 ? 2 : 1;
 
-      setTimeout(() => {
-        setHide(true);
+        return Math.min(92, current + increase);
+      });
+    }, 85);
 
-        setTimeout(() => {
-          setShowLoader(false);
-        }, 650);
-      }, remainingTime);
+    function finishLoader() {
+      if (finished.current) return;
+      finished.current = true;
+
+      const elapsed = Date.now() - startedAt;
+      const remaining = Math.max(0, minimumVisibleTime - elapsed);
+
+      window.setTimeout(() => {
+        if (progressTimer.current) {
+          window.clearInterval(progressTimer.current);
+        }
+
+        setProgress(100);
+
+        window.setTimeout(() => {
+          setLeaving(true);
+
+          window.setTimeout(() => {
+            setVisible(false);
+          }, 850);
+        }, 280);
+      }, remaining);
     }
 
     if (document.readyState === "complete") {
-      finishLoading();
+      finishLoader();
     } else {
-      window.addEventListener("load", finishLoading);
+      window.addEventListener("load", finishLoader, { once: true });
     }
 
+    const safetyTimer = window.setTimeout(finishLoader, 5000);
+
     return () => {
-      window.removeEventListener("load", finishLoading);
+      window.removeEventListener("load", finishLoader);
+
+      if (progressTimer.current) {
+        window.clearInterval(progressTimer.current);
+      }
+
+      window.clearTimeout(safetyTimer);
     };
   }, []);
 
-  if (!showLoader) return null;
+  if (!visible) return null;
+
+  const panelBase: React.CSSProperties = {
+    position: "absolute",
+    left: 0,
+    width: "100%",
+    height: "50.5%",
+    background: "#ffffff",
+    zIndex: 1,
+    transition: "transform 0.85s cubic-bezier(0.76, 0, 0.24, 1)",
+    willChange: "transform",
+  };
 
   return (
     <div
+      className={leaving ? "jittok-loader is-leaving" : "jittok-loader"}
+      role="status"
+      aria-label="Loading JITTOK"
       style={{
         position: "fixed",
         inset: 0,
         zIndex: 99999,
-        background:
-          "radial-gradient(circle at 50% 35%, rgba(255,255,255,0.08), transparent 30%), #111",
-        color: "#f6f2eb",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
+        overflow: "hidden",
+        background: "#ffffff",
+        color: "#111111",
         fontFamily: '"Outfit", sans-serif',
-        opacity: hide ? 0 : 1,
-        transform: hide ? "scale(1.015)" : "scale(1)",
-        transition: "opacity 0.65s ease, transform 0.65s ease",
         pointerEvents: "all",
       }}
     >
-      <style jsx>{`
-        @keyframes jittokLoaderSpin {
-          from {
-            transform: rotate(0deg);
-          }
-          to {
-            transform: rotate(360deg);
-          }
-        }
-
-        @keyframes jittokLoaderPulse {
-          0%,
-          100% {
-            opacity: 0.45;
-            transform: scaleX(0.7);
-          }
-          50% {
-            opacity: 1;
-            transform: scaleX(1);
-          }
-        }
-
-        @keyframes jittokTextReveal {
-          from {
-            opacity: 0;
-            transform: translateY(14px);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0);
-          }
-        }
-      `}</style>
+      <div
+        className="panel panelTop"
+        style={{
+          ...panelBase,
+          top: 0,
+          borderBottom: "1px solid rgba(17,17,17,0.07)",
+        }}
+      />
 
       <div
+        className="panel panelBottom"
         style={{
-          textAlign: "center",
+          ...panelBase,
+          bottom: 0,
+          borderTop: "1px solid rgba(17,17,17,0.07)",
+        }}
+      />
+
+      <div
+        className="backgroundWord"
+        aria-hidden="true"
+        style={{
+          position: "absolute",
+          left: "50%",
+          top: "50%",
+          zIndex: 2,
+          transform: "translate(-50%, -50%)",
+          color: "rgba(17,17,17,0.035)",
+          fontFamily: '"Bebas Neue", Impact, sans-serif',
+          fontSize: "clamp(180px, 34vw, 620px)",
+          lineHeight: 0.72,
+          letterSpacing: "-0.045em",
+          whiteSpace: "nowrap",
+          userSelect: "none",
+          WebkitUserSelect: "none",
+          animation: "backgroundDrift 7s ease-in-out infinite alternate",
+          transition: "opacity 0.34s ease",
+        }}
+      >
+        JITTOK
+      </div>
+
+      <span
+        className="corner cornerTop"
+        style={{
+          position: "absolute",
+          top: "22px",
+          left: "24px",
+          zIndex: 4,
+          color: "rgba(17,17,17,0.5)",
+          fontSize: "8px",
+          fontWeight: 900,
+          letterSpacing: "1.5px",
+          textTransform: "uppercase",
+          transition: "opacity 0.25s ease",
+        }}
+      >
+        JITTOK / Loading
+      </span>
+
+      <span
+        className="corner cornerBottom"
+        style={{
+          position: "absolute",
+          right: "24px",
+          bottom: "22px",
+          zIndex: 4,
+          color: "rgba(17,17,17,0.5)",
+          fontSize: "8px",
+          fontWeight: 900,
+          letterSpacing: "1.5px",
+          textTransform: "uppercase",
+          transition: "opacity 0.25s ease",
+        }}
+      >
+        Too loud to blend in
+      </span>
+
+      <div
+        className="content"
+        style={{
+          position: "absolute",
+          inset: 0,
+          zIndex: 3,
           display: "grid",
-          justifyItems: "center",
+          placeItems: "center",
+          padding: "28px",
+          boxSizing: "border-box",
+          transition:
+            "opacity 0.35s ease, transform 0.65s cubic-bezier(0.22, 1, 0.36, 1)",
         }}
       >
         <div
+          className="center"
           style={{
-            width: "72px",
-            height: "72px",
-            borderRadius: "50%",
-            border: "1px solid rgba(246,242,235,0.18)",
-            borderTopColor: "#f6f2eb",
-            animation: "jittokLoaderSpin 1s linear infinite",
-            marginBottom: "28px",
-          }}
-        />
-
-        <h1
-          style={{
-            margin: 0,
-            fontFamily: '"Bebas Neue", Impact, "Arial Narrow", sans-serif',
-            fontSize: "clamp(64px, 10vw, 122px)",
-            lineHeight: 0.82,
-            fontWeight: 400,
-            letterSpacing: "7px",
-            textTransform: "uppercase",
-            animation: "jittokTextReveal 0.75s ease both",
-          }}
-        >
-          JITTOK
-        </h1>
-
-        <p
-          style={{
-            margin: "16px 0 0",
-            color: "rgba(246,242,235,0.62)",
-            fontSize: "11px",
-            fontWeight: 900,
-            letterSpacing: "2.2px",
-            textTransform: "uppercase",
-            animation: "jittokTextReveal 0.75s ease 0.12s both",
-          }}
-        >
-          Loading essentials
-        </p>
-
-        <div
-          style={{
-            width: "120px",
-            height: "1px",
-            background: "rgba(246,242,235,0.18)",
-            marginTop: "28px",
-            overflow: "hidden",
+            width: "min(88vw, 560px)",
+            display: "grid",
+            justifyItems: "center",
+            textAlign: "center",
           }}
         >
           <div
+            className="logoStage"
             style={{
-              width: "100%",
-              height: "100%",
-              background: "#f6f2eb",
-              transformOrigin: "center",
-              animation: "jittokLoaderPulse 1.1s ease-in-out infinite",
+              position: "relative",
+              width: "min(72vw, 360px)",
+              height: "clamp(92px, 15vw, 138px)",
+              overflow: "hidden",
+              animation:
+                "logoEnter 0.9s cubic-bezier(0.22, 1, 0.36, 1) both",
             }}
-          />
+          >
+            <img
+              src="/jittok-logo.png"
+              alt=""
+              aria-hidden="true"
+              className="logoBase"
+              style={{
+                position: "absolute",
+                inset: 0,
+                width: "100%",
+                height: "100%",
+                objectFit: "contain",
+                display: "block",
+                opacity: 0.18,
+                filter: "blur(8px)",
+                transform: "scale(1.08)",
+              }}
+            />
+
+            <img
+              src="/jittok-logo.png"
+              alt="JITTOK"
+              className="logoSharp"
+              style={{
+                position: "absolute",
+                inset: 0,
+                width: "100%",
+                height: "100%",
+                objectFit: "contain",
+                display: "block",
+                clipPath: `inset(0 ${100 - progress}% 0 0)`,
+                transition: "clip-path 0.16s linear",
+                filter: "contrast(1.04)",
+              }}
+            />
+
+            <span
+              className="scanLine"
+              aria-hidden="true"
+              style={{
+                position: "absolute",
+                top: "11%",
+                bottom: "11%",
+                left: `${progress}%`,
+                width: "1px",
+                background: "rgba(17,17,17,0.55)",
+                boxShadow:
+                  "0 0 0 5px rgba(255,255,255,0.54), 0 0 28px rgba(17,17,17,0.12)",
+                transform: "translateX(-1px)",
+                transition: "left 0.16s linear",
+              }}
+            />
+          </div>
+
+          <div
+            className="meta"
+            style={{
+              width: "min(78vw, 360px)",
+              marginTop: "26px",
+            }}
+          >
+            <div
+              className="metaRow"
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                gap: "18px",
+                marginBottom: "10px",
+                fontSize: "9px",
+                fontWeight: 900,
+                letterSpacing: "1.7px",
+                textTransform: "uppercase",
+              }}
+            >
+              <span>Preparing the drop</span>
+              <span>{String(progress).padStart(2, "0")}%</span>
+            </div>
+
+            <div
+              className="progressTrack"
+              style={{
+                position: "relative",
+                width: "100%",
+                height: "2px",
+                overflow: "hidden",
+                background: "rgba(17,17,17,0.11)",
+              }}
+            >
+              <div
+                className="progressFill"
+                style={{
+                  width: `${progress}%`,
+                  height: "100%",
+                  background: "#111111",
+                  transition: "width 0.16s linear",
+                }}
+              />
+            </div>
+          </div>
         </div>
       </div>
+
+      <style jsx>{`
+        .is-leaving .panelTop {
+          transform: translateY(-102%);
+        }
+
+        .is-leaving .panelBottom {
+          transform: translateY(102%);
+        }
+
+        .is-leaving .content,
+        .is-leaving .backgroundWord,
+        .is-leaving .corner {
+          opacity: 0;
+        }
+
+        .is-leaving .content {
+          transform: scale(0.96);
+        }
+
+        @keyframes logoEnter {
+          from {
+            opacity: 0;
+            transform: translateY(16px) scale(0.94);
+          }
+
+          to {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+          }
+        }
+
+        @keyframes backgroundDrift {
+          from {
+            transform: translate(-51.5%, -50%);
+          }
+
+          to {
+            transform: translate(-48.5%, -50%);
+          }
+        }
+
+        @media (max-width: 600px) {
+          .backgroundWord {
+            font-size: 58vw !important;
+          }
+
+          .logoStage {
+            width: min(76vw, 300px) !important;
+            height: 104px !important;
+          }
+
+          .meta {
+            width: min(78vw, 300px) !important;
+            margin-top: 20px !important;
+          }
+
+          .cornerTop {
+            top: 16px !important;
+            left: 16px !important;
+          }
+
+          .cornerBottom {
+            right: 16px !important;
+            bottom: 16px !important;
+          }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+          .backgroundWord,
+          .logoStage {
+            animation: none !important;
+          }
+
+          .panel,
+          .content {
+            transition-duration: 0.25s !important;
+          }
+        }
+      `}</style>
     </div>
   );
 }

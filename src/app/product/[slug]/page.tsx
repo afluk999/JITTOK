@@ -2,46 +2,62 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import {
-  FirebaseProduct,
+  type FirebaseProduct,
   getProductBySlugFromFirebase,
 } from "@/lib/productService";
-import { getHomeContent } from "@/lib/contentService";
 import { useCart } from "@/context/CartContext";
-import { ArrowLeft, ArrowRight, Heart, Plus, Minus } from "lucide-react";
+import {
+  ArrowLeft,
+  ArrowRight,
+  Heart,
+  Minus,
+  PackageCheck,
+  Plus,
+  RefreshCw,
+  Truck,
+  WalletCards,
+  Zap,
+} from "lucide-react";
 import { FaWhatsapp } from "react-icons/fa";
+
+const WHATSAPP_NUMBER = "910000000000";
+
+type ProductWithOffers = FirebaseProduct & {
+  originalPrice?: number;
+  originalDisplayPrice?: string;
+  prepaidDiscount?: number;
+  productDetails?: string;
+};
+
+function formatPrice(value: number) {
+  return `₹${Number(value || 0).toLocaleString("en-IN")}.00`;
+}
 
 export default function ProductPage() {
   const params = useParams();
+  const router = useRouter();
   const slug = params.slug as string;
 
   const { addToCart } = useCart();
 
-  const [product, setProduct] = useState<FirebaseProduct | null>(null);
+  const [product, setProduct] = useState<ProductWithOffers | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isPhone, setIsPhone] = useState(false);
 
   const [activeImage, setActiveImage] = useState(0);
   const [selectedSize, setSelectedSize] = useState("");
+  const [quantity, setQuantity] = useState(1);
   const [liked, setLiked] = useState(false);
   const [added, setAdded] = useState(false);
-  const [openInfo, setOpenInfo] = useState<string | null>(null);
-
-  const [isPhone, setIsPhone] = useState(false);
-  const [whatsappNumber, setWhatsappNumber] = useState("910000000000");
+  const [openInfo, setOpenInfo] = useState<string | null>("details");
 
   useEffect(() => {
     function checkPhone() {
-      const phoneUserAgent =
-        /Android|iPhone|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
-          navigator.userAgent
-        );
-
-      const smallScreen = window.innerWidth <= 768;
-
-      setIsPhone(phoneUserAgent && smallScreen);
+      setIsPhone(window.innerWidth <= 900);
     }
 
     checkPhone();
@@ -53,7 +69,10 @@ export default function ProductPage() {
   useEffect(() => {
     async function loadProduct() {
       try {
-        const data = await getProductBySlugFromFirebase(slug);
+        const data = (await getProductBySlugFromFirebase(
+          slug
+        )) as ProductWithOffers | null;
+
         setProduct(data);
 
         if (data?.sizes?.[0]) {
@@ -69,19 +88,6 @@ export default function ProductPage() {
     loadProduct();
   }, [slug]);
 
-  useEffect(() => {
-    async function loadSiteSettings() {
-      try {
-        const content = await getHomeContent();
-        setWhatsappNumber(content.whatsappNumber || "910000000000");
-      } catch (error) {
-        console.error("LOAD WHATSAPP NUMBER ERROR:", error);
-      }
-    }
-
-    loadSiteSettings();
-  }, []);
-
   if (loading) {
     return (
       <>
@@ -90,7 +96,7 @@ export default function ProductPage() {
           style={{
             minHeight: "100vh",
             background: "#f8f4ec",
-            padding: isPhone ? "110px 18px" : "160px 42px",
+            padding: isPhone ? "120px 18px" : "160px 42px",
             fontFamily: '"Outfit", sans-serif',
           }}
         >
@@ -104,49 +110,65 @@ export default function ProductPage() {
     return (
       <>
         <Navbar />
-
         <main
           style={{
             minHeight: "100vh",
             background: "#f8f4ec",
-            padding: isPhone ? "110px 18px" : "160px 42px",
+            padding: isPhone ? "120px 18px" : "160px 42px",
             fontFamily: '"Outfit", sans-serif',
           }}
         >
           <h1>Product not found</h1>
           <Link href="/collections">Back to collections</Link>
         </main>
-
         <Footer />
       </>
     );
   }
 
   const size = selectedSize || product.sizes?.[0] || "Free Size";
-
   const images =
     product.images && product.images.length > 0
       ? product.images.slice(0, 5)
       : [];
 
+  const sellingPrice = Number(product.price || 0);
+  const originalPrice = Number(product.originalPrice || 0);
+  const prepaidDiscount = Number(product.prepaidDiscount || 50);
+  const hasOriginalPrice = originalPrice > sellingPrice;
+
+  const originalDisplayPrice =
+    product.originalDisplayPrice ||
+    (hasOriginalPrice ? formatPrice(originalPrice) : "");
+
+  const savingAmount = hasOriginalPrice
+    ? Math.max(originalPrice - sellingPrice, 0)
+    : 0;
+
   function handleAddToCart() {
-    addToCart(product as any, size, 1);
+    addToCart(product as any, size, quantity);
     setAdded(true);
+    window.dispatchEvent(new Event("cart-updated"));
     setTimeout(() => setAdded(false), 1400);
   }
 
-  const cleanWhatsappNumber = whatsappNumber.replace(/^\+/, "");
+  function handleBuyNow() {
+    addToCart(product as any, size, quantity);
+    window.dispatchEvent(new Event("cart-updated"));
+    router.push("/cart");
+  }
 
   const directWhatsAppMessage = `Hi JITTOK, I want to order this product.
 
 Product: ${product.name}
 Variant: ${product.variant}
 Size: ${size}
+Quantity: ${quantity}
 Price: ${product.displayPrice}
 
 Please confirm availability and delivery details.`;
 
-  const whatsappUrl = `https://wa.me/${cleanWhatsappNumber}?text=${encodeURIComponent(
+  const whatsappUrl = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(
     directWhatsAppMessage
   )}`;
 
@@ -158,46 +180,45 @@ Please confirm availability and delivery details.`;
         style={{
           minHeight: "100vh",
           background: "#f8f4ec",
-          padding: isPhone ? "92px 16px 44px" : "118px 42px 52px",
+          padding: isPhone ? "88px 12px 36px" : "118px 42px 52px",
           fontFamily: '"Outfit", sans-serif',
           color: "#111",
-          overflow: "hidden",
         }}
       >
         <div style={{ maxWidth: "1360px", margin: "0 auto" }}>
-          <div
-            style={{
-              height: isPhone ? "48px" : "54px",
-              display: "grid",
-              gridTemplateColumns: isPhone ? "1fr auto" : "1fr auto 1fr",
-              alignItems: "center",
-              borderBottom: "1px solid rgba(17,17,17,0.08)",
-              marginBottom: isPhone ? "18px" : "22px",
-              color: "#8a857d",
-              fontSize: "11px",
-              fontWeight: 800,
-              letterSpacing: "1px",
-              textTransform: "uppercase",
-            }}
-          >
-            <span>{isPhone ? "Product" : "01 / Interactive Showcase"}</span>
-
-            {!isPhone ? <span /> : null}
-
-            <Link
-              href="/collections"
+          {!isPhone ? (
+            <div
               style={{
-                justifySelf: "end",
-                color: "#111",
-                textDecoration: "none",
-                display: "inline-flex",
+                height: "54px",
+                display: "grid",
+                gridTemplateColumns: "1fr auto 1fr",
                 alignItems: "center",
-                gap: "10px",
+                borderBottom: "1px solid rgba(17,17,17,0.08)",
+                marginBottom: "22px",
+                color: "#8a857d",
+                fontSize: "11px",
+                fontWeight: 800,
+                letterSpacing: "1px",
+                textTransform: "uppercase",
               }}
             >
-              View All <ArrowRight size={14} />
-            </Link>
-          </div>
+              <span>01 / Interactive Showcase</span>
+              <span />
+              <Link
+                href="/collections"
+                style={{
+                  justifySelf: "end",
+                  color: "#111",
+                  textDecoration: "none",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "10px",
+                }}
+              >
+                View All <ArrowRight size={14} />
+              </Link>
+            </div>
+          ) : null}
 
           <section
             style={{
@@ -208,93 +229,24 @@ Please confirm availability and delivery details.`;
                 : "200px minmax(0, 1fr) 420px",
               background: "#f1ede6",
               border: "1px solid rgba(17,17,17,0.06)",
-              borderRadius: isPhone ? "16px" : "18px",
+              borderRadius: isPhone ? "10px" : "18px",
               overflow: "hidden",
             }}
           >
-            {/* PHONE MAIN IMAGE */}
-            {isPhone ? (
-              <div
-                style={{
-                  position: "relative",
-                  background: "#ebe7df",
-                  height: "480px",
-                  overflow: "hidden",
-                }}
-              >
-                {images.length > 0 ? (
-                  <img
-                    src={images[activeImage] || images[0]}
-                    alt={product.name}
-                    style={{
-                      width: "100%",
-                      height: "100%",
-                      objectFit: "cover",
-                      objectPosition: "center",
-                      display: "block",
-                    }}
-                  />
-                ) : (
-                  <ImagePlaceholder text="Main Product Image" />
-                )}
-
-                <button
-                  onClick={() => setLiked(!liked)}
-                  style={{
-                    position: "absolute",
-                    right: "16px",
-                    top: "16px",
-                    width: "42px",
-                    height: "42px",
-                    borderRadius: "50%",
-                    border: "none",
-                    background: "rgba(255,255,255,0.72)",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    cursor: "pointer",
-                  }}
-                >
-                  <Heart
-                    size={19}
-                    fill={liked ? "#111" : "none"}
-                    strokeWidth={1.6}
-                  />
-                </button>
-
-                <div
-                  style={{
-                    position: "absolute",
-                    left: "18px",
-                    bottom: "18px",
-                    color: "rgba(255,255,255,0.94)",
-                    fontSize: "11px",
-                    fontWeight: 800,
-                    letterSpacing: "1px",
-                    textTransform: "uppercase",
-                    textShadow: "0 4px 18px rgba(0,0,0,0.28)",
-                  }}
-                >
-                  {String(activeImage + 1).padStart(2, "0")}
-                  <br />
-                  {product.name}
-                  <br />
-                  <span style={{ opacity: 0.7 }}>{product.variant}</span>
-                </div>
-              </div>
-            ) : null}
-
-            {/* LEFT THUMBNAILS */}
             <aside
               style={{
-                padding: isPhone ? "14px 14px 0" : "32px 22px",
-                borderRight: isPhone ? "none" : "1px solid rgba(17,17,17,0.06)",
-                borderBottom: isPhone ? "1px solid rgba(17,17,17,0.06)" : "none",
+                padding: isPhone ? "12px" : "32px 22px",
+                borderRight: isPhone
+                  ? "none"
+                  : "1px solid rgba(17,17,17,0.06)",
+                borderBottom: isPhone
+                  ? "1px solid rgba(17,17,17,0.06)"
+                  : "none",
                 display: isPhone ? "flex" : "grid",
-                gap: isPhone ? "10px" : "13px",
+                gap: isPhone ? "9px" : "13px",
                 alignContent: "start",
                 overflowX: isPhone ? "auto" : "visible",
-                order: isPhone ? 2 : undefined,
+                order: isPhone ? 2 : 1,
               }}
             >
               {images.length === 0 ? (
@@ -303,23 +255,25 @@ Please confirm availability and delivery details.`;
                 images.map((image, index) => (
                   <button
                     key={`${image}-${index}`}
+                    type="button"
                     onClick={() => setActiveImage(index)}
                     style={{
-                      display: isPhone ? "block" : "grid",
-                      gridTemplateColumns: isPhone ? undefined : "28px 1fr",
+                      display: "grid",
+                      gridTemplateColumns: isPhone ? "1fr" : "28px 1fr",
                       alignItems: "center",
                       gap: "12px",
                       border: "none",
                       background: "transparent",
                       padding: 0,
                       cursor: "pointer",
-                      flex: isPhone ? "0 0 74px" : undefined,
+                      flex: isPhone ? "0 0 72px" : undefined,
                     }}
                   >
                     {!isPhone ? (
                       <span
                         style={{
-                          color: activeImage === index ? "#111" : "#9d978f",
+                          color:
+                            activeImage === index ? "#111" : "#9d978f",
                           fontSize: "12px",
                           fontWeight: 800,
                         }}
@@ -330,6 +284,7 @@ Please confirm availability and delivery details.`;
 
                     <div
                       style={{
+                        width: isPhone ? "72px" : "auto",
                         height: isPhone ? "88px" : "94px",
                         background: "#e8e1d7",
                         overflow: "hidden",
@@ -356,69 +311,68 @@ Please confirm availability and delivery details.`;
               )}
             </aside>
 
-            {/* CENTER IMAGE DESKTOP ONLY */}
-            {!isPhone ? (
+            <div
+              style={{
+                position: "relative",
+                minHeight: isPhone ? "460px" : undefined,
+                background: "#ebe7df",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                overflow: "hidden",
+                order: isPhone ? 1 : 2,
+              }}
+            >
+              {images.length > 0 ? (
+                <img
+                  src={images[activeImage] || images[0]}
+                  alt={product.name}
+                  style={{
+                    width: "100%",
+                    height: "100%",
+                    minHeight: isPhone ? "460px" : "650px",
+                    objectFit: "cover",
+                    objectPosition: "center",
+                    display: "block",
+                  }}
+                />
+              ) : (
+                <ImagePlaceholder text="Main Product Image" />
+              )}
+
               <div
                 style={{
-                  position: "relative",
-                  background: "#ebe7df",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  overflow: "hidden",
+                  position: "absolute",
+                  left: isPhone ? "16px" : "24px",
+                  bottom: isPhone ? "16px" : "24px",
+                  color: "rgba(255,255,255,0.94)",
+                  fontSize: "11px",
+                  fontWeight: 800,
+                  letterSpacing: "1px",
+                  textTransform: "uppercase",
+                  textShadow: "0 4px 18px rgba(0,0,0,0.35)",
                 }}
               >
-                {images.length > 0 ? (
-                  <img
-                    src={images[activeImage] || images[0]}
-                    alt={product.name}
-                    style={{
-                      width: "100%",
-                      height: "100%",
-                      objectFit: "cover",
-                      objectPosition: "center",
-                      display: "block",
-                    }}
-                  />
-                ) : (
-                  <ImagePlaceholder text="Main Product Image" />
-                )}
-
-                <div
-                  style={{
-                    position: "absolute",
-                    left: "24px",
-                    bottom: "24px",
-                    color: "rgba(255,255,255,0.94)",
-                    fontSize: "11px",
-                    fontWeight: 800,
-                    letterSpacing: "1px",
-                    textTransform: "uppercase",
-                    textShadow: "0 4px 18px rgba(0,0,0,0.28)",
-                  }}
-                >
-                  {String(activeImage + 1).padStart(2, "0")}
-                  <br />
-                  {product.name}
-                  <br />
-                  <span style={{ opacity: 0.7 }}>{product.variant}</span>
-                </div>
+                {String(activeImage + 1).padStart(2, "0")}
+                <br />
+                {product.name}
+                <br />
+                <span style={{ opacity: 0.7 }}>{product.variant}</span>
               </div>
-            ) : null}
+            </div>
 
-            {/* RIGHT INFO */}
             <aside
               style={{
-                background: "#f4f0e9",
-                padding: isPhone ? "28px 20px 24px" : "92px 62px 54px",
+                background: "#ffffff",
+                padding: isPhone ? "30px 20px 24px" : "58px 44px 42px",
                 display: "flex",
                 flexDirection: "column",
-                order: isPhone ? 3 : undefined,
+                order: 3,
               }}
             >
               <p
                 style={{
-                  margin: "0 0 18px",
+                  margin: "0 0 15px",
                   fontSize: "11px",
                   fontWeight: 900,
                   letterSpacing: "1.2px",
@@ -431,8 +385,11 @@ Please confirm availability and delivery details.`;
               <h1
                 style={{
                   margin: 0,
-                  fontFamily: '"Bebas Neue", Impact, "Arial Narrow", sans-serif',
-                  fontSize: isPhone ? "54px" : "clamp(56px, 5vw, 78px)",
+                  fontFamily:
+                    '"Bebas Neue", Impact, "Arial Narrow", sans-serif',
+                  fontSize: isPhone
+                    ? "clamp(54px, 16vw, 74px)"
+                    : "clamp(56px, 5vw, 78px)",
                   lineHeight: 0.86,
                   fontWeight: 400,
                   letterSpacing: "-0.5px",
@@ -444,7 +401,7 @@ Please confirm availability and delivery details.`;
 
               <p
                 style={{
-                  margin: "20px 0 24px",
+                  margin: "20px 0 21px",
                   fontSize: "13px",
                   fontWeight: 800,
                   letterSpacing: "1px",
@@ -455,20 +412,59 @@ Please confirm availability and delivery details.`;
                 {product.variant}
               </p>
 
-              <p
+              <div
                 style={{
-                  margin: "0 0 28px",
-                  fontSize: isPhone ? "22px" : "24px",
-                  fontWeight: 800,
+                  marginBottom: "20px",
+                  display: "flex",
+                  alignItems: "baseline",
+                  gap: "11px",
+                  flexWrap: "wrap",
                 }}
               >
-                {product.displayPrice}
-              </p>
+                {hasOriginalPrice ? (
+                  <span
+                    style={{
+                      color: "#8a857d",
+                      fontSize: "17px",
+                      fontWeight: 700,
+                      textDecoration: "line-through",
+                      textDecorationThickness: "1.5px",
+                    }}
+                  >
+                    {originalDisplayPrice}
+                  </span>
+                ) : null}
+
+                <span
+                  style={{
+                    fontSize: "27px",
+                    fontWeight: 900,
+                  }}
+                >
+                  {product.displayPrice}
+                </span>
+
+                {savingAmount > 0 ? (
+                  <span
+                    style={{
+                      padding: "5px 8px",
+                      background: "#e8f5e9",
+                      color: "#237a35",
+                      fontSize: "10px",
+                      fontWeight: 900,
+                      letterSpacing: "0.7px",
+                      textTransform: "uppercase",
+                    }}
+                  >
+                    Save {formatPrice(savingAmount)}
+                  </span>
+                ) : null}
+              </div>
 
               <p
                 style={{
-                  margin: "0 0 30px",
-                  maxWidth: isPhone ? "100%" : "310px",
+                  margin: "0 0 25px",
+                  maxWidth: "330px",
                   color: "#4d4943",
                   fontSize: "14px",
                   lineHeight: 1.75,
@@ -477,86 +473,126 @@ Please confirm availability and delivery details.`;
                 {product.description}
               </p>
 
-              <div style={{ marginBottom: "30px" }}>
-                <InfoRow
-                  title="Details"
-                  open={openInfo === "details"}
-                  onClick={() =>
-                    setOpenInfo(openInfo === "details" ? null : "details")
-                  }
-                >
-                  Premium everyday fit with clean finish and soft feel.
-                </InfoRow>
+              <InfoRow
+                title="Details"
+                open={openInfo === "details"}
+                onClick={() =>
+                  setOpenInfo(openInfo === "details" ? null : "details")
+                }
+              >
+                {product.productDetails || product.description}
+              </InfoRow>
 
-                <InfoRow
-                  title="Size"
-                  open={openInfo === "size"}
-                  onClick={() =>
-                    setOpenInfo(openInfo === "size" ? null : "size")
-                  }
+              <InfoRow
+                title="Size"
+                open={openInfo === "size"}
+                onClick={() =>
+                  setOpenInfo(openInfo === "size" ? null : "size")
+                }
+              >
+                <div
+                  style={{
+                    display: "flex",
+                    gap: "9px",
+                    flexWrap: "wrap",
+                    paddingTop: "8px",
+                  }}
                 >
-                  <div
-                    style={{
-                      display: "flex",
-                      gap: "9px",
-                      flexWrap: "wrap",
-                      paddingTop: "10px",
-                    }}
-                  >
-                    {product.sizes?.map((productSize) => (
-                      <button
-                        key={productSize}
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          setSelectedSize(productSize);
-                        }}
-                        style={{
-                          minWidth: "42px",
-                          height: "36px",
-                          border:
-                            size === productSize
-                              ? "1px solid #111"
-                              : "1px solid #d4ccc1",
-                          background:
-                            size === productSize ? "#111" : "transparent",
-                          color: size === productSize ? "#fff" : "#111",
-                          fontSize: "12px",
-                          fontWeight: 800,
-                          cursor: "pointer",
-                        }}
-                      >
-                        {productSize}
-                      </button>
-                    ))}
-                  </div>
-                </InfoRow>
+                  {product.sizes?.map((productSize) => (
+                    <button
+                      key={productSize}
+                      type="button"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        setSelectedSize(productSize);
+                      }}
+                      style={{
+                        minWidth: "44px",
+                        height: "38px",
+                        border:
+                          size === productSize
+                            ? "1px solid #111"
+                            : "1px solid #d4ccc1",
+                        background:
+                          size === productSize ? "#111" : "transparent",
+                        color: size === productSize ? "#fff" : "#111",
+                        fontSize: "12px",
+                        fontWeight: 800,
+                        cursor: "pointer",
+                      }}
+                    >
+                      {productSize}
+                    </button>
+                  ))}
+                </div>
+              </InfoRow>
 
-                <InfoRow
-                  title="Shipping"
-                  open={openInfo === "shipping"}
-                  onClick={() =>
-                    setOpenInfo(openInfo === "shipping" ? null : "shipping")
-                  }
-                >
-                  Order through WhatsApp. Delivery details will be confirmed by
-                  the store.
-                </InfoRow>
-              </div>
+              <InfoRow
+                title="Shipping"
+                open={openInfo === "shipping"}
+                onClick={() =>
+                  setOpenInfo(openInfo === "shipping" ? null : "shipping")
+                }
+              >
+                Free shipping on prepaid orders. COD is available. Orders are
+                normally dispatched within 24 hours.
+              </InfoRow>
 
               <div
                 style={{
+                  marginTop: "24px",
                   display: "grid",
-                  gridTemplateColumns: "1fr 56px",
-                  gap: "14px",
-                  marginBottom: "14px",
+                  gridTemplateColumns: isPhone ? "116px 1fr" : "136px 1fr",
+                  gap: "10px",
                 }}
               >
+                <div
+                  style={{
+                    height: "54px",
+                    border: "1px solid #d9d2c8",
+                    display: "grid",
+                    gridTemplateColumns: "38px 1fr 38px",
+                    alignItems: "center",
+                  }}
+                >
+                  <button
+                    type="button"
+                    aria-label="Decrease quantity"
+                    onClick={() =>
+                      setQuantity((previous) => Math.max(1, previous - 1))
+                    }
+                    style={quantityButtonStyle}
+                  >
+                    <Minus size={15} />
+                  </button>
+
+                  <span
+                    style={{
+                      textAlign: "center",
+                      fontSize: "15px",
+                      fontWeight: 800,
+                    }}
+                  >
+                    {quantity}
+                  </span>
+
+                  <button
+                    type="button"
+                    aria-label="Increase quantity"
+                    onClick={() => setQuantity((previous) => previous + 1)}
+                    style={quantityButtonStyle}
+                  >
+                    <Plus size={15} />
+                  </button>
+                </div>
+
                 <button
+                  type="button"
                   onClick={handleAddToCart}
                   style={{
-                    height: "56px",
+                    height: "54px",
                     border: "none",
-                    background: added ? "#4a7c59" : "#111",
+                    background: added ? "#347a48" : "#111",
                     color: "#fff",
                     fontSize: "12px",
                     fontWeight: 900,
@@ -567,14 +603,111 @@ Please confirm availability and delivery details.`;
                 >
                   {added ? "Added ✓" : "Add to Cart"}
                 </button>
+              </div>
+
+              <button
+                type="button"
+                onClick={handleBuyNow}
+                style={{
+                  width: "100%",
+                  height: "56px",
+                  marginTop: "10px",
+                  border: "none",
+                  background: "#0a0a0a",
+                  color: "#fff",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: "10px",
+                  fontSize: "13px",
+                  fontWeight: 900,
+                  letterSpacing: "0.4px",
+                  cursor: "pointer",
+                }}
+              >
+                <Zap size={17} fill="currentColor" />
+                Buy it now
+              </button>
+
+              <div
+                style={{
+                  padding: "18px 0",
+                  borderBottom: "1px solid #e5dfd6",
+                  color: "#3e4753",
+                  fontSize: "15px",
+                  fontWeight: 800,
+                }}
+              >
+                Save ₹{prepaidDiscount.toLocaleString("en-IN")} with Prepaid
+              </div>
+
+              <div
+                style={{
+                  display: "grid",
+                  gap: "16px",
+                  padding: "20px 0",
+                  borderBottom: "1px solid #e5dfd6",
+                }}
+              >
+                <BenefitRow
+                  icon={<Truck size={22} />}
+                  title="Free Shipping"
+                  subtitle="On prepaid orders"
+                />
+                <BenefitRow
+                  icon={<WalletCards size={22} />}
+                  title="COD Available"
+                />
+                <BenefitRow
+                  icon={<RefreshCw size={22} />}
+                  title="Easy Size Exchange"
+                />
+                <BenefitRow
+                  icon={<PackageCheck size={22} />}
+                  title="Dispatch within 24 Hours"
+                />
+              </div>
+
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "1fr 56px",
+                  gap: "10px",
+                  marginTop: "18px",
+                }}
+              >
+                <a
+                  href={whatsappUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{
+                    height: "54px",
+                    background: "#25D366",
+                    color: "#111",
+                    textDecoration: "none",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: "12px",
+                    fontSize: "12px",
+                    fontWeight: 900,
+                    letterSpacing: "1px",
+                    textTransform: "uppercase",
+                  }}
+                >
+                  <FaWhatsapp size={18} />
+                  Order on WhatsApp
+                </a>
 
                 <button
+                  type="button"
                   onClick={() => setLiked(!liked)}
+                  aria-label="Add to favourites"
                   style={{
-                    height: "56px",
+                    height: "54px",
                     border: "1px solid #d4ccc1",
                     background: "transparent",
-                    display: isPhone ? "none" : "flex",
+                    display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
                     cursor: "pointer",
@@ -587,47 +720,23 @@ Please confirm availability and delivery details.`;
                   />
                 </button>
               </div>
-
-              <a
-                href={whatsappUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                style={{
-                  height: "54px",
-                  background: "#25D366",
-                  color: "#111",
-                  textDecoration: "none",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  gap: "12px",
-                  fontSize: "12px",
-                  fontWeight: 900,
-                  letterSpacing: "1px",
-                  textTransform: "uppercase",
-                }}
-              >
-                <FaWhatsapp size={18} />
-                Order on WhatsApp
-              </a>
             </aside>
           </section>
 
-          <div
-            style={{
-              height: isPhone ? "58px" : "76px",
-              display: "grid",
-              gridTemplateColumns: isPhone ? "1fr" : "1fr auto 1fr",
-              alignItems: "center",
-              color: "#8a857d",
-              fontSize: "11px",
-              fontWeight: 800,
-              letterSpacing: "1px",
-              textTransform: "uppercase",
-              textAlign: isPhone ? "center" : "left",
-            }}
-          >
-            {!isPhone ? (
+          {!isPhone ? (
+            <div
+              style={{
+                height: "76px",
+                display: "grid",
+                gridTemplateColumns: "1fr auto 1fr",
+                alignItems: "center",
+                color: "#8a857d",
+                fontSize: "11px",
+                fontWeight: 800,
+                letterSpacing: "1px",
+                textTransform: "uppercase",
+              }}
+            >
               <Link
                 href="/collections"
                 style={{
@@ -641,15 +750,13 @@ Please confirm availability and delivery details.`;
                 <ArrowLeft size={14} />
                 Prev Product
               </Link>
-            ) : null}
 
-            <span>
-              {String(activeImage + 1).padStart(2, "0")}{" "}
-              <span style={{ opacity: 0.4 }}>——</span>{" "}
-              {String(Math.max(images.length, 1)).padStart(2, "0")}
-            </span>
+              <span>
+                {String(activeImage + 1).padStart(2, "0")}{" "}
+                <span style={{ opacity: 0.4 }}>——</span>{" "}
+                {String(Math.max(images.length, 1)).padStart(2, "0")}
+              </span>
 
-            {!isPhone ? (
               <Link
                 href="/collections"
                 style={{
@@ -664,13 +771,51 @@ Please confirm availability and delivery details.`;
                 Next Product
                 <ArrowRight size={14} />
               </Link>
-            ) : null}
-          </div>
+            </div>
+          ) : null}
         </div>
       </main>
 
       <Footer />
     </>
+  );
+}
+
+function BenefitRow({
+  icon,
+  title,
+  subtitle,
+}: {
+  icon: React.ReactNode;
+  title: string;
+  subtitle?: string;
+}) {
+  return (
+    <div
+      style={{
+        display: "grid",
+        gridTemplateColumns: "30px 1fr",
+        gap: "12px",
+        alignItems: "center",
+      }}
+    >
+      <span style={{ color: "#0b0b0b", display: "flex" }}>{icon}</span>
+
+      <div>
+        <p style={{ margin: 0, fontSize: "14px", fontWeight: 700 }}>{title}</p>
+        {subtitle ? (
+          <p
+            style={{
+              margin: "2px 0 0",
+              color: "#77808d",
+              fontSize: "13px",
+            }}
+          >
+            {subtitle}
+          </p>
+        ) : null}
+      </div>
+    </div>
   );
 }
 
@@ -686,11 +831,11 @@ function ThumbnailPlaceholder({
   return (
     <div
       style={{
-        display: isPhone ? "block" : "grid",
-        gridTemplateColumns: isPhone ? undefined : "28px 1fr",
+        display: "grid",
+        gridTemplateColumns: isPhone ? "1fr" : "28px 1fr",
         alignItems: "center",
         gap: "12px",
-        flex: isPhone ? "0 0 74px" : undefined,
+        width: isPhone ? "72px" : "auto",
       }}
     >
       {!isPhone ? (
@@ -707,9 +852,12 @@ function ThumbnailPlaceholder({
 
       <div
         style={{
+          width: isPhone ? "72px" : "auto",
           height: isPhone ? "88px" : "94px",
           borderRadius: "7px",
-          border: active ? "1px solid #111" : "1px solid rgba(17,17,17,0.06)",
+          border: active
+            ? "1px solid #111"
+            : "1px solid rgba(17,17,17,0.06)",
           position: "relative",
           overflow: "hidden",
         }}
@@ -757,7 +905,7 @@ function InfoRow({
       onClick={onClick}
       style={{
         borderTop: "1px solid #ddd5ca",
-        padding: "18px 0",
+        padding: "17px 0",
         cursor: "pointer",
       }}
     >
@@ -787,9 +935,10 @@ function InfoRow({
         <div
           style={{
             marginTop: "14px",
-            color: "#4d4943",
+            color: "#020202",
             fontSize: "13px",
-            lineHeight: 1.6,
+            lineHeight: 1.65,
+            whiteSpace: "pre-line",
           }}
         >
           {children}
@@ -798,3 +947,15 @@ function InfoRow({
     </div>
   );
 }
+
+const quantityButtonStyle: React.CSSProperties = {
+  width: "38px",
+  height: "52px",
+  border: "none",
+  background: "transparent",
+  color: "#111",
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  cursor: "pointer",
+};

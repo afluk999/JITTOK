@@ -54,7 +54,7 @@ export default function BrandStatement() {
       id="brand-story"
       style={{
         width: "100%",
-        background: "#f6f2eb",
+        background: "#ffffff",
         color: "#111",
         fontFamily: '"Outfit", sans-serif',
         padding: isPhone ? "78px 0" : "110px 54px",

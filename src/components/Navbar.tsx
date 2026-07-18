@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Menu, Search, ShoppingBag, X } from "lucide-react";
+import AnnouncementBar from "@/components/AnnouncementBar";
 
 export default function Navbar() {
   const pathname = usePathname();
@@ -14,7 +15,7 @@ export default function Navbar() {
 
   const navLinks = [
     { label: "Home", href: "/" },
-    { label: "Collections", href: "/collections" },
+    
     { label: "Contact", href: "/contact" },
   ];
 
@@ -26,7 +27,6 @@ export default function Navbar() {
         );
 
       const smallScreen = window.innerWidth <= 768;
-
       setIsPhone(phoneUserAgent && smallScreen);
     }
 
@@ -87,7 +87,7 @@ export default function Navbar() {
         style={{
           width: "100%",
           height: isPhone ? "64px" : "76px",
-          background: "rgba(246, 242, 235, 0.96)",
+          background: "#ffffff",
           backdropFilter: "blur(18px)",
           WebkitBackdropFilter: "blur(18px)",
           borderBottom: "1px solid rgba(17,17,17,0.08)",
@@ -157,29 +157,19 @@ export default function Navbar() {
             justifySelf: "center",
           }}
         >
-          <span
-            style={{
-              fontFamily: '"Bebas Neue", Impact, sans-serif',
-              fontSize: isPhone ? "26px" : "31px",
-              letterSpacing: isPhone ? "4.5px" : "6.2px",
-              fontWeight: 400,
-              lineHeight: 0.9,
-            }}
-          >
-            JITTOK
-          </span>
+        <img
+  src="/jittok-logo.png"
+  alt="JITTOK"
+  style={{
+    width: isPhone ? "170px" : "240px",
+    height: isPhone ? "56px" : "68px",
+    objectFit: "contain",
+    display: "block",
+    transform: "scale(2.12)",
+    transformOrigin: "center",
+  }}
+/>
 
-          <span
-            style={{
-              marginTop: isPhone ? "4px" : "5px",
-              fontSize: isPhone ? "6px" : "8px",
-              fontWeight: 900,
-              letterSpacing: isPhone ? "1.6px" : "1.8px",
-              textTransform: "uppercase",
-            }}
-          >
-            Essentials
-          </span>
         </Link>
 
         <div
@@ -257,17 +247,16 @@ export default function Navbar() {
                 borderBottom: "1px solid rgba(17,17,17,0.1)",
               }}
             >
-              <p
+              <img
+                src="/jittok-logo.png"
+                alt="JITTOK"
                 style={{
-                  margin: 0,
-                  fontSize: "12px",
-                  fontWeight: 900,
-                  letterSpacing: "1.4px",
-                  textTransform: "uppercase",
+                  width: "130px",
+                  height: "44px",
+                  objectFit: "contain",
+                  display: "block",
                 }}
-              >
-                Menu
-              </p>
+              />
 
               <button
                 type="button"

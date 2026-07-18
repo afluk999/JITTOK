@@ -1,12 +1,18 @@
-"use client";
+﻿"use client";
 
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { Heart, ArrowRight } from "lucide-react";
-import { useEffect, useState } from "react";
+import { Heart } from "lucide-react";
 import {
-  FirebaseProduct,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type TransitionEvent,
+} from "react";
+import {
   getNewArrivalProducts,
+  type FirebaseProduct,
 } from "@/lib/productService";
 
 function ProductCard({
@@ -30,13 +36,14 @@ function ProductCard({
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true }}
       transition={{
-        delay: index * 0.05,
+        delay: Math.min(index, 4) * 0.05,
         duration: 0.55,
         ease: [0.22, 1, 0.36, 1],
       }}
       style={{
         display: "flex",
         flexDirection: "column",
+        width: "100%",
       }}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
@@ -111,10 +118,12 @@ function ProductCard({
           ) : null}
 
           <button
+            type="button"
+            aria-label={liked ? "Remove from favourites" : "Add to favourites"}
             onClick={(event) => {
               event.preventDefault();
               event.stopPropagation();
-              setLiked(!liked);
+              setLiked((previous) => !previous);
             }}
             style={{
               position: "absolute",
@@ -161,8 +170,8 @@ function ProductCard({
               transform: isPhone
                 ? "translateY(0)"
                 : hovered
-                ? "translateY(0)"
-                : "translateY(100%)",
+                  ? "translateY(0)"
+                  : "translateY(100%)",
               transition: "transform 0.28s ease",
             }}
           >
@@ -216,7 +225,7 @@ function ProductCard({
           <p
             style={{
               margin: 0,
-              fontSize: isPhone ? "12px" : "12px",
+              fontSize: "12px",
               fontWeight: 800,
               color: "#111",
               whiteSpace: "nowrap",
@@ -230,26 +239,45 @@ function ProductCard({
   );
 }
 
+function getUniqueProducts(products: FirebaseProduct[]) {
+  const usedKeys = new Set<string>();
+
+  return products.filter((product, index) => {
+    const key =
+      product.id ||
+      product.slug ||
+      `${product.name}-${product.variant}-${index}`;
+
+    if (usedKeys.has(key)) {
+      return false;
+    }
+
+    usedKeys.add(key);
+    return true;
+  });
+}
+
 export default function NewArrivals() {
-  const [newArrivalProducts, setNewArrivalProducts] = useState<
-    FirebaseProduct[]
-  >([]);
+  const [orderedProducts, setOrderedProducts] = useState<FirebaseProduct[]>([]);
   const [loading, setLoading] = useState(true);
   const [isPhone, setIsPhone] = useState(false);
+  const [cardWidth, setCardWidth] = useState(250);
+  const [translateX, setTranslateX] = useState(0);
+  const [transitionEnabled, setTransitionEnabled] = useState(true);
+
+  const viewportRef = useRef<HTMLDivElement>(null);
+  const movingRef = useRef(false);
+
+  const gap = isPhone ? 14 : 16;
 
   useEffect(() => {
     function checkPhone() {
-      const phoneUserAgent =
-        /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
-          navigator.userAgent
-        );
-
       const smallScreen = window.innerWidth <= 768;
       const touchLikeDevice =
         navigator.maxTouchPoints > 0 ||
         window.matchMedia("(pointer: coarse)").matches;
 
-      setIsPhone(smallScreen && (phoneUserAgent || touchLikeDevice));
+      setIsPhone(smallScreen && touchLikeDevice);
     }
 
     checkPhone();
@@ -262,7 +290,9 @@ export default function NewArrivals() {
     async function loadNewArrivals() {
       try {
         const data = await getNewArrivalProducts();
-        setNewArrivalProducts(data);
+        const uniqueProducts = getUniqueProducts(data);
+
+        setOrderedProducts(uniqueProducts);
       } catch (error) {
         console.error("LOAD NEW ARRIVALS ERROR:", error);
       } finally {
@@ -273,18 +303,117 @@ export default function NewArrivals() {
     loadNewArrivals();
   }, []);
 
-  const repeatedProducts =
-    newArrivalProducts.length > 0
-      ? [...newArrivalProducts, ...newArrivalProducts]
-      : [];
+  useEffect(() => {
+    const viewport = viewportRef.current;
+
+    if (!viewport) {
+      return;
+    }
+
+    function calculateCardWidth() {
+      const viewportElement = viewportRef.current;
+      const productCount = orderedProducts.length;
+
+      if (!viewportElement || productCount === 0) {
+        return;
+      }
+
+      const visibleCount = isPhone
+        ? 1
+        : Math.min(productCount, 4);
+
+      const totalGapWidth = gap * Math.max(visibleCount - 1, 0);
+      const calculatedWidth =
+        (viewportElement.clientWidth - totalGapWidth) / visibleCount;
+
+      setTransitionEnabled(false);
+      setTranslateX(0);
+      setCardWidth(Math.max(calculatedWidth, 1));
+      movingRef.current = false;
+
+      requestAnimationFrame(() => {
+        setTransitionEnabled(true);
+      });
+    }
+
+    calculateCardWidth();
+
+    const resizeObserver = new ResizeObserver(calculateCardWidth);
+    resizeObserver.observe(viewport);
+
+    return () => resizeObserver.disconnect();
+  }, [gap, isPhone, orderedProducts.length]);
+
+  const moveNext = useCallback(() => {
+    if (
+      orderedProducts.length < 2 ||
+      movingRef.current ||
+      cardWidth <= 0
+    ) {
+      return;
+    }
+
+    movingRef.current = true;
+    setTransitionEnabled(true);
+    setTranslateX(-(cardWidth + gap));
+  }, [cardWidth, gap, orderedProducts.length]);
+
+  useEffect(() => {
+    if (orderedProducts.length < 2) {
+      return;
+    }
+
+    const interval = window.setInterval(
+      moveNext,
+      isPhone ? 2800 : 3200
+    );
+
+    return () => window.clearInterval(interval);
+  }, [isPhone, moveNext, orderedProducts.length]);
+
+  function handleTrackTransitionEnd(
+    event: TransitionEvent<HTMLDivElement>
+  ) {
+    if (
+      event.propertyName !== "transform" ||
+      !movingRef.current ||
+      orderedProducts.length < 2
+    ) {
+      return;
+    }
+
+    setTransitionEnabled(false);
+
+    setOrderedProducts((currentProducts) => {
+      if (currentProducts.length < 2) {
+        return currentProducts;
+      }
+
+      return [...currentProducts.slice(1), currentProducts[0]];
+    });
+
+    setTranslateX(0);
+
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        setTransitionEnabled(true);
+        movingRef.current = false;
+      });
+    });
+  }
+
+  const productsForTrack =
+    orderedProducts.length > 1
+      ? [...orderedProducts, orderedProducts[0]]
+      : orderedProducts;
 
   return (
     <section
       id="new-arrivals"
       style={{
         fontFamily: "'Outfit', sans-serif",
-        background: "#f6f2eb",
-        padding: isPhone ? "76px 0 76px" : "96px 48px 90px",
+        background: "#ffffff",
+        padding: isPhone ? "28px 0 44px" : "36px 48px 54px",
         overflow: "hidden",
       }}
     >
@@ -294,142 +423,64 @@ export default function NewArrivals() {
           margin: "0 auto",
         }}
       >
-        <div
-          style={{
-            marginBottom: isPhone ? "34px" : "34px",
-            padding: isPhone ? "0 18px" : "0",
-          }}
-        >
-          <p
-            style={{
-              fontSize: isPhone ? "10px" : "10px",
-              letterSpacing: "2.5px",
-              color: "#77736c",
-              margin: "0 0 12px",
-              fontWeight: 700,
-              textTransform: "uppercase",
-            }}
-          >
-            New Arrivals
-          </p>
-
-          <div
-            style={{
-              display: isPhone ? "grid" : "flex",
-              alignItems: isPhone ? "start" : "flex-end",
-              justifyContent: "space-between",
-              gap: isPhone ? "22px" : "50px",
-            }}
-          >
-            <h2
-              style={{
-                margin: 0,
-                fontFamily: "'Bebas Neue', Impact, sans-serif",
-                fontSize: isPhone ? "68px" : "clamp(58px, 7vw, 92px)",
-                letterSpacing: "1px",
-                color: "#111",
-                lineHeight: 0.86,
-                fontWeight: 400,
-                textTransform: "uppercase",
-              }}
-            >
-              New Arrivals
-            </h2>
-
-            <div
-              style={{
-                maxWidth: isPhone ? "100%" : "330px",
-                borderLeft: isPhone ? "1px solid rgba(17,17,17,0.18)" : "none",
-                paddingLeft: isPhone ? "16px" : "0",
-              }}
-            >
-              <p
-                style={{
-                  margin: isPhone ? "0" : "0 0 8px",
-                  fontSize: isPhone ? "13px" : "13px",
-                  color: "#6b665f",
-                  lineHeight: 1.75,
-                }}
-              >
-                The latest additions to the JITTOK collection.
-                <br />
-                <span
-                  style={{
-                    color: "#111",
-                    fontWeight: 800,
-                  }}
-                >
-                  Timeless pieces, made to move with you.
-                </span>
-              </p>
-            </div>
-
-            <Link
-              href="/collections"
-              style={{
-                marginBottom: isPhone ? "0" : "10px",
-                display: "inline-flex",
-                alignItems: "center",
-                gap: "10px",
-                fontSize: "11px",
-                letterSpacing: "1.4px",
-                color: "#111",
-                textDecoration: "none",
-                fontWeight: 900,
-                textTransform: "uppercase",
-                whiteSpace: "nowrap",
-                width: "fit-content",
-                borderBottom: isPhone ? "1px solid rgba(17,17,17,0.62)" : "none",
-                paddingBottom: isPhone ? "9px" : "0",
-              }}
-            >
-              View All <ArrowRight size={14} />
-            </Link>
-          </div>
-        </div>
-
         {loading ? (
           <StatusBox text="Loading new arrivals..." isPhone={isPhone} />
-        ) : newArrivalProducts.length === 0 ? (
+        ) : orderedProducts.length === 0 ? (
           <StatusBox text="No new arrivals yet." isPhone={isPhone} />
         ) : (
           <div
+            ref={viewportRef}
             style={{
               overflow: "hidden",
               width: "100%",
+              touchAction: "pan-y",
             }}
           >
-            <motion.div
-              animate={{ x: ["0%", "-50%"] }}
-              transition={{
-                repeat: Infinity,
-                duration: isPhone ? 22 : 28,
-                ease: "linear",
-              }}
+            <div
+              onTransitionEnd={handleTrackTransitionEnd}
               style={{
                 display: "flex",
-                gap: isPhone ? "14px" : "16px",
+                gap: `${gap}px`,
                 width: "max-content",
-                paddingLeft: isPhone ? "18px" : "0",
-                paddingRight: isPhone ? "18px" : "0",
+                transform: `translate3d(${translateX}px, 0, 0)`,
+                transition: transitionEnabled
+                  ? "transform 700ms cubic-bezier(0.22, 1, 0.36, 1)"
+                  : "none",
+                willChange: "transform",
               }}
             >
-              {repeatedProducts.map((product, index) => (
-                <div
-                  key={`${product.id}-${index}`}
-                  style={{
-                    width: isPhone ? "210px" : "250px",
-                    flex: "0 0 auto",
-                  }}
-                >
-                  <ProductCard
-                    product={product}
-                    index={index}
-                    isPhone={isPhone}
-                  />
-                </div>
-              ))}
-            </motion.div>
+              {productsForTrack.map((product, index) => {
+                const isLoopClone =
+                  orderedProducts.length > 1 &&
+                  index === productsForTrack.length - 1;
+
+                const productKey =
+                  product.id ||
+                  product.slug ||
+                  `${product.name}-${product.variant}`;
+
+                return (
+                  <div
+                    key={
+                      isLoopClone
+                        ? `loop-clone-${productKey}`
+                        : productKey
+                    }
+                    aria-hidden={isLoopClone}
+                    style={{
+                      width: `${cardWidth}px`,
+                      flex: `0 0 ${cardWidth}px`,
+                    }}
+                  >
+                    <ProductCard
+                      product={product}
+                      index={index}
+                      isPhone={isPhone}
+                    />
+                  </div>
+                );
+              })}
+            </div>
           </div>
         )}
       </div>
@@ -437,7 +488,13 @@ export default function NewArrivals() {
   );
 }
 
-function StatusBox({ text, isPhone }: { text: string; isPhone: boolean }) {
+function StatusBox({
+  text,
+  isPhone,
+}: {
+  text: string;
+  isPhone: boolean;
+}) {
   return (
     <div
       style={{

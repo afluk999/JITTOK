@@ -2,28 +2,14 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { getHomeContent } from "@/lib/contentService";
+import BlurImage from "@/components/BlurImage";
 
-const MIN_HERO_IMAGES = 3;
+const MIN_HERO_IMAGES = 4;
 
 const DESKTOP_COLUMN_WIDTH = 45;
 const TABLET_COLUMN_WIDTH = 50;
 const MOBILE_COLUMN_WIDTH = 82;
 const SMALL_MOBILE_COLUMN_WIDTH = 92;
-
-function preloadImages(images: string[]) {
-  return Promise.all(
-    images.map(
-      (src) =>
-        new Promise<void>((resolve) => {
-          const img = new Image();
-
-          img.src = src;
-          img.onload = () => resolve();
-          img.onerror = () => resolve();
-        })
-    )
-  );
-}
 
 export default function HeroWall() {
   const [heroImages, setHeroImages] = useState<string[]>([]);
@@ -36,7 +22,6 @@ export default function HeroWall() {
         const images = content.heroImages || [];
 
         if (images.length >= MIN_HERO_IMAGES) {
-          await preloadImages(images.slice(0, 5));
           setHeroImages(images);
         }
       } catch (error) {
@@ -57,53 +42,64 @@ export default function HeroWall() {
 
   if (loading) {
     return (
-      <section className="hero-wall hero-wall-loading">
+      <section className="hero-wall hero-wall-skeleton">
         <style jsx>{`
           .hero-wall {
             position: relative;
             width: 100%;
-            height: calc(100vh - 76px +200px);
-            min-height: 760px;
-            background: #111;
+            height: calc(100vh - 76px);
+            min-height: 620px;
+            background: #f4f1eb;
             overflow: hidden;
           }
 
-          .hero-wall-loading {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: #f6f2eb;
-            font-family: "Outfit", sans-serif;
+          .hero-wall-skeleton {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 2px;
           }
 
-          .loader-box {
-            text-align: center;
+          .skeleton-panel {
+            background:
+              linear-gradient(
+                110deg,
+                #e8e3db 8%,
+                #f8f6f2 18%,
+                #e8e3db 33%
+              );
+            background-size: 220% 100%;
+            animation: heroSkeleton 1.3s linear infinite;
           }
 
-          .loader-logo {
-            margin: 0;
-            font-family: "Bebas Neue", Impact, sans-serif;
-            font-size: clamp(74px, 10vw, 150px);
-            line-height: 0.82;
-            font-weight: 400;
-            letter-spacing: 8px;
-            text-transform: uppercase;
+          @keyframes heroSkeleton {
+            from {
+              background-position: 200% 0;
+            }
+
+            to {
+              background-position: -20% 0;
+            }
           }
 
-          .loader-text {
-            margin: 14px 0 0;
-            color: rgba(246, 242, 235, 0.65);
-            font-size: 11px;
-            font-weight: 900;
-            letter-spacing: 2px;
-            text-transform: uppercase;
+          @media (max-width: 768px) {
+            .hero-wall {
+              height: calc(125vw + 34px);
+              min-height: 0;
+            }
+
+            .hero-wall-skeleton {
+              grid-template-columns: 1fr;
+            }
+
+            .skeleton-panel:not(:first-child) {
+              display: none;
+            }
           }
         `}</style>
 
-        <div className="loader-box">
-          <h1 className="loader-logo">JITTOK</h1>
-          <p className="loader-text">Loading campaign wall</p>
-        </div>
+        <div className="skeleton-panel" />
+        <div className="skeleton-panel" />
+        <div className="skeleton-panel" />
       </section>
     );
   }
@@ -174,14 +170,15 @@ export default function HeroWall() {
           bottom: 0;
           left: 0;
           width: 100%;
-          height: 46px;
-          background: #ffffff;
-          color: #111;
+          height: 34px;
+          background: #111111;
+          color: #ffffff;
           overflow: hidden;
           display: flex;
           align-items: center;
           z-index: 7;
-          border-top: 1px solid rgba(17, 17, 17, 0.08);
+          border-top: 1px solid rgba(255, 255, 255, 0.12);
+          border-bottom: 1px solid rgba(255, 255, 255, 0.12);
         }
 
         @keyframes stripMove {
@@ -204,26 +201,27 @@ export default function HeroWall() {
         .strip-item {
           display: inline-flex;
           align-items: center;
-          gap: 16px;
-          padding-right: 36px;
-          font-family: "Bebas Neue", Impact, sans-serif;
-          font-size: 26px;
-          letter-spacing: 4px;
+          gap: 10px;
+          padding-right: 24px;
+          font-family: "Outfit", sans-serif;
+          font-size: 11px;
+          font-weight: 900;
+          letter-spacing: 1.4px;
+          line-height: 1;
           text-transform: uppercase;
         }
 
         .strip-dot {
-          width: 6px;
-          height: 6px;
-          border-radius: 50%;
-          background: #111;
           display: inline-block;
-          opacity: 0.7;
+          color: #ffffff;
+          font-size: 9px;
+          line-height: 1;
+          opacity: 0.78;
         }
 
         .hero-images-wrap {
           position: absolute;
-          inset: 0 0 46px;
+          inset: 0 0 34px;
           overflow: hidden;
         }
 
@@ -250,6 +248,7 @@ export default function HeroWall() {
           This displays about 2.2 images instead of 5 images.
         */
         .hero-item {
+          --hero-fit: cover;
           position: relative;
           width: ${DESKTOP_COLUMN_WIDTH}vw;
           flex: 0 0 ${DESKTOP_COLUMN_WIDTH}vw;
@@ -268,7 +267,7 @@ export default function HeroWall() {
 
         .hero-overlay {
           position: absolute;
-          inset: 0 0 46px;
+          inset: 0 0 34px;
           pointer-events: none;
           background: linear-gradient(
             180deg,
@@ -282,7 +281,7 @@ export default function HeroWall() {
         .hero-left-text,
         .hero-right-text {
           position: absolute;
-          bottom: 64px;
+          bottom: 52px;
           color: #f6f2eb;
           font-family: "Outfit", sans-serif;
           text-transform: uppercase;
@@ -313,37 +312,47 @@ export default function HeroWall() {
 
         @media (max-width: 768px) {
           .hero-wall {
-            height: calc(100vh - 64px);
-            min-height: 540px;
+            height: calc(125vw + 34px);
+            min-height: 0;
+            max-height: calc(100svh - 64px);
+            background: #ffffff;
           }
 
           .hero-strip {
-            height: 42px;
+            height: 34px;
           }
 
           .hero-images-wrap {
-            bottom: 42px;
+            bottom: 34px;
           }
 
           .hero-overlay {
-            inset: 0 0 42px;
+            inset: 0 0 34px;
           }
 
           .strip-item {
-            font-size: 22px;
-            letter-spacing: 3px;
-            gap: 12px;
-            padding-right: 28px;
+            font-size: 11px;
+            letter-spacing: 1.4px;
+            gap: 10px;
+            padding-right: 24px;
           }
 
           .hero-track {
-            width: ${loopImages.length * MOBILE_COLUMN_WIDTH}vw;
+            width: ${loopImages.length * 100}vw;
             animation-duration: 32s;
           }
 
           .hero-item {
-            width: ${MOBILE_COLUMN_WIDTH}vw;
-            flex-basis: ${MOBILE_COLUMN_WIDTH}vw;
+            --hero-fit: contain;
+            width: 100vw;
+            flex-basis: 100vw;
+            background: #ffffff;
+          }
+
+          .hero-item img {
+            object-fit: contain;
+            object-position: center;
+            background: #ffffff;
           }
 
           .hero-right-text {
@@ -352,24 +361,29 @@ export default function HeroWall() {
 
           .hero-left-text {
             left: 18px;
-            bottom: 58px;
+            bottom: 48px;
             font-size: 10px;
           }
         }
 
         @media (max-width: 480px) {
+          .hero-wall {
+            height: calc(125vw + 34px);
+            min-height: 0;
+          }
+
           .hero-track {
-            width: ${loopImages.length * SMALL_MOBILE_COLUMN_WIDTH}vw;
+            width: ${loopImages.length * 100}vw;
             animation-duration: 28s;
           }
 
           .hero-item {
-            width: ${SMALL_MOBILE_COLUMN_WIDTH}vw;
-            flex-basis: ${SMALL_MOBILE_COLUMN_WIDTH}vw;
+            width: 100vw;
+            flex-basis: 100vw;
           }
 
           .strip-item {
-            font-size: 20px;
+            font-size: 11px;
           }
         }
       `}</style>
@@ -378,13 +392,23 @@ export default function HeroWall() {
         <div className="hero-track">
           {loopImages.map((image, index) => (
             <div key={`${image}-${index}`} className="hero-item">
-              <img
+              <BlurImage
                 src={image}
                 alt={`JITTOK hero image ${
                   (index % heroImages.length) + 1
                 }`}
                 loading={index < 5 ? "eager" : "lazy"}
                 decoding="async"
+                wrapperStyle={{
+                  width: "100%",
+                  height: "100%",
+                }}
+                imageStyle={{
+                  width: "100%",
+                  height: "100%",
+                  objectFit: "var(--hero-fit)" as any,
+                  objectPosition: "center",
+                }}
               />
             </div>
           ))}
@@ -393,14 +417,13 @@ export default function HeroWall() {
 
       <div className="hero-overlay" />
 
-      <div className="hero-left-text">JITTOK / Moving Campaign Wall</div>
-      <div className="hero-right-text">Scroll to explore</div>
+
 
       <div className="hero-strip">
         <div className="strip-track">
           {Array.from({ length: 20 }).map((_, index) => (
             <span key={index} className="strip-item">
-              JITTOK <small className="strip-dot" />
+              JITTOK <small className="strip-dot">✦</small>
             </span>
           ))}
         </div>
