@@ -7,11 +7,7 @@ import AnnouncementBar from "@/components/AnnouncementBar";
 export const metadata: Metadata = {
   title: "JITTOK",
   description: "Premium everyday essentials",
-  icons: {
-    icon: "/jittok-logo.png",
-    shortcut: "/jittok-logo.png",
-    apple: "/jittok-logo.png",
-  },
+
 };
 
 const loaderSessionScript = `
