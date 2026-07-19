@@ -14,6 +14,14 @@ export const metadata: Metadata = {
   },
 };
 
+const loaderSessionScript = `
+  try {
+    if (sessionStorage.getItem("jittok-loader-seen") === "1") {
+      document.documentElement.classList.add("jittok-loader-already-seen");
+    }
+  } catch (error) {}
+`;
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -22,6 +30,29 @@ export default function RootLayout({
   return (
     <html lang="en">
       <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: loaderSessionScript,
+          }}
+        />
+
+        <style
+          dangerouslySetInnerHTML={{
+            __html: `
+              html.jittok-loader-already-seen .jittok-loader {
+                display: none !important;
+              }
+            `,
+          }}
+        />
+
+        <link
+          rel="preload"
+          href="/jittok-logo.png"
+          as="image"
+          type="image/png"
+        />
+
         <link
           href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Outfit:wght@300;400;500;600;700;800;900&display=swap"
           rel="stylesheet"

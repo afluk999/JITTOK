@@ -11,6 +11,15 @@ export default function SiteLoader() {
   const finished = useRef(false);
 
   useEffect(() => {
+    try {
+      if (window.sessionStorage.getItem("jittok-loader-seen") === "1") {
+        setVisible(false);
+        return;
+      }
+    } catch {
+      // Continue with the loader when sessionStorage is unavailable.
+    }
+
     const startedAt = Date.now();
     const minimumVisibleTime = 1250;
 
@@ -44,6 +53,12 @@ export default function SiteLoader() {
 
           window.setTimeout(() => {
             setVisible(false);
+
+            try {
+              window.sessionStorage.setItem("jittok-loader-seen", "1");
+            } catch {
+              // Ignore storage errors.
+            }
           }, 850);
         }, 280);
       }, remaining);
