@@ -2,6 +2,7 @@
 import HeroWall from "@/components/HeroWall";
 import IconicProductsCurve from "@/components/IconicProductsCurve";
 import NewArrivals from "@/components/NewArrivals";
+import SpiderDropBanner from "@/components/SpiderDropBanner";
 import { JittokLineup } from "@/components/JittokLineup";
 import Editorial from "@/components/Editorial";
 import ReelsSection from "@/components/ReelsSection";
@@ -16,9 +17,9 @@ export default function Home() {
       <Navbar />
       <HeroWall />
       <IconicProductsCurve />
+      <SpiderDropBanner />
       <NewArrivals />
       <JittokLineup />
-      <Editorial />
       <ReelsSection />
       <CustomerLoveSection />
       <BrandStatement />

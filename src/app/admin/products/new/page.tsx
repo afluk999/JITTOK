@@ -10,6 +10,14 @@ import { ArrowLeft, Save, Upload } from "lucide-react";
 
 const categories = ["T-Shirts", "Hoodies", "Pants", "Accessories"];
 
+type NewArrivalRow = "both" | "1" | "2";
+
+const arrivalRows: Array<{ value: NewArrivalRow; label: string }> = [
+  { value: "both", label: "Both Rows" },
+  { value: "1", label: "Top Row Only" },
+  { value: "2", label: "Bottom Row Only" },
+];
+
 function makeSlug(text: string) {
   return text
     .toLowerCase()
@@ -34,16 +42,12 @@ export default function NewProductPage() {
   const [name, setName] = useState("");
   const [variant, setVariant] = useState("");
   const [category, setCategory] = useState("T-Shirts");
-
-  const [originalPrice, setOriginalPrice] = useState("");
   const [price, setPrice] = useState("");
-  const [prepaidDiscount, setPrepaidDiscount] = useState("50");
-
   const [description, setDescription] = useState("");
-  const [productDetails, setProductDetails] = useState("");
   const [sizes, setSizes] = useState("S,M,L,XL");
   const [stock, setStock] = useState("10");
   const [isNewArrival, setIsNewArrival] = useState(true);
+  const [newArrivalRow, setNewArrivalRow] = useState<NewArrivalRow>("both");
   const [isFeatured, setIsFeatured] = useState(false);
 
   const [imageFiles, setImageFiles] = useState<File[]>([]);
@@ -69,9 +73,9 @@ export default function NewProductPage() {
   }, [previewImages]);
 
   function handleImageChange(event: React.ChangeEvent<HTMLInputElement>) {
-    previewImages.forEach((image) => URL.revokeObjectURL(image));
-
     const files = Array.from(event.target.files || []).slice(0, 5);
+
+    previewImages.forEach((image) => URL.revokeObjectURL(image));
     setImageFiles(files);
     setPreviewImages(files.map((file) => URL.createObjectURL(file)));
   }
@@ -93,6 +97,7 @@ export default function NewProductPage() {
 
     for (const file of imageFiles) {
       const formData = new FormData();
+
       formData.append("file", file);
       formData.append("upload_preset", uploadPreset);
 
@@ -101,7 +106,7 @@ export default function NewProductPage() {
         {
           method: "POST",
           body: formData,
-        }
+        },
       );
 
       const responseText = await response.text();
@@ -114,14 +119,14 @@ export default function NewProductPage() {
       }
 
       if (!response.ok) {
-        setUploading(false);
         console.error("CLOUDINARY DIRECT UPLOAD ERROR:", data);
+        setUploading(false);
 
         throw new Error(
           data?.error?.message ||
             data?.message ||
             data?.rawResponse ||
-            "Image upload failed"
+            "Image upload failed",
         );
       }
 
@@ -129,26 +134,15 @@ export default function NewProductPage() {
     }
 
     setUploading(false);
+
     return uploadedUrls;
   }
 
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
 
-    if (
-      !name ||
-      !variant ||
-      !originalPrice ||
-      !price ||
-      !description ||
-      !productDetails
-    ) {
+    if (!name || !variant || !price || !description) {
       alert("Please fill all required fields.");
-      return;
-    }
-
-    if (Number(originalPrice) <= Number(price)) {
-      alert("Original price must be greater than the selling price.");
       return;
     }
 
@@ -162,16 +156,9 @@ export default function NewProductPage() {
         name,
         variant,
         category,
-
         price: Number(price),
         displayPrice: formatPrice(price),
-
-        originalPrice: Number(originalPrice),
-        originalDisplayPrice: formatPrice(originalPrice),
-        prepaidDiscount: Number(prepaidDiscount || 50),
-
         description,
-        productDetails,
         images: uploadedImageUrls,
         sizes: sizes
           .split(",")
@@ -179,8 +166,9 @@ export default function NewProductPage() {
           .filter(Boolean),
         stock: Number(stock),
         isNewArrival,
+        newArrivalRow: isNewArrival ? newArrivalRow : "both",
         isFeatured,
-      } as any);
+      });
 
       alert("Product added successfully!");
       router.push("/admin/products");
@@ -258,7 +246,7 @@ export default function NewProductPage() {
           onSubmit={handleSubmit}
           style={{
             display: "grid",
-            gridTemplateColumns: "minmax(0, 1fr) minmax(340px, 0.9fr)",
+            gridTemplateColumns: "1fr 0.9fr",
             gap: "34px",
             alignItems: "start",
           }}
@@ -272,17 +260,17 @@ export default function NewProductPage() {
           >
             <div style={twoColStyle}>
               <Input
-                label="Product Name *"
+                label="Product Name"
                 value={name}
                 onChange={setName}
-                placeholder="Neymar Oversized Tee"
+                placeholder="Oversized Tee"
               />
 
               <Input
-                label="Variant / Color *"
+                label="Variant / Color"
                 value={variant}
                 onChange={setVariant}
-                placeholder="White"
+                placeholder="Ivory"
               />
             </div>
 
@@ -304,84 +292,26 @@ export default function NewProductPage() {
               </div>
 
               <Input
-                label="Stock"
-                value={stock}
-                onChange={setStock}
-                placeholder="10"
-                type="number"
-              />
-            </div>
-
-            <div style={threeColStyle}>
-              <Input
-                label="Original Price *"
-                value={originalPrice}
-                onChange={setOriginalPrice}
-                placeholder="999"
-                type="number"
-              />
-
-              <Input
-                label="Selling Price *"
+                label="Price"
                 value={price}
                 onChange={setPrice}
-                placeholder="799"
-                type="number"
-              />
-
-              <Input
-                label="Prepaid Saving"
-                value={prepaidDiscount}
-                onChange={setPrepaidDiscount}
-                placeholder="50"
+                placeholder="1299"
                 type="number"
               />
             </div>
 
-            <p
-              style={{
-                margin: "-7px 0 20px",
-                color: "#77736c",
-                fontSize: "12px",
-                lineHeight: 1.6,
-              }}
-            >
-              Original price appears with a cut line. Selling price is the
-              current product price.
-            </p>
-
             <div style={{ marginBottom: "18px" }}>
-              <label style={labelStyle}>Short Description *</label>
+              <label style={labelStyle}>Description</label>
 
               <textarea
                 value={description}
                 onChange={(event) => setDescription(event.target.value)}
-                placeholder="A short product introduction..."
+                placeholder="Product description..."
                 style={{
                   ...inputStyle,
-                  height: "110px",
+                  height: "140px",
                   paddingTop: "14px",
                   resize: "vertical",
-                }}
-              />
-            </div>
-
-            <div style={{ marginBottom: "18px" }}>
-              <label style={labelStyle}>Product Details *</label>
-
-              <textarea
-                value={productDetails}
-                onChange={(event) => setProductDetails(event.target.value)}
-                placeholder={`BOXY FIT | 100% COTTON | 280 GSM HEAVYWEIGHT
-PERFECT NECKLINE | SCREEN PRINTED ARTWORK
-
-MODEL IS WEARING SIZE MEDIUM`}
-                style={{
-                  ...inputStyle,
-                  height: "170px",
-                  paddingTop: "14px",
-                  resize: "vertical",
-                  lineHeight: 1.6,
                 }}
               />
             </div>
@@ -394,8 +324,38 @@ MODEL IS WEARING SIZE MEDIUM`}
                 placeholder="S,M,L,XL"
               />
 
-              <div />
+              <Input
+                label="Stock"
+                value={stock}
+                onChange={setStock}
+                placeholder="10"
+                type="number"
+              />
             </div>
+
+            {isNewArrival ? (
+              <div style={{ marginBottom: "22px" }}>
+                <label style={labelStyle}>New Arrival Display Row</label>
+
+                <select
+                  value={newArrivalRow}
+                  onChange={(event) =>
+                    setNewArrivalRow(event.target.value as NewArrivalRow)
+                  }
+                  style={inputStyle}
+                >
+                  {arrivalRows.map((item) => (
+                    <option key={item.value} value={item.value}>
+                      {item.label}
+                    </option>
+                  ))}
+                </select>
+
+                <p style={helpTextStyle}>
+                  Choose where this product appears in the two moving rows.
+                </p>
+              </div>
+            ) : null}
 
             <div
               style={{
@@ -449,8 +409,8 @@ MODEL IS WEARING SIZE MEDIUM`}
               {uploading
                 ? "Uploading Images..."
                 : saving
-                ? "Saving Product..."
-                : "Save Product"}
+                  ? "Saving Product..."
+                  : "Save Product"}
             </button>
           </section>
 
@@ -504,7 +464,7 @@ MODEL IS WEARING SIZE MEDIUM`}
               </span>
 
               <span style={{ fontSize: "13px" }}>
-                First image will be used as the main image.
+                First image is front. Second image is used on hover.
               </span>
 
               <input
@@ -559,19 +519,21 @@ MODEL IS WEARING SIZE MEDIUM`}
                         position: "absolute",
                         left: "10px",
                         top: "10px",
-                        width: "28px",
+                        minWidth: "28px",
                         height: "28px",
-                        borderRadius: "50%",
+                        padding: "0 8px",
+                        borderRadius: "999px",
                         background: "#111",
                         color: "#fff",
                         display: "flex",
                         alignItems: "center",
                         justifyContent: "center",
-                        fontSize: "11px",
+                        fontSize: "10px",
                         fontWeight: 900,
+                        textTransform: "uppercase",
                       }}
                     >
-                      {index + 1}
+                      {index === 0 ? "Front" : index === 1 ? "Back" : index + 1}
                     </span>
                   </div>
                 ))
@@ -604,7 +566,6 @@ function Input({
       <input
         type={type}
         value={value}
-        min={type === "number" ? "0" : undefined}
         onChange={(event) => onChange(event.target.value)}
         placeholder={placeholder}
         style={inputStyle}
@@ -617,13 +578,6 @@ const twoColStyle: React.CSSProperties = {
   display: "grid",
   gridTemplateColumns: "1fr 1fr",
   gap: "18px",
-  marginBottom: "18px",
-};
-
-const threeColStyle: React.CSSProperties = {
-  display: "grid",
-  gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
-  gap: "14px",
   marginBottom: "18px",
 };
 
@@ -643,10 +597,16 @@ const inputStyle: React.CSSProperties = {
   background: "#f6f2eb",
   outline: "none",
   padding: "0 15px",
-  boxSizing: "border-box",
   fontFamily: '"Outfit", sans-serif',
   fontSize: "14px",
   color: "#111",
+};
+
+const helpTextStyle: React.CSSProperties = {
+  margin: "9px 0 0",
+  color: "#77736c",
+  fontSize: "12px",
+  lineHeight: 1.55,
 };
 
 const checkboxStyle: React.CSSProperties = {

@@ -1,3 +1,4 @@
+import FloatingSocialButtons from "@/components/FloatingSocialButtons";
 import type { Metadata } from "next";
 import "./globals.css";
 import { CartProvider } from "@/context/CartContext";
@@ -61,6 +62,7 @@ export default function RootLayout({
           <AnnouncementBar />
           {children}
         </CartProvider>
+        <FloatingSocialButtons />
       </body>
     </html>
   );

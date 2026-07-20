@@ -3,14 +3,20 @@
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
-import {
-  FirebaseProduct,
-  getProductById,
-  updateProduct,
-} from "@/lib/productService";
+import { onAuthStateChanged } from "firebase/auth";
+import { auth } from "@/lib/firebase";
+import { getProductById, updateProduct } from "@/lib/productService";
 import { ArrowLeft, Save, Upload, X } from "lucide-react";
 
 const categories = ["T-Shirts", "Hoodies", "Pants", "Accessories"];
+
+type NewArrivalRow = "both" | "1" | "2";
+
+const arrivalRows: Array<{ value: NewArrivalRow; label: string }> = [
+  { value: "both", label: "Both Rows" },
+  { value: "1", label: "Top Row Only" },
+  { value: "2", label: "Bottom Row Only" },
+];
 
 function makeSlug(text: string) {
   return text
@@ -31,6 +37,7 @@ export default function EditProductPage() {
   const params = useParams();
   const productId = params.id as string;
 
+  const [checkingAuth, setCheckingAuth] = useState(true);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -43,6 +50,7 @@ export default function EditProductPage() {
   const [sizes, setSizes] = useState("S,M,L,XL");
   const [stock, setStock] = useState("10");
   const [isNewArrival, setIsNewArrival] = useState(true);
+  const [newArrivalRow, setNewArrivalRow] = useState<NewArrivalRow>("both");
   const [isFeatured, setIsFeatured] = useState(false);
 
   const [existingImages, setExistingImages] = useState<string[]>([]);
@@ -50,46 +58,73 @@ export default function EditProductPage() {
   const [previewImages, setPreviewImages] = useState<string[]>([]);
 
   useEffect(() => {
-    async function loadProduct() {
-      try {
-        const product = await getProductById(productId);
-
-        if (!product) {
-          alert("Product not found.");
-          router.push("/admin/products");
-          return;
-        }
-
-        setName(product.name || "");
-        setVariant(product.variant || "");
-        setCategory(product.category || "T-Shirts");
-        setPrice(String(product.price || ""));
-        setDescription(product.description || "");
-        setSizes((product.sizes || []).join(","));
-        setStock(String(product.stock || 0));
-        setIsNewArrival(Boolean(product.isNewArrival));
-        setIsFeatured(Boolean(product.isFeatured));
-        setExistingImages(product.images || []);
-      } catch (error) {
-        console.error("LOAD EDIT PRODUCT ERROR:", error);
-        alert("Failed to load product.");
-      } finally {
-        setLoading(false);
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      if (!user) {
+        router.replace("/admin/login");
+        return;
       }
-    }
 
-    loadProduct();
-  }, [productId, router]);
+      setCheckingAuth(false);
+      await loadProduct();
+    });
+
+    return () => unsubscribe();
+  }, [router, productId]);
+
+  useEffect(() => {
+    return () => {
+      previewImages.forEach((image) => URL.revokeObjectURL(image));
+    };
+  }, [previewImages]);
+
+  async function loadProduct() {
+    try {
+      setLoading(true);
+
+      const product = await getProductById(productId);
+
+      if (!product) {
+        alert("Product not found.");
+        router.push("/admin/products");
+        return;
+      }
+
+      setName(product.name || "");
+      setVariant(product.variant || "");
+      setCategory(product.category || "T-Shirts");
+      setPrice(String(product.price || ""));
+      setDescription(product.description || "");
+      setSizes((product.sizes || []).join(","));
+      setStock(String(product.stock || 0));
+      setIsNewArrival(Boolean(product.isNewArrival));
+      setNewArrivalRow(
+        product.newArrivalRow === "1" || product.newArrivalRow === "2"
+          ? product.newArrivalRow
+          : "both",
+      );
+      setIsFeatured(Boolean(product.isFeatured));
+      setExistingImages(product.images || []);
+    } catch (error) {
+      console.error("LOAD EDIT PRODUCT ERROR:", error);
+      alert("Failed to load product.");
+    } finally {
+      setLoading(false);
+    }
+  }
 
   function handleImageChange(event: React.ChangeEvent<HTMLInputElement>) {
-    const files = Array.from(event.target.files || []).slice(0, 5);
+    const remainingSlots = Math.max(5 - existingImages.length, 0);
+    const files = Array.from(event.target.files || []).slice(0, remainingSlots);
 
+    previewImages.forEach((image) => URL.revokeObjectURL(image));
     setImageFiles(files);
     setPreviewImages(files.map((file) => URL.createObjectURL(file)));
   }
 
   function removeExistingImage(imageUrl: string) {
-    setExistingImages((prev) => prev.filter((image) => image !== imageUrl));
+    setExistingImages((previous) =>
+      previous.filter((image) => image !== imageUrl),
+    );
   }
 
   async function uploadImages() {
@@ -118,7 +153,7 @@ export default function EditProductPage() {
         {
           method: "POST",
           body: formData,
-        }
+        },
       );
 
       const responseText = await response.text();
@@ -133,11 +168,12 @@ export default function EditProductPage() {
       if (!response.ok) {
         console.error("CLOUDINARY EDIT UPLOAD ERROR:", data);
         setUploading(false);
+
         throw new Error(
           data?.error?.message ||
             data?.message ||
             data?.rawResponse ||
-            "Image upload failed"
+            "Image upload failed",
         );
       }
 
@@ -145,7 +181,6 @@ export default function EditProductPage() {
     }
 
     setUploading(false);
-
     return uploadedUrls;
   }
 
@@ -178,6 +213,7 @@ export default function EditProductPage() {
           .filter(Boolean),
         stock: Number(stock),
         isNewArrival,
+        newArrivalRow: isNewArrival ? newArrivalRow : "both",
         isFeatured,
       });
 
@@ -192,17 +228,20 @@ export default function EditProductPage() {
     }
   }
 
-  if (loading) {
+  if (checkingAuth || loading) {
     return (
       <main
         style={{
           minHeight: "100vh",
-          background: "#f6f2eb",
-          padding: "60px",
+          background: "#111",
+          color: "#f6f2eb",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
           fontFamily: '"Outfit", sans-serif',
         }}
       >
-        Loading product...
+        Checking admin access...
       </main>
     );
   }
@@ -218,37 +257,12 @@ export default function EditProductPage() {
       }}
     >
       <div style={{ maxWidth: "1180px", margin: "0 auto" }}>
-        <Link
-          href="/admin/products"
-          style={{
-            color: "#77736c",
-            textDecoration: "none",
-            display: "inline-flex",
-            alignItems: "center",
-            gap: "10px",
-            fontSize: "12px",
-            fontWeight: 900,
-            letterSpacing: "1px",
-            textTransform: "uppercase",
-            marginBottom: "32px",
-          }}
-        >
+        <Link href="/admin/products" style={backLinkStyle}>
           <ArrowLeft size={15} />
           Back to Products
         </Link>
 
-        <h1
-          style={{
-            margin: "0 0 38px",
-            fontFamily: '"Bebas Neue", Impact, sans-serif',
-            fontSize: "78px",
-            lineHeight: 0.85,
-            fontWeight: 400,
-            textTransform: "uppercase",
-          }}
-        >
-          Edit Product
-        </h1>
+        <h1 style={titleStyle}>Edit Product</h1>
 
         <form
           onSubmit={handleSubmit}
@@ -259,13 +273,7 @@ export default function EditProductPage() {
             alignItems: "start",
           }}
         >
-          <section
-            style={{
-              background: "#f2eee7",
-              border: "1px solid #e5ded4",
-              padding: "34px",
-            }}
-          >
+          <section style={panelStyle}>
             <div style={twoColStyle}>
               <Input
                 label="Product Name"
@@ -285,7 +293,6 @@ export default function EditProductPage() {
             <div style={twoColStyle}>
               <div>
                 <label style={labelStyle}>Category</label>
-
                 <select
                   value={category}
                   onChange={(event) => setCategory(event.target.value)}
@@ -310,7 +317,6 @@ export default function EditProductPage() {
 
             <div style={{ marginBottom: "18px" }}>
               <label style={labelStyle}>Description</label>
-
               <textarea
                 value={description}
                 onChange={(event) => setDescription(event.target.value)}
@@ -340,6 +346,31 @@ export default function EditProductPage() {
                 type="number"
               />
             </div>
+
+            {isNewArrival ? (
+              <div style={{ marginBottom: "22px" }}>
+                <label style={labelStyle}>New Arrival Display Row</label>
+
+                <select
+                  value={newArrivalRow}
+                  onChange={(event) =>
+                    setNewArrivalRow(event.target.value as NewArrivalRow)
+                  }
+                  style={inputStyle}
+                >
+                  {arrivalRows.map((item) => (
+                    <option key={item.value} value={item.value}>
+                      {item.label}
+                    </option>
+                  ))}
+                </select>
+
+                <p style={helpTextStyle}>
+                  Choose whether the product appears in the top row, bottom row,
+                  or both.
+                </p>
+              </div>
+            ) : null}
 
             <div
               style={{
@@ -393,8 +424,8 @@ export default function EditProductPage() {
               {uploading
                 ? "Uploading Images..."
                 : saving
-                ? "Saving Changes..."
-                : "Update Product"}
+                  ? "Saving Changes..."
+                  : "Update Product"}
             </button>
           </section>
 
@@ -448,7 +479,7 @@ export default function EditProductPage() {
               </span>
 
               <span style={{ fontSize: "13px" }}>
-                Maximum 5 images total.
+                First image is front. Second image is used on hover.
               </span>
 
               <input
@@ -522,7 +553,6 @@ function Input({
   return (
     <div>
       <label style={labelStyle}>{label}</label>
-
       <input
         type={type}
         value={value}
@@ -569,19 +599,21 @@ function ImageBox({
           position: "absolute",
           left: "10px",
           top: "10px",
-          width: "28px",
+          minWidth: "28px",
           height: "28px",
-          borderRadius: "50%",
+          padding: "0 8px",
+          borderRadius: "999px",
           background: "#111",
           color: "#fff",
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          fontSize: "11px",
+          fontSize: "10px",
           fontWeight: 900,
+          textTransform: "uppercase",
         }}
       >
-        {index + 1}
+        {index === 0 ? "Front" : index === 1 ? "Back" : index + 1}
       </span>
 
       {isNew ? (
@@ -629,6 +661,34 @@ function ImageBox({
   );
 }
 
+const backLinkStyle: React.CSSProperties = {
+  color: "#77736c",
+  textDecoration: "none",
+  display: "inline-flex",
+  alignItems: "center",
+  gap: "10px",
+  fontSize: "12px",
+  fontWeight: 900,
+  letterSpacing: "1px",
+  textTransform: "uppercase",
+  marginBottom: "32px",
+};
+
+const titleStyle: React.CSSProperties = {
+  margin: "0 0 38px",
+  fontFamily: '"Bebas Neue", Impact, sans-serif',
+  fontSize: "78px",
+  lineHeight: 0.85,
+  fontWeight: 400,
+  textTransform: "uppercase",
+};
+
+const panelStyle: React.CSSProperties = {
+  background: "#f2eee7",
+  border: "1px solid #e5ded4",
+  padding: "34px",
+};
+
 const twoColStyle: React.CSSProperties = {
   display: "grid",
   gridTemplateColumns: "1fr 1fr",
@@ -655,6 +715,13 @@ const inputStyle: React.CSSProperties = {
   fontFamily: '"Outfit", sans-serif',
   fontSize: "14px",
   color: "#111",
+};
+
+const helpTextStyle: React.CSSProperties = {
+  margin: "9px 0 0",
+  color: "#77736c",
+  fontSize: "12px",
+  lineHeight: 1.55,
 };
 
 const checkboxStyle: React.CSSProperties = {

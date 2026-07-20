@@ -10,13 +10,19 @@ import {
 } from "@/data/signatureProducts";
 
 type CardProduct = SignatureProduct & {
-  image: string;
+  frontImage: string;
+  backImage: string;
 };
 
 export default function IconicProductsCurve() {
   const [isPhone, setIsPhone] = useState(false);
+
   const [products, setProducts] = useState<CardProduct[]>(
-    signatureProducts.map((product) => ({ ...product, image: "" }))
+    signatureProducts.map((product) => ({
+      ...product,
+      frontImage: "",
+      backImage: "",
+    }))
   );
 
   useEffect(() => {
@@ -41,13 +47,28 @@ export default function IconicProductsCurve() {
         const content = await getHomeContent();
 
         setProducts(
-          signatureProducts.map((product) => ({
-            ...product,
-            image:
-              content.signatureProductImages?.[product.slug]?.[0] ||
-              content.iconicImages?.[product.imageIndex] ||
-              "",
-          }))
+          signatureProducts.map((product) => {
+            const signatureImages =
+              content.signatureProductImages?.[product.slug] || [];
+
+            const fallbackImage =
+              content.iconicImages?.[product.imageIndex] || "";
+
+            const frontImage =
+              signatureImages[0] ||
+              fallbackImage;
+
+            const backImage =
+              signatureImages[1] ||
+              signatureImages[0] ||
+              fallbackImage;
+
+            return {
+              ...product,
+              frontImage,
+              backImage,
+            };
+          })
         );
       } catch (error) {
         console.error("LOAD SIGNATURE PRODUCT IMAGES ERROR:", error);
@@ -64,42 +85,51 @@ export default function IconicProductsCurve() {
         position: "relative",
         zIndex: 40,
         width: "100%",
+        overflow: "hidden",
         background: "#ffffff",
         fontFamily: '"Outfit", sans-serif',
-        overflow: "hidden",
       }}
     >
       <div
         style={{
-          padding: isPhone ? "28px 12px 42px" : "72px 54px 82px",
+          padding: isPhone ? "28px 14px 42px" : "58px 42px 68px",
           background: "#ffffff",
         }}
       >
         <div
           style={{
             width: "100%",
-            maxWidth: isPhone ? "420px" : "1240px",
+            maxWidth: isPhone ? "430px" : "1060px",
             margin: "0 auto",
             display: "grid",
             gridTemplateColumns: isPhone
               ? "1fr"
               : "repeat(3, minmax(0, 1fr))",
-            gap: isPhone ? "18px" : "24px",
+            gap: isPhone ? "18px" : "22px",
             alignItems: "start",
           }}
         >
           {products.map((product, index) => (
             <motion.div
               key={product.slug}
-              initial={{ opacity: 0, y: isPhone ? 22 : 35 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
+              initial={{
+                opacity: 0,
+                y: isPhone ? 22 : 32,
+              }}
+              whileInView={{
+                opacity: 1,
+                y: 0,
+              }}
+              viewport={{
+                once: true,
+                amount: 0.18,
+              }}
               transition={{
-                duration: isPhone ? 0.5 : 0.65,
-                delay: index * 0.09,
+                duration: isPhone ? 0.5 : 0.62,
+                delay: index * 0.08,
                 ease: [0.22, 1, 0.36, 1],
               }}
-              whileHover={isPhone ? undefined : { y: -8 }}
+              whileHover={isPhone ? undefined : { y: -6 }}
             >
               <SignatureCard
                 product={product}
@@ -123,48 +153,107 @@ function SignatureCard({
   number: string;
   isPhone: boolean;
 }) {
+  const [hovered, setHovered] = useState(false);
+
+  const hasDifferentBackImage =
+    Boolean(product.backImage) &&
+    product.backImage !== product.frontImage;
+
   return (
     <Link
       href={`/signature/${product.slug}`}
+      onMouseEnter={() => {
+        if (!isPhone) {
+          setHovered(true);
+        }
+      }}
+      onMouseLeave={() => {
+        setHovered(false);
+      }}
       style={{
         display: "block",
         width: "100%",
         overflow: "hidden",
+        color: "#111111",
         background: "#ffffff",
         border: "1px solid rgba(17,17,17,0.12)",
         boxShadow: isPhone
-          ? "0 10px 28px rgba(17,17,17,0.07)"
-          : "0 12px 34px rgba(17,17,17,0.08)",
+          ? "0 9px 26px rgba(17,17,17,0.065)"
+          : "0 10px 30px rgba(17,17,17,0.075)",
         textDecoration: "none",
-        color: "#111111",
       }}
     >
       <div
         style={{
           position: "relative",
           width: "100%",
-          aspectRatio: isPhone ? "4 / 4.7" : "4 / 5",
+          aspectRatio: "1 / 1",
           overflow: "hidden",
           background: "#ffffff",
         }}
       >
-        {product.image ? (
-          <img
-            src={product.image}
-            alt={product.name}
-            style={{
-              width: "100%",
-              height: "100%",
-              objectFit: "contain",
-              objectPosition: "center",
-              display: "block",
-              transform: isPhone ? "scale(1.1)" : "scale(1.08)",
-              transformOrigin: "center",
-              padding: isPhone ? "4px" : "10px",
-              boxSizing: "border-box",
-              background: "#ffffff",
-            }}
-          />
+        {product.frontImage ? (
+          <>
+            <img
+              src={product.frontImage}
+              alt={`${product.name} front`}
+              style={{
+                position: "absolute",
+                inset: 0,
+                display: "block",
+                width: "100%",
+                height: "100%",
+                padding: isPhone ? "5px" : "8px",
+                objectFit: "contain",
+                objectPosition: "center",
+                boxSizing: "border-box",
+                background: "#ffffff",
+                opacity:
+                  hovered && hasDifferentBackImage
+                    ? 0
+                    : 1,
+                transform:
+                  hovered && hasDifferentBackImage
+                    ? "scale(1.04)"
+                    : isPhone
+                      ? "scale(1.08)"
+                      : "scale(1.1)",
+                transformOrigin: "center",
+                transition:
+                  "opacity 350ms ease, transform 520ms cubic-bezier(0.22, 1, 0.36, 1)",
+              }}
+            />
+
+            {product.backImage ? (
+              <img
+                src={product.backImage}
+                alt={`${product.name} back`}
+                style={{
+                  position: "absolute",
+                  inset: 0,
+                  display: "block",
+                  width: "100%",
+                  height: "100%",
+                  padding: isPhone ? "5px" : "8px",
+                  objectFit: "contain",
+                  objectPosition: "center",
+                  boxSizing: "border-box",
+                  background: "#ffffff",
+                  opacity:
+                    hovered && hasDifferentBackImage
+                      ? 1
+                      : 0,
+                  transform:
+                    hovered && hasDifferentBackImage
+                      ? "scale(1.1)"
+                      : "scale(1.04)",
+                  transformOrigin: "center",
+                  transition:
+                    "opacity 350ms ease, transform 520ms cubic-bezier(0.22, 1, 0.36, 1)",
+                }}
+              />
+            ) : null}
+          </>
         ) : (
           <div
             style={{
@@ -173,10 +262,12 @@ function SignatureCard({
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
+              padding: "20px",
               color: "#8a857d",
               fontSize: "11px",
               fontWeight: 800,
               letterSpacing: "2px",
+              textAlign: "center",
               textTransform: "uppercase",
             }}
           >
@@ -187,10 +278,11 @@ function SignatureCard({
         <span
           style={{
             position: "absolute",
-            left: isPhone ? "12px" : "20px",
-            bottom: isPhone ? "10px" : "18px",
+            left: isPhone ? "13px" : "17px",
+            bottom: isPhone ? "11px" : "14px",
+            zIndex: 4,
             color: "rgba(17,17,17,0.58)",
-            fontSize: isPhone ? "10px" : "12px",
+            fontSize: isPhone ? "10px" : "11px",
             fontWeight: 900,
             letterSpacing: "1.2px",
           }}
@@ -201,24 +293,26 @@ function SignatureCard({
 
       <div
         style={{
-          minHeight: isPhone ? "72px" : "78px",
-          padding: isPhone ? "14px 16px 15px" : "16px 18px 17px",
-          borderTop: "1px solid rgba(17,17,17,0.1)",
-          background: "#ffffff",
+          minHeight: isPhone ? "68px" : "70px",
+          padding: isPhone ? "13px 15px" : "14px 16px",
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
-          gap: "14px",
+          gap: "12px",
           boxSizing: "border-box",
+          background: "#ffffff",
+          borderTop: "1px solid rgba(17,17,17,0.1)",
         }}
       >
         <h3
           style={{
             margin: 0,
-            fontSize: isPhone ? "12px" : "13px",
-            lineHeight: 1.25,
+            maxWidth: "58%",
+            color: "#111111",
+            fontSize: "12px",
             fontWeight: 900,
-            letterSpacing: "0.8px",
+            letterSpacing: "0.7px",
+            lineHeight: 1.25,
             textTransform: "uppercase",
           }}
         >
@@ -230,7 +324,7 @@ function SignatureCard({
             display: "flex",
             alignItems: "baseline",
             justifyContent: "flex-end",
-            gap: "7px",
+            gap: "6px",
             flexShrink: 0,
             whiteSpace: "nowrap",
           }}
@@ -238,7 +332,7 @@ function SignatureCard({
           <span
             style={{
               color: "#8b867f",
-              fontSize: isPhone ? "10px" : "11px",
+              fontSize: "10px",
               fontWeight: 700,
               textDecoration: "line-through",
             }}
@@ -249,7 +343,7 @@ function SignatureCard({
           <span
             style={{
               color: "#111111",
-              fontSize: isPhone ? "14px" : "15px",
+              fontSize: "14px",
               fontWeight: 900,
             }}
           >

@@ -27,6 +27,7 @@ export type FirebaseProduct = {
   stock: number;
   isNewArrival: boolean;
   isFeatured: boolean;
+  newArrivalRow?: "both" | "1" | "2";
   createdAt?: unknown;
 };
 
