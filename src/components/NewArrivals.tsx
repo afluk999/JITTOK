@@ -7,15 +7,27 @@ import { useEffect, useMemo, useState } from "react";
 import {
   getNewArrivalProducts,
   type FirebaseProduct,
+  type ProductBadge,
+  type ProductImageSetting,
 } from "@/lib/productService";
 
 type NewArrivalRow = "both" | "1" | "2";
 
 type ArrivalProduct = FirebaseProduct & {
   newArrivalRow?: NewArrivalRow;
-  originalPrice?: number | string;
+
+  /**
+   * Legacy fields kept for products created before the new pricing system.
+   */
   compareAtPrice?: number | string;
   salePrice?: number | string;
+};
+
+const badgeLabels: Record<Exclude<ProductBadge, "none">, string> = {
+  new: "New",
+  bestseller: "Bestseller",
+  limited: "Limited",
+  "sold-out": "Sold Out",
 };
 
 function formatProductPrice(value: number | string | undefined) {
@@ -57,6 +69,64 @@ function getNumericPrice(value: number | string | undefined) {
   return Number.isFinite(numericValue) ? numericValue : null;
 }
 
+function getSortedImageSettings(product: ArrivalProduct) {
+  return [...(product.imageSettings ?? [])].sort(
+    (firstImage, secondImage) =>
+      (firstImage.order ?? 0) - (secondImage.order ?? 0),
+  );
+}
+
+function getImageSetting(
+  product: ArrivalProduct,
+  role: "front" | "back",
+): ProductImageSetting | undefined {
+  const settings = getSortedImageSettings(product);
+
+  if (role === "front") {
+    return (
+      settings.find((image) => image.role === "front") ??
+      settings[0]
+    );
+  }
+
+  return (
+    settings.find((image) => image.role === "back") ??
+    settings[1] ??
+    settings.find((image) => image.role === "front") ??
+    settings[0]
+  );
+}
+
+function getCardBadge(product: ArrivalProduct) {
+  const resolvedStatus = product.status ?? "published";
+
+  if (resolvedStatus === "sold-out" || product.stock <= 0) {
+    return {
+      label: "Sold Out",
+      className: "naProductBadge naSoldOutBadge",
+    };
+  }
+
+  if (product.badge && product.badge !== "none") {
+    return {
+      label: badgeLabels[product.badge],
+      className: `naProductBadge na${product.badge
+        .split("-")
+        .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+        .join("")}Badge`,
+    };
+  }
+
+  if (product.stock > 0 && product.stock <= 3) {
+    return {
+      label: `Only ${product.stock} Left`,
+      className: "naProductBadge naLowStockBadge",
+    };
+  }
+
+  return null;
+}
+
 function ProductCard({
   product,
   index,
@@ -66,14 +136,21 @@ function ProductCard({
 }) {
   const [liked, setLiked] = useState(false);
 
-  const frontImage = product.images?.[0];
-  const backImage = product.images?.[1] || frontImage;
+  const frontSetting = getImageSetting(product, "front");
+  const backSetting = getImageSetting(product, "back");
+
+  const frontImage = frontSetting?.url || product.images?.[0];
+  const backImage =
+    backSetting?.url || product.images?.[1] || frontImage;
 
   const currentPriceValue =
-    product.salePrice ?? product.displayPrice ?? product.price;
+    product.sellingPrice ??
+    product.salePrice ??
+    product.price ??
+    product.displayPrice;
 
   const originalPriceValue =
-    product.compareAtPrice ?? product.originalPrice;
+    product.originalPrice ?? product.compareAtPrice;
 
   const currentPrice = formatProductPrice(currentPriceValue);
   const originalPrice = formatProductPrice(originalPriceValue);
@@ -84,11 +161,25 @@ function ProductCard({
   const showOriginalPrice =
     Boolean(originalPrice) &&
     originalPrice !== currentPrice &&
-    (
-      originalNumericPrice === null ||
+    (originalNumericPrice === null ||
       currentNumericPrice === null ||
-      originalNumericPrice > currentNumericPrice
-    );
+      originalNumericPrice > currentNumericPrice);
+
+  const cardBadge = getCardBadge(product);
+
+  const frontImageStyle: React.CSSProperties = {
+    objectFit: frontSetting?.fit ?? "cover",
+    objectPosition: `${frontSetting?.positionX ?? 50}% ${
+      frontSetting?.positionY ?? 50
+    }%`,
+  };
+
+  const backImageStyle: React.CSSProperties = {
+    objectFit: backSetting?.fit ?? "cover",
+    objectPosition: `${backSetting?.positionX ?? 50}% ${
+      backSetting?.positionY ?? 50
+    }%`,
+  };
 
   return (
     <motion.article
@@ -113,6 +204,7 @@ function ProductCard({
               src={frontImage}
               alt={product.name}
               className="naProductImage naFrontImage"
+              style={frontImageStyle}
               loading="lazy"
               decoding="async"
             />
@@ -125,9 +217,16 @@ function ProductCard({
               src={backImage}
               alt={`${product.name} back`}
               className="naProductImage naBackImage"
+              style={backImageStyle}
               loading="lazy"
               decoding="async"
             />
+          ) : null}
+
+          {cardBadge ? (
+            <span className={cardBadge.className}>
+              {cardBadge.label}
+            </span>
           ) : null}
 
           <button
@@ -183,8 +282,13 @@ function getUniqueProducts(products: ArrivalProduct[]) {
 
 function rotateProducts(products: ArrivalProduct[]) {
   if (products.length <= 1) return products;
+
   const middle = Math.ceil(products.length / 2);
-  return [...products.slice(middle), ...products.slice(0, middle)];
+
+  return [
+    ...products.slice(middle),
+    ...products.slice(0, middle),
+  ];
 }
 
 function buildRows(products: ArrivalProduct[]) {
@@ -210,8 +314,10 @@ function buildRows(products: ArrivalProduct[]) {
       return;
     }
 
-    // Old Firebase products do not have newArrivalRow yet.
-    // Split those automatically so both rows appear immediately.
+    /**
+     * Older Firebase products may not have newArrivalRow yet.
+     * Split those automatically so both rows appear immediately.
+     */
     if (index % 2 === 0) {
       topRow.push(product);
     } else {
@@ -220,10 +326,7 @@ function buildRows(products: ArrivalProduct[]) {
   });
 
   return {
-    top:
-      topRow.length > 0
-        ? topRow
-        : products,
+    top: topRow.length > 0 ? topRow : products,
     bottom:
       bottomRow.length > 0
         ? bottomRow
@@ -238,7 +341,9 @@ function repeatForContinuousLoop(
   if (products.length === 0) return [];
 
   return Array.from(
-    { length: Math.max(minimumCards, products.length) },
+    {
+      length: Math.max(minimumCards, products.length),
+    },
     (_, index) => products[index % products.length],
   );
 }
@@ -262,7 +367,9 @@ function MarqueeRow({
   return (
     <div className="naMarqueeViewport">
       <div
-        className={`naMarqueeTrack${reverse ? " naMarqueeReverse" : ""}`}
+        className={`naMarqueeTrack${
+          reverse ? " naMarqueeReverse" : ""
+        }`}
       >
         <div className="naMarqueeGroup">
           {repeatedProducts.map((product, index) => {
@@ -311,7 +418,9 @@ export default function NewArrivals() {
   useEffect(() => {
     async function loadNewArrivals() {
       try {
-        const data = (await getNewArrivalProducts()) as ArrivalProduct[];
+        const data =
+          (await getNewArrivalProducts()) as ArrivalProduct[];
+
         setProducts(getUniqueProducts(data));
       } catch (error) {
         console.error("LOAD NEW ARRIVALS ERROR:", error);
@@ -457,6 +566,53 @@ export default function NewArrivals() {
           isolation: isolate;
         }
 
+        .naProductBadge {
+          position: absolute;
+          top: 9px;
+          left: 9px;
+          z-index: 6;
+          display: inline-flex;
+          min-height: 25px;
+          align-items: center;
+          justify-content: center;
+          padding: 0 9px;
+          color: #ffffff;
+          background: #111111;
+          border: 1px solid rgba(255, 255, 255, 0.14);
+          font-size: 8px;
+          font-weight: 900;
+          letter-spacing: 0.9px;
+          line-height: 1;
+          text-transform: uppercase;
+          box-shadow: 0 4px 13px rgba(0, 0, 0, 0.12);
+        }
+
+        .naNewBadge {
+          color: #111111;
+          background: #ffffff;
+          border-color: rgba(17, 17, 17, 0.13);
+        }
+
+        .naBestsellerBadge {
+          background: #111111;
+        }
+
+        .naLimitedBadge {
+          color: #111111;
+          background: #f3e6ba;
+          border-color: rgba(17, 17, 17, 0.12);
+        }
+
+        .naSoldOutBadge {
+          background: #821f19;
+        }
+
+        .naLowStockBadge {
+          color: #111111;
+          background: #f6d86b;
+          border-color: rgba(17, 17, 17, 0.12);
+        }
+
         .naPriceBox {
           display: flex;
           min-height: 46px;
@@ -490,7 +646,6 @@ export default function NewArrivals() {
           inset: 0;
           width: 100%;
           height: 100%;
-          object-fit: cover;
           transition:
             opacity 360ms ease,
             transform 520ms cubic-bezier(0.22, 1, 0.36, 1);
@@ -537,7 +692,7 @@ export default function NewArrivals() {
           position: absolute;
           top: 9px;
           right: 9px;
-          z-index: 5;
+          z-index: 7;
           display: flex;
           width: 29px;
           height: 29px;
@@ -667,6 +822,15 @@ export default function NewArrivals() {
             box-shadow: 0 5px 16px rgba(17, 17, 17, 0.055);
           }
 
+          .naProductBadge {
+            top: 7px;
+            left: 7px;
+            min-height: 23px;
+            padding: 0 7px;
+            font-size: 7px;
+            letter-spacing: 0.7px;
+          }
+
           .naHeartButton {
             top: 7px;
             right: 7px;
@@ -704,6 +868,13 @@ export default function NewArrivals() {
 
           .naMobileGrid {
             gap: 9px 8px;
+          }
+
+          .naProductBadge {
+            max-width: calc(100% - 48px);
+            overflow: hidden;
+            white-space: nowrap;
+            text-overflow: ellipsis;
           }
 
           .naPriceBox {

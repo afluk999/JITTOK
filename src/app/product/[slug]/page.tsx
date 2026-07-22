@@ -1,13 +1,17 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import {
-  type FirebaseProduct,
   getProductBySlugFromFirebase,
+  getProductOriginalPrice,
+  getProductSellingPrice,
+  type FirebaseProduct,
+  type ProductBadge,
+  type ProductImageSetting,
 } from "@/lib/productService";
 import { useCart } from "@/context/CartContext";
 import {
@@ -27,14 +31,107 @@ import { FaWhatsapp } from "react-icons/fa";
 const WHATSAPP_NUMBER = "910000000000";
 
 type ProductWithOffers = FirebaseProduct & {
-  originalPrice?: number;
   originalDisplayPrice?: string;
   prepaidDiscount?: number;
   productDetails?: string;
 };
 
+type GalleryImage = {
+  url: string;
+  fit: "cover" | "contain";
+  positionX: number;
+  positionY: number;
+};
+
+const badgeLabels: Record<Exclude<ProductBadge, "none">, string> = {
+  new: "New",
+  bestseller: "Bestseller",
+  limited: "Limited",
+  "sold-out": "Sold Out",
+};
+
 function formatPrice(value: number) {
   return `₹${Number(value || 0).toLocaleString("en-IN")}.00`;
+}
+
+function getGalleryImages(product: ProductWithOffers): GalleryImage[] {
+  const sortedSettings = [...(product.imageSettings ?? [])].sort(
+    (firstImage, secondImage) =>
+      (firstImage.order ?? 0) - (secondImage.order ?? 0),
+  );
+
+  if (sortedSettings.length > 0) {
+    return sortedSettings.slice(0, 5).map((image) => ({
+      url: image.url,
+      fit: image.fit ?? "cover",
+      positionX: image.positionX ?? 50,
+      positionY: image.positionY ?? 50,
+    }));
+  }
+
+  return (product.images ?? []).slice(0, 5).map((url) => ({
+    url,
+    fit: "cover",
+    positionX: 50,
+    positionY: 50,
+  }));
+}
+
+function getProductBadge(product: ProductWithOffers) {
+  const isSoldOut =
+    product.status === "sold-out" || Number(product.stock || 0) <= 0;
+
+  if (isSoldOut) {
+    return {
+      label: "Sold Out",
+      style: {
+        background: "#821f19",
+        color: "#fff",
+      } as React.CSSProperties,
+    };
+  }
+
+  if (product.badge && product.badge !== "none") {
+    const badgeStyles: Record<
+      Exclude<ProductBadge, "none">,
+      React.CSSProperties
+    > = {
+      new: {
+        background: "#fff",
+        color: "#111",
+        border: "1px solid rgba(17,17,17,0.15)",
+      },
+      bestseller: {
+        background: "#111",
+        color: "#fff",
+      },
+      limited: {
+        background: "#f3e6ba",
+        color: "#111",
+      },
+      "sold-out": {
+        background: "#821f19",
+        color: "#fff",
+      },
+    };
+
+    return {
+      label: badgeLabels[product.badge],
+      style: badgeStyles[product.badge],
+    };
+  }
+
+  if (product.stock > 0 && product.stock <= 3) {
+    return {
+      label: `Only ${product.stock} Left`,
+      style: {
+        background: "#f6d86b",
+        color: "#111",
+      } as React.CSSProperties,
+    };
+  }
+
+  return null;
 }
 
 export default function ProductPage() {
@@ -69,14 +166,20 @@ export default function ProductPage() {
   useEffect(() => {
     async function loadProduct() {
       try {
+        setLoading(true);
+
         const data = (await getProductBySlugFromFirebase(
-          slug
+          slug,
         )) as ProductWithOffers | null;
 
         setProduct(data);
+        setActiveImage(0);
+        setQuantity(1);
 
         if (data?.sizes?.[0]) {
           setSelectedSize(data.sizes[0]);
+        } else {
+          setSelectedSize("");
         }
       } catch (error) {
         console.error("LOAD PRODUCT ERROR:", error);
@@ -87,6 +190,11 @@ export default function ProductPage() {
 
     loadProduct();
   }, [slug]);
+
+  const images = useMemo(
+    () => (product ? getGalleryImages(product) : []),
+    [product],
+  );
 
   if (loading) {
     return (
@@ -110,6 +218,7 @@ export default function ProductPage() {
     return (
       <>
         <Navbar />
+
         <main
           style={{
             minHeight: "100vh",
@@ -121,55 +230,79 @@ export default function ProductPage() {
           <h1>Product not found</h1>
           <Link href="/collections">Back to collections</Link>
         </main>
+
         <Footer />
       </>
     );
   }
 
   const size = selectedSize || product.sizes?.[0] || "Free Size";
-  const images =
-    product.images && product.images.length > 0
-      ? product.images.slice(0, 5)
-      : [];
-
-  const sellingPrice = Number(product.price || 0);
-  const originalPrice = Number(product.originalPrice || 0);
-  const prepaidDiscount = Number(product.prepaidDiscount || 50);
-  const hasOriginalPrice = originalPrice > sellingPrice;
+  const sellingPrice = getProductSellingPrice(product);
+  const originalPrice = getProductOriginalPrice(product);
+  const prepaidDiscount = Number(product.prepaidDiscount ?? 50);
+  const hasOriginalPrice =
+    originalPrice !== null && originalPrice > sellingPrice;
 
   const originalDisplayPrice =
     product.originalDisplayPrice ||
-    (hasOriginalPrice ? formatPrice(originalPrice) : "");
+    (hasOriginalPrice && originalPrice !== null
+      ? formatPrice(originalPrice)
+      : "");
 
-  const savingAmount = hasOriginalPrice
-    ? Math.max(originalPrice - sellingPrice, 0)
-    : 0;
+  const sellingDisplayPrice = formatPrice(sellingPrice);
+
+  const savingAmount =
+    hasOriginalPrice && originalPrice !== null
+      ? Math.max(originalPrice - sellingPrice, 0)
+      : 0;
+
+  const isSoldOut =
+    product.status === "sold-out" || Number(product.stock || 0) <= 0;
+
+  const maximumQuantity = Math.max(Number(product.stock || 1), 1);
+  const productBadge = getProductBadge(product);
+  const selectedGalleryImage = images[activeImage] ?? images[0];
 
   function handleAddToCart() {
+    if (isSoldOut) {
+      alert("This product is currently sold out.");
+      return;
+    }
+
     addToCart(product as any, size, quantity);
     setAdded(true);
     window.dispatchEvent(new Event("cart-updated"));
-    setTimeout(() => setAdded(false), 1400);
+
+    window.setTimeout(() => {
+      setAdded(false);
+    }, 1400);
   }
 
   function handleBuyNow() {
+    if (isSoldOut) {
+      alert("This product is currently sold out.");
+      return;
+    }
+
     addToCart(product as any, size, quantity);
     window.dispatchEvent(new Event("cart-updated"));
     router.push("/cart");
   }
 
-  const directWhatsAppMessage = `Hi JITTOK, I want to order this product.
+  const directWhatsAppMessage = `Hi JITTOK,
 
+Source: JITTOK WEBSITE
 Product: ${product.name}
 Variant: ${product.variant}
 Size: ${size}
 Quantity: ${quantity}
-Price: ${product.displayPrice}
+Price: ${sellingDisplayPrice}
+Product Link: /product/${product.slug}
 
 Please confirm availability and delivery details.`;
 
   const whatsappUrl = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(
-    directWhatsAppMessage
+    directWhatsAppMessage,
   )}`;
 
   return (
@@ -204,6 +337,7 @@ Please confirm availability and delivery details.`;
             >
               <span>01 / Interactive Showcase</span>
               <span />
+
               <Link
                 href="/collections"
                 style={{
@@ -254,7 +388,7 @@ Please confirm availability and delivery details.`;
               ) : (
                 images.map((image, index) => (
                   <button
-                    key={`${image}-${index}`}
+                    key={`${image.url}-${index}`}
                     type="button"
                     onClick={() => setActiveImage(index)}
                     style={{
@@ -296,13 +430,15 @@ Please confirm availability and delivery details.`;
                       }}
                     >
                       <img
-                        src={image}
+                        src={image.url}
                         alt={`${product.name} thumbnail ${index + 1}`}
                         style={{
                           width: "100%",
                           height: "100%",
-                          objectFit: "cover",
+                          objectFit: image.fit,
+                          objectPosition: `${image.positionX}% ${image.positionY}%`,
                           display: "block",
+                          background: "#ebe7df",
                         }}
                       />
                     </div>
@@ -323,34 +459,65 @@ Please confirm availability and delivery details.`;
                 order: isPhone ? 1 : 2,
               }}
             >
-              {images.length > 0 ? (
+              {selectedGalleryImage ? (
                 <img
-                  src={images[activeImage] || images[0]}
+                  src={selectedGalleryImage.url}
                   alt={product.name}
                   style={{
                     width: "100%",
                     height: "100%",
                     minHeight: isPhone ? "460px" : "650px",
-                    objectFit: "cover",
-                    objectPosition: "center",
+                    objectFit: selectedGalleryImage.fit,
+                    objectPosition: `${selectedGalleryImage.positionX}% ${selectedGalleryImage.positionY}%`,
                     display: "block",
+                    background: "#ebe7df",
                   }}
                 />
               ) : (
                 <ImagePlaceholder text="Main Product Image" />
               )}
 
+              {productBadge ? (
+                <span
+                  style={{
+                    position: "absolute",
+                    top: isPhone ? "16px" : "24px",
+                    left: isPhone ? "16px" : "24px",
+                    zIndex: 5,
+                    minHeight: "30px",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    padding: "0 11px",
+                    fontSize: "9px",
+                    fontWeight: 900,
+                    letterSpacing: "1px",
+                    textTransform: "uppercase",
+                    boxShadow: "0 5px 18px rgba(0,0,0,0.13)",
+                    ...productBadge.style,
+                  }}
+                >
+                  {productBadge.label}
+                </span>
+              ) : null}
+
               <div
                 style={{
                   position: "absolute",
                   left: isPhone ? "16px" : "24px",
                   bottom: isPhone ? "16px" : "24px",
-                  color: "rgba(255,255,255,0.94)",
+                  color:
+                    selectedGalleryImage?.fit === "contain"
+                      ? "#111"
+                      : "rgba(255,255,255,0.94)",
                   fontSize: "11px",
                   fontWeight: 800,
                   letterSpacing: "1px",
                   textTransform: "uppercase",
-                  textShadow: "0 4px 18px rgba(0,0,0,0.35)",
+                  textShadow:
+                    selectedGalleryImage?.fit === "contain"
+                      ? "none"
+                      : "0 4px 18px rgba(0,0,0,0.35)",
                 }}
               >
                 {String(activeImage + 1).padStart(2, "0")}
@@ -379,7 +546,10 @@ Please confirm availability and delivery details.`;
                   textTransform: "uppercase",
                 }}
               >
-                {product.isNewArrival ? "New Arrival" : product.category}
+                {productBadge?.label ??
+                  (product.isNewArrival
+                    ? "New Arrival"
+                    : product.category)}
               </p>
 
               <h1
@@ -414,7 +584,7 @@ Please confirm availability and delivery details.`;
 
               <div
                 style={{
-                  marginBottom: "20px",
+                  marginBottom: "12px",
                   display: "flex",
                   alignItems: "baseline",
                   gap: "11px",
@@ -441,7 +611,7 @@ Please confirm availability and delivery details.`;
                     fontWeight: 900,
                   }}
                 >
-                  {product.displayPrice}
+                  {sellingDisplayPrice}
                 </span>
 
                 {savingAmount > 0 ? (
@@ -463,6 +633,23 @@ Please confirm availability and delivery details.`;
 
               <p
                 style={{
+                  margin: "0 0 20px",
+                  color: isSoldOut ? "#821f19" : "#4d4943",
+                  fontSize: "11px",
+                  fontWeight: 900,
+                  letterSpacing: "0.9px",
+                  textTransform: "uppercase",
+                }}
+              >
+                {isSoldOut
+                  ? "Currently sold out"
+                  : product.stock <= 3
+                    ? `Only ${product.stock} left in stock`
+                    : `${product.stock} available`}
+              </p>
+
+              <p
+                style={{
                   margin: "0 0 25px",
                   maxWidth: "330px",
                   color: "#4d4943",
@@ -477,7 +664,9 @@ Please confirm availability and delivery details.`;
                 title="Details"
                 open={openInfo === "details"}
                 onClick={() =>
-                  setOpenInfo(openInfo === "details" ? null : "details")
+                  setOpenInfo(
+                    openInfo === "details" ? null : "details",
+                  )
                 }
               >
                 {product.productDetails || product.description}
@@ -502,6 +691,7 @@ Please confirm availability and delivery details.`;
                     <button
                       key={productSize}
                       type="button"
+                      disabled={isSoldOut}
                       onClick={(event) => {
                         event.stopPropagation();
                         setSelectedSize(productSize);
@@ -518,7 +708,8 @@ Please confirm availability and delivery details.`;
                         color: size === productSize ? "#fff" : "#111",
                         fontSize: "12px",
                         fontWeight: 800,
-                        cursor: "pointer",
+                        cursor: isSoldOut ? "not-allowed" : "pointer",
+                        opacity: isSoldOut ? 0.45 : 1,
                       }}
                     >
                       {productSize}
@@ -531,7 +722,9 @@ Please confirm availability and delivery details.`;
                 title="Shipping"
                 open={openInfo === "shipping"}
                 onClick={() =>
-                  setOpenInfo(openInfo === "shipping" ? null : "shipping")
+                  setOpenInfo(
+                    openInfo === "shipping" ? null : "shipping",
+                  )
                 }
               >
                 Free shipping on prepaid orders. COD is available. Orders are
@@ -553,13 +746,17 @@ Please confirm availability and delivery details.`;
                     display: "grid",
                     gridTemplateColumns: "38px 1fr 38px",
                     alignItems: "center",
+                    opacity: isSoldOut ? 0.5 : 1,
                   }}
                 >
                   <button
                     type="button"
                     aria-label="Decrease quantity"
+                    disabled={isSoldOut}
                     onClick={() =>
-                      setQuantity((previous) => Math.max(1, previous - 1))
+                      setQuantity((previous) =>
+                        Math.max(1, previous - 1),
+                      )
                     }
                     style={quantityButtonStyle}
                   >
@@ -579,7 +776,12 @@ Please confirm availability and delivery details.`;
                   <button
                     type="button"
                     aria-label="Increase quantity"
-                    onClick={() => setQuantity((previous) => previous + 1)}
+                    disabled={isSoldOut || quantity >= maximumQuantity}
+                    onClick={() =>
+                      setQuantity((previous) =>
+                        Math.min(maximumQuantity, previous + 1),
+                      )
+                    }
                     style={quantityButtonStyle}
                   >
                     <Plus size={15} />
@@ -589,31 +791,41 @@ Please confirm availability and delivery details.`;
                 <button
                   type="button"
                   onClick={handleAddToCart}
+                  disabled={isSoldOut}
                   style={{
                     height: "54px",
                     border: "none",
-                    background: added ? "#347a48" : "#111",
+                    background: isSoldOut
+                      ? "#918b83"
+                      : added
+                        ? "#347a48"
+                        : "#111",
                     color: "#fff",
                     fontSize: "12px",
                     fontWeight: 900,
                     letterSpacing: "1px",
                     textTransform: "uppercase",
-                    cursor: "pointer",
+                    cursor: isSoldOut ? "not-allowed" : "pointer",
                   }}
                 >
-                  {added ? "Added ✓" : "Add to Cart"}
+                  {isSoldOut
+                    ? "Sold Out"
+                    : added
+                      ? "Added ✓"
+                      : "Add to Cart"}
                 </button>
               </div>
 
               <button
                 type="button"
                 onClick={handleBuyNow}
+                disabled={isSoldOut}
                 style={{
                   width: "100%",
                   height: "56px",
                   marginTop: "10px",
                   border: "none",
-                  background: "#0a0a0a",
+                  background: isSoldOut ? "#918b83" : "#0a0a0a",
                   color: "#fff",
                   display: "flex",
                   alignItems: "center",
@@ -622,24 +834,26 @@ Please confirm availability and delivery details.`;
                   fontSize: "13px",
                   fontWeight: 900,
                   letterSpacing: "0.4px",
-                  cursor: "pointer",
+                  cursor: isSoldOut ? "not-allowed" : "pointer",
                 }}
               >
                 <Zap size={17} fill="currentColor" />
-                Buy it now
+                {isSoldOut ? "Currently Sold Out" : "Buy it now"}
               </button>
 
-              <div
-                style={{
-                  padding: "18px 0",
-                  borderBottom: "1px solid #e5dfd6",
-                  color: "#3e4753",
-                  fontSize: "15px",
-                  fontWeight: 800,
-                }}
-              >
-                Save ₹{prepaidDiscount.toLocaleString("en-IN")} with Prepaid
-              </div>
+              {!isSoldOut ? (
+                <div
+                  style={{
+                    padding: "18px 0",
+                    borderBottom: "1px solid #e5dfd6",
+                    color: "#3e4753",
+                    fontSize: "15px",
+                    fontWeight: 800,
+                  }}
+                >
+                  Save ₹{prepaidDiscount.toLocaleString("en-IN")} with Prepaid
+                </div>
+              ) : null}
 
               <div
                 style={{
@@ -654,14 +868,17 @@ Please confirm availability and delivery details.`;
                   title="Free Shipping"
                   subtitle="On prepaid orders"
                 />
+
                 <BenefitRow
                   icon={<WalletCards size={22} />}
                   title="COD Available"
                 />
+
                 <BenefitRow
                   icon={<RefreshCw size={22} />}
                   title="Easy Size Exchange"
                 />
+
                 <BenefitRow
                   icon={<PackageCheck size={22} />}
                   title="Dispatch within 24 Hours"
@@ -696,7 +913,9 @@ Please confirm availability and delivery details.`;
                   }}
                 >
                   <FaWhatsapp size={18} />
-                  Order on WhatsApp
+                  {isSoldOut
+                    ? "Ask on WhatsApp"
+                    : "Order on WhatsApp"}
                 </a>
 
                 <button
@@ -802,7 +1021,10 @@ function BenefitRow({
       <span style={{ color: "#0b0b0b", display: "flex" }}>{icon}</span>
 
       <div>
-        <p style={{ margin: 0, fontSize: "14px", fontWeight: 700 }}>{title}</p>
+        <p style={{ margin: 0, fontSize: "14px", fontWeight: 700 }}>
+          {title}
+        </p>
+
         {subtitle ? (
           <p
             style={{
@@ -881,7 +1103,8 @@ function ImagePlaceholder({ text }: { text: string }) {
         fontSize: "11px",
         letterSpacing: "5px",
         textTransform: "uppercase",
-        background: "linear-gradient(180deg, #eee9e0 0%, #dcd4c8 100%)",
+        background:
+          "linear-gradient(180deg, #eee9e0 0%, #dcd4c8 100%)",
       }}
     >
       {text}

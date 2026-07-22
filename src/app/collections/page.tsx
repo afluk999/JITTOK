@@ -1,13 +1,125 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
-import { FirebaseProduct, getProducts } from "@/lib/productService";
+import {
+  FirebaseProduct,
+  getProductOriginalPrice,
+  getProductSellingPrice,
+  getProducts,
+  ProductBadge,
+  ProductImageSetting,
+} from "@/lib/productService";
 import { Heart } from "lucide-react";
 
 const categories = ["All", "T-Shirts", "Hoodies", "Pants", "Accessories"];
+
+const badgeLabels: Record<Exclude<ProductBadge, "none">, string> = {
+  new: "New",
+  bestseller: "Bestseller",
+  limited: "Limited",
+  "sold-out": "Sold Out",
+};
+
+function formatPrice(value: number) {
+  return new Intl.NumberFormat("en-IN", {
+    style: "currency",
+    currency: "INR",
+    maximumFractionDigits: 0,
+  }).format(Number(value || 0));
+}
+
+function getSortedImageSettings(product: FirebaseProduct) {
+  return [...(product.imageSettings ?? [])].sort(
+    (firstImage, secondImage) =>
+      (firstImage.order ?? 0) - (secondImage.order ?? 0),
+  );
+}
+
+function getImageSetting(
+  product: FirebaseProduct,
+  role: "front" | "back",
+): ProductImageSetting | undefined {
+  const settings = getSortedImageSettings(product);
+
+  if (role === "front") {
+    return (
+      settings.find((image) => image.role === "front") ??
+      settings[0]
+    );
+  }
+
+  return (
+    settings.find((image) => image.role === "back") ??
+    settings[1] ??
+    settings.find((image) => image.role === "front") ??
+    settings[0]
+  );
+}
+
+function getProductBadge(product: FirebaseProduct) {
+  const resolvedStatus = product.status ?? "published";
+  const stock = Number(product.stock || 0);
+
+  if (resolvedStatus === "sold-out" || stock <= 0) {
+    return {
+      label: "Sold Out",
+      style: {
+        background: "#821f19",
+        color: "#fff",
+      } as React.CSSProperties,
+    };
+  }
+
+  if (product.badge && product.badge !== "none") {
+    const badgeStyles: Record<
+      Exclude<ProductBadge, "none">,
+      React.CSSProperties
+    > = {
+      new: {
+        background: "#fff",
+        color: "#111",
+        border: "1px solid rgba(17,17,17,0.15)",
+      },
+      bestseller: {
+        background: "#111",
+        color: "#fff",
+      },
+      limited: {
+        background: "#f3e6ba",
+        color: "#111",
+      },
+      "sold-out": {
+        background: "#821f19",
+        color: "#fff",
+      },
+    };
+
+    return {
+      label: badgeLabels[product.badge],
+      style: badgeStyles[product.badge],
+    };
+  }
+
+  if (stock > 0 && stock <= 3) {
+    return {
+      label: `Only ${stock} Left`,
+      style: {
+        background: "#f6d86b",
+        color: "#111",
+      } as React.CSSProperties,
+    };
+  }
+
+  return null;
+}
+
+function isPublicProduct(product: FirebaseProduct) {
+  const status = product.status ?? "published";
+  return status !== "draft" && status !== "archived";
+}
 
 export default function CollectionsPage() {
   const [products, setProducts] = useState<FirebaseProduct[]>([]);
@@ -19,7 +131,7 @@ export default function CollectionsPage() {
     function checkPhone() {
       const phoneUserAgent =
         /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
-          navigator.userAgent
+          navigator.userAgent,
         );
 
       const smallScreen = window.innerWidth <= 768;
@@ -40,7 +152,16 @@ export default function CollectionsPage() {
     async function loadProducts() {
       try {
         const data = await getProducts();
-        setProducts(data);
+
+        setProducts(
+          data
+            .filter(isPublicProduct)
+            .sort(
+              (firstProduct, secondProduct) =>
+                (firstProduct.homepageOrder ?? 999) -
+                (secondProduct.homepageOrder ?? 999),
+            ),
+        );
       } catch (error) {
         console.error("LOAD COLLECTION PRODUCTS ERROR:", error);
       } finally {
@@ -51,10 +172,15 @@ export default function CollectionsPage() {
     loadProducts();
   }, []);
 
-  const filteredProducts =
-    activeCategory === "All"
-      ? products
-      : products.filter((product) => product.category === activeCategory);
+  const filteredProducts = useMemo(() => {
+    if (activeCategory === "All") {
+      return products;
+    }
+
+    return products.filter(
+      (product) => product.category === activeCategory,
+    );
+  }, [products, activeCategory]);
 
   return (
     <>
@@ -136,6 +262,7 @@ export default function CollectionsPage() {
             {categories.map((category) => (
               <button
                 key={category}
+                type="button"
                 onClick={() => setActiveCategory(category)}
                 style={{
                   height: isPhone ? "36px" : "40px",
@@ -181,7 +308,7 @@ export default function CollectionsPage() {
             >
               {filteredProducts.map((product) => (
                 <ProductCard
-                  key={product.id}
+                  key={product.id || product.slug}
                   product={product}
                   isPhone={isPhone}
                 />
@@ -203,11 +330,39 @@ function ProductCard({
   product: FirebaseProduct;
   isPhone: boolean;
 }) {
-  const image = product.images?.[0];
+  const [liked, setLiked] = useState(false);
+  const [hovered, setHovered] = useState(false);
+
+  const frontSetting = getImageSetting(product, "front");
+  const backSetting = getImageSetting(product, "back");
+
+  const frontImage =
+    frontSetting?.url || product.images?.[0] || "";
+
+  const backImage =
+    backSetting?.url ||
+    product.images?.[1] ||
+    product.images?.[0] ||
+    "";
+
+  const hasDifferentBackImage =
+    Boolean(backImage) && backImage !== frontImage;
+
+  const sellingPrice = getProductSellingPrice(product);
+  const originalPrice = getProductOriginalPrice(product);
+  const badge = getProductBadge(product);
+  const isSoldOut =
+    product.status === "sold-out" || Number(product.stock || 0) <= 0;
 
   return (
     <Link
       href={`/product/${product.slug}`}
+      onMouseEnter={() => {
+        if (!isPhone) {
+          setHovered(true);
+        }
+      }}
+      onMouseLeave={() => setHovered(false)}
       style={{
         color: "#111",
         textDecoration: "none",
@@ -225,17 +380,58 @@ function ProductCard({
             overflow: "hidden",
           }}
         >
-          {image ? (
-            <img
-              src={image}
-              alt={product.name}
-              style={{
-                width: "100%",
-                height: "100%",
-                objectFit: "cover",
-                display: "block",
-              }}
-            />
+          {frontImage ? (
+            <>
+              <img
+                src={frontImage}
+                alt={product.name}
+                style={{
+                  position: "absolute",
+                  inset: 0,
+                  width: "100%",
+                  height: "100%",
+                  objectFit: frontSetting?.fit ?? "cover",
+                  objectPosition: `${frontSetting?.positionX ?? 50}% ${
+                    frontSetting?.positionY ?? 50
+                  }%`,
+                  display: "block",
+                  opacity:
+                    hovered && hasDifferentBackImage ? 0 : 1,
+                  transform:
+                    hovered && hasDifferentBackImage
+                      ? "scale(1.03)"
+                      : "scale(1)",
+                  transition:
+                    "opacity 340ms ease, transform 480ms cubic-bezier(0.22, 1, 0.36, 1)",
+                }}
+              />
+
+              {backImage ? (
+                <img
+                  src={backImage}
+                  alt={`${product.name} back`}
+                  style={{
+                    position: "absolute",
+                    inset: 0,
+                    width: "100%",
+                    height: "100%",
+                    objectFit: backSetting?.fit ?? "cover",
+                    objectPosition: `${backSetting?.positionX ?? 50}% ${
+                      backSetting?.positionY ?? 50
+                    }%`,
+                    display: "block",
+                    opacity:
+                      hovered && hasDifferentBackImage ? 1 : 0,
+                    transform:
+                      hovered && hasDifferentBackImage
+                        ? "scale(1)"
+                        : "scale(1.03)",
+                    transition:
+                      "opacity 340ms ease, transform 480ms cubic-bezier(0.22, 1, 0.36, 1)",
+                  }}
+                />
+              ) : null}
+            </>
           ) : (
             <div
               style={{
@@ -256,28 +452,87 @@ function ProductCard({
             </div>
           )}
 
+          {badge ? (
+            <span
+              style={{
+                position: "absolute",
+                top: isPhone ? "8px" : "14px",
+                left: isPhone ? "8px" : "14px",
+                zIndex: 4,
+                minHeight: isPhone ? "24px" : "28px",
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
+                padding: isPhone ? "0 8px" : "0 10px",
+                fontSize: isPhone ? "7px" : "8px",
+                fontWeight: 900,
+                letterSpacing: "0.8px",
+                textTransform: "uppercase",
+                boxShadow: "0 5px 16px rgba(0,0,0,0.12)",
+                ...badge.style,
+              }}
+            >
+              {badge.label}
+            </span>
+          ) : null}
+
           <button
+            type="button"
+            aria-label={
+              liked ? "Remove from favourites" : "Add to favourites"
+            }
             onClick={(event) => {
               event.preventDefault();
               event.stopPropagation();
+              setLiked((previous) => !previous);
             }}
             style={{
               position: "absolute",
               top: isPhone ? "8px" : "14px",
               right: isPhone ? "8px" : "14px",
+              zIndex: 4,
               width: isPhone ? "28px" : "34px",
               height: isPhone ? "28px" : "34px",
               borderRadius: "50%",
               border: "none",
-              background: "rgba(255,255,255,0.72)",
+              background: "rgba(255,255,255,0.78)",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
               cursor: "pointer",
+              backdropFilter: "blur(8px)",
             }}
           >
-            <Heart size={isPhone ? 12 : 15} strokeWidth={1.8} />
+            <Heart
+              size={isPhone ? 12 : 15}
+              strokeWidth={1.8}
+              fill={liked ? "#111" : "none"}
+            />
           </button>
+
+          {isSoldOut ? (
+            <div
+              style={{
+                position: "absolute",
+                right: 0,
+                bottom: 0,
+                left: 0,
+                zIndex: 4,
+                minHeight: isPhone ? "28px" : "34px",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                background: "rgba(17,17,17,0.9)",
+                color: "#fff",
+                fontSize: isPhone ? "7px" : "9px",
+                fontWeight: 900,
+                letterSpacing: "1px",
+                textTransform: "uppercase",
+              }}
+            >
+              Currently Sold Out
+            </div>
+          ) : null}
         </div>
 
         <div>
@@ -316,16 +571,39 @@ function ProductCard({
             {product.variant}
           </p>
 
-          <p
+          <div
             style={{
               margin: "0 0 8px",
-              fontSize: isPhone ? "11px" : "13px",
-              fontWeight: 900,
-              whiteSpace: "nowrap",
+              display: "flex",
+              alignItems: "baseline",
+              gap: isPhone ? "5px" : "8px",
+              flexWrap: "wrap",
             }}
           >
-            {product.displayPrice}
-          </p>
+            <span
+              style={{
+                fontSize: isPhone ? "11px" : "13px",
+                fontWeight: 900,
+                whiteSpace: "nowrap",
+              }}
+            >
+              {formatPrice(sellingPrice)}
+            </span>
+
+            {originalPrice !== null ? (
+              <span
+                style={{
+                  color: "#918b83",
+                  fontSize: isPhone ? "8px" : "10px",
+                  fontWeight: 700,
+                  textDecoration: "line-through",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                {formatPrice(originalPrice)}
+              </span>
+            ) : null}
+          </div>
 
           <span
             style={{

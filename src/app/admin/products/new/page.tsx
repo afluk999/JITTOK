@@ -1,21 +1,83 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { onAuthStateChanged } from "firebase/auth";
 import { auth } from "@/lib/firebase";
-import { createProduct } from "@/lib/productService";
-import { ArrowLeft, Save, Upload } from "lucide-react";
+import {
+  createProduct,
+  type ProductBadge,
+  type ProductImageFit,
+  type ProductImageRatio,
+  type ProductImageRole,
+  type ProductImageSetting,
+  type ProductStatus,
+} from "@/lib/productService";
+import {
+  ArrowLeft,
+  ChevronLeft,
+  ChevronRight,
+  GripVertical,
+  ImagePlus,
+  Save,
+  Trash2,
+  Upload,
+} from "lucide-react";
 
 const categories = ["T-Shirts", "Hoodies", "Pants", "Accessories"];
 
 type NewArrivalRow = "both" | "1" | "2";
 
+type LocalImageItem = {
+  id: string;
+  file: File;
+  previewUrl: string;
+  role: ProductImageRole;
+  fit: ProductImageFit;
+  ratio: ProductImageRatio;
+  positionX: number;
+  positionY: number;
+};
+
 const arrivalRows: Array<{ value: NewArrivalRow; label: string }> = [
   { value: "both", label: "Both Rows" },
   { value: "1", label: "Top Row Only" },
   { value: "2", label: "Bottom Row Only" },
+];
+
+const statusOptions: Array<{ value: ProductStatus; label: string }> = [
+  { value: "draft", label: "Draft" },
+  { value: "published", label: "Published" },
+  { value: "sold-out", label: "Sold Out" },
+  { value: "archived", label: "Archived" },
+];
+
+const badgeOptions: Array<{ value: ProductBadge; label: string }> = [
+  { value: "none", label: "No Badge" },
+  { value: "new", label: "New" },
+  { value: "bestseller", label: "Bestseller" },
+  { value: "limited", label: "Limited" },
+  { value: "sold-out", label: "Sold Out" },
+];
+
+const roleOptions: Array<{ value: ProductImageRole; label: string }> = [
+  { value: "front", label: "Front" },
+  { value: "back", label: "Back / Hover" },
+  { value: "gallery", label: "Gallery" },
+];
+
+const ratioOptions: Array<{ value: ProductImageRatio; label: string }> = [
+  { value: "original", label: "Original" },
+  { value: "1:1", label: "1:1 Square" },
+  { value: "4:5", label: "4:5 Product" },
+  { value: "16:9", label: "16:9 Banner" },
+  { value: "9:16", label: "9:16 Mobile" },
+];
+
+const fitOptions: Array<{ value: ProductImageFit; label: string }> = [
+  { value: "cover", label: "Cover" },
+  { value: "contain", label: "Contain" },
 ];
 
 function makeSlug(text: string) {
@@ -27,31 +89,97 @@ function makeSlug(text: string) {
     .replace(/(^-|-$)+/g, "");
 }
 
-function formatPrice(price: string) {
+function formatPrice(price: string | number) {
   const number = Number(price || 0);
   return `₹${number.toLocaleString("en-IN")}.00`;
 }
 
+function getErrorMessage(error: unknown) {
+  return error instanceof Error
+    ? error.message
+    : "Something went wrong while saving the product.";
+}
+
+function optionalNumber(value: string) {
+  if (value.trim() === "") return undefined;
+
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : undefined;
+}
+
+function getPreviewAspectRatio(ratio: ProductImageRatio) {
+  switch (ratio) {
+    case "1:1":
+      return "1 / 1";
+    case "4:5":
+      return "4 / 5";
+    case "16:9":
+      return "16 / 9";
+    case "9:16":
+      return "9 / 16";
+    default:
+      return "3 / 4";
+  }
+}
+
+function ensureRequiredImageRoles(items: LocalImageItem[]) {
+  if (items.length === 0) return items;
+
+  const next = items.map((item) => ({ ...item }));
+
+  if (!next.some((item) => item.role === "front")) {
+    next[0].role = "front";
+  }
+
+  if (
+    next.length > 1 &&
+    !next.some((item) => item.role === "back")
+  ) {
+    const backIndex = next.findIndex((item) => item.role !== "front");
+
+    if (backIndex >= 0) {
+      next[backIndex].role = "back";
+    }
+  }
+
+  return next;
+}
+
 export default function NewProductPage() {
   const router = useRouter();
+  const previewUrlsRef = useRef<Set<string>>(new Set());
 
   const [checkingAuth, setCheckingAuth] = useState(true);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [draggedImageIndex, setDraggedImageIndex] = useState<number | null>(
+    null,
+  );
 
   const [name, setName] = useState("");
   const [variant, setVariant] = useState("");
   const [category, setCategory] = useState("T-Shirts");
-  const [price, setPrice] = useState("");
+  const [sellingPrice, setSellingPrice] = useState("");
+  const [originalPrice, setOriginalPrice] = useState("");
   const [description, setDescription] = useState("");
   const [sizes, setSizes] = useState("S,M,L,XL");
   const [stock, setStock] = useState("10");
-  const [isNewArrival, setIsNewArrival] = useState(true);
-  const [newArrivalRow, setNewArrivalRow] = useState<NewArrivalRow>("both");
-  const [isFeatured, setIsFeatured] = useState(false);
+  const [status, setStatus] = useState<ProductStatus>("published");
+  const [badge, setBadge] = useState<ProductBadge>("none");
 
-  const [imageFiles, setImageFiles] = useState<File[]>([]);
-  const [previewImages, setPreviewImages] = useState<string[]>([]);
+  const [isNewArrival, setIsNewArrival] = useState(true);
+  const [newArrivalRow, setNewArrivalRow] =
+    useState<NewArrivalRow>("both");
+  const [newArrivalOrder, setNewArrivalOrder] = useState("");
+
+  const [isFeatured, setIsFeatured] = useState(false);
+  const [featuredOrder, setFeaturedOrder] = useState("");
+
+  const [isIconic, setIsIconic] = useState(false);
+  const [iconicOrder, setIconicOrder] = useState("");
+  const [homepageOrder, setHomepageOrder] = useState("");
+
+  const [imageItems, setImageItems] = useState<LocalImageItem[]>([]);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
@@ -67,38 +195,224 @@ export default function NewProductPage() {
   }, [router]);
 
   useEffect(() => {
+    const urls = previewUrlsRef.current;
+
     return () => {
-      previewImages.forEach((image) => URL.revokeObjectURL(image));
+      urls.forEach((url) => URL.revokeObjectURL(url));
+      urls.clear();
     };
-  }, [previewImages]);
+  }, []);
+
+  function createLocalImageItem(
+    file: File,
+    index: number,
+  ): LocalImageItem {
+    const previewUrl = URL.createObjectURL(file);
+    previewUrlsRef.current.add(previewUrl);
+
+    return {
+      id: `${Date.now()}-${index}-${file.name}-${file.lastModified}`,
+      file,
+      previewUrl,
+      role:
+        imageItems.length + index === 0
+          ? "front"
+          : imageItems.length + index === 1
+            ? "back"
+            : "gallery",
+      fit: "cover",
+      ratio: "original",
+      positionX: 50,
+      positionY: 50,
+    };
+  }
 
   function handleImageChange(event: React.ChangeEvent<HTMLInputElement>) {
-    const files = Array.from(event.target.files || []).slice(0, 5);
+    const selectedFiles = Array.from(event.target.files || []);
+    const remainingSlots = Math.max(0, 5 - imageItems.length);
 
-    previewImages.forEach((image) => URL.revokeObjectURL(image));
-    setImageFiles(files);
-    setPreviewImages(files.map((file) => URL.createObjectURL(file)));
+    if (remainingSlots === 0) {
+      alert("You can upload a maximum of 5 images.");
+      event.target.value = "";
+      return;
+    }
+
+    const acceptedFiles = selectedFiles.slice(0, remainingSlots);
+
+    if (selectedFiles.length > remainingSlots) {
+      alert(`Only ${remainingSlots} more image(s) can be added.`);
+    }
+
+    const newItems = acceptedFiles.map((file, index) =>
+      createLocalImageItem(file, index),
+    );
+
+    setImageItems((current) =>
+      ensureRequiredImageRoles([...current, ...newItems]),
+    );
+
+    event.target.value = "";
+  }
+
+  function removeImage(imageId: string) {
+    setImageItems((current) => {
+      const imageToRemove = current.find((item) => item.id === imageId);
+
+      if (imageToRemove) {
+        URL.revokeObjectURL(imageToRemove.previewUrl);
+        previewUrlsRef.current.delete(imageToRemove.previewUrl);
+      }
+
+      return ensureRequiredImageRoles(
+        current.filter((item) => item.id !== imageId),
+      );
+    });
+  }
+
+  function replaceImage(
+    imageId: string,
+    event: React.ChangeEvent<HTMLInputElement>,
+  ) {
+    const replacementFile = event.target.files?.[0];
+
+    if (!replacementFile) return;
+
+    const replacementPreview = URL.createObjectURL(replacementFile);
+    previewUrlsRef.current.add(replacementPreview);
+
+    setImageItems((current) =>
+      current.map((item) => {
+        if (item.id !== imageId) return item;
+
+        URL.revokeObjectURL(item.previewUrl);
+        previewUrlsRef.current.delete(item.previewUrl);
+
+        return {
+          ...item,
+          file: replacementFile,
+          previewUrl: replacementPreview,
+          id: `${Date.now()}-${replacementFile.name}-${replacementFile.lastModified}`,
+        };
+      }),
+    );
+
+    event.target.value = "";
+  }
+
+  function updateImageItem(
+    imageId: string,
+    update: Partial<Omit<LocalImageItem, "id" | "file" | "previewUrl">>,
+  ) {
+    setImageItems((current) =>
+      current.map((item) =>
+        item.id === imageId ? { ...item, ...update } : item,
+      ),
+    );
+  }
+
+  function changeImageRole(imageId: string, role: ProductImageRole) {
+    setImageItems((current) => {
+      if (role === "gallery") {
+        return ensureRequiredImageRoles(
+          current.map((item) =>
+            item.id === imageId ? { ...item, role } : item,
+          ),
+        );
+      }
+
+      const selectedImage = current.find((item) => item.id === imageId);
+      if (!selectedImage) return current;
+
+      return current.map((item) => {
+        if (item.id === imageId) {
+          return { ...item, role };
+        }
+
+        if (item.role === role) {
+          return {
+            ...item,
+            role:
+              selectedImage.role === "gallery"
+                ? "gallery"
+                : selectedImage.role,
+          };
+        }
+
+        return item;
+      });
+    });
+  }
+
+  function moveImage(fromIndex: number, toIndex: number) {
+    if (
+      toIndex < 0 ||
+      toIndex >= imageItems.length ||
+      fromIndex === toIndex
+    ) {
+      return;
+    }
+
+    setImageItems((current) => {
+      const next = [...current];
+      const [movedItem] = next.splice(fromIndex, 1);
+      next.splice(toIndex, 0, movedItem);
+      return next;
+    });
+  }
+
+  function handleImageDrop(targetIndex: number) {
+    if (draggedImageIndex === null) return;
+
+    moveImage(draggedImageIndex, targetIndex);
+    setDraggedImageIndex(null);
+  }
+
+  function handleStatusChange(nextStatus: ProductStatus) {
+    setStatus(nextStatus);
+
+    if (nextStatus === "sold-out") {
+      setBadge("sold-out");
+      setStock("0");
+      return;
+    }
+
+    if (badge === "sold-out") {
+      setBadge("none");
+    }
+  }
+
+  function handleBadgeChange(nextBadge: ProductBadge) {
+    setBadge(nextBadge);
+
+    if (nextBadge === "sold-out") {
+      setStatus("sold-out");
+      setStock("0");
+    }
   }
 
   async function uploadImages() {
-    if (imageFiles.length === 0) return [];
-
-    setUploading(true);
+    if (imageItems.length === 0) {
+      return {
+        imageUrls: [] as string[],
+        imageSettings: [] as ProductImageSetting[],
+      };
+    }
 
     const cloudName = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME;
     const uploadPreset = process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET;
 
     if (!cloudName || !uploadPreset) {
-      setUploading(false);
       throw new Error("Cloudinary cloud name or upload preset is missing.");
     }
 
-    const uploadedUrls: string[] = [];
+    const imageUrls: string[] = [];
+    const imageSettings: ProductImageSetting[] = [];
 
-    for (const file of imageFiles) {
+    for (let index = 0; index < imageItems.length; index += 1) {
+      const item = imageItems[index];
       const formData = new FormData();
 
-      formData.append("file", file);
+      formData.append("file", item.file);
       formData.append("upload_preset", uploadPreset);
 
       const response = await fetch(
@@ -111,70 +425,151 @@ export default function NewProductPage() {
 
       const responseText = await response.text();
 
-      let data: any = {};
+      let data: Record<string, unknown> = {};
+
       try {
-        data = JSON.parse(responseText);
+        data = JSON.parse(responseText) as Record<string, unknown>;
       } catch {
         data = { rawResponse: responseText };
       }
 
       if (!response.ok) {
         console.error("CLOUDINARY DIRECT UPLOAD ERROR:", data);
-        setUploading(false);
+
+        const cloudinaryError = data.error as
+          | { message?: string }
+          | undefined;
 
         throw new Error(
-          data?.error?.message ||
-            data?.message ||
-            data?.rawResponse ||
+          cloudinaryError?.message ||
+            (typeof data.message === "string" ? data.message : "") ||
+            (typeof data.rawResponse === "string"
+              ? data.rawResponse
+              : "") ||
             "Image upload failed",
         );
       }
 
-      uploadedUrls.push(data.secure_url);
+      if (typeof data.secure_url !== "string") {
+        throw new Error("Cloudinary did not return an image URL.");
+      }
+
+      imageUrls.push(data.secure_url);
+      imageSettings.push({
+        url: data.secure_url,
+        role: item.role,
+        fit: item.fit,
+        ratio: item.ratio,
+        positionX: item.positionX,
+        positionY: item.positionY,
+        order: index,
+      });
     }
 
-    setUploading(false);
-
-    return uploadedUrls;
+    return { imageUrls, imageSettings };
   }
 
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
 
-    if (!name || !variant || !price || !description) {
+    const parsedSellingPrice = Number(sellingPrice);
+    const parsedOriginalPrice = originalPrice.trim()
+      ? Number(originalPrice)
+      : parsedSellingPrice;
+    const parsedStock = Number(stock);
+
+    if (!name.trim() || !variant.trim() || !description.trim()) {
       alert("Please fill all required fields.");
+      return;
+    }
+
+    if (!Number.isFinite(parsedSellingPrice) || parsedSellingPrice <= 0) {
+      alert("Please enter a valid selling price.");
+      return;
+    }
+
+    if (
+      !Number.isFinite(parsedOriginalPrice) ||
+      parsedOriginalPrice < parsedSellingPrice
+    ) {
+      alert("Original price must be equal to or greater than selling price.");
+      return;
+    }
+
+    if (!Number.isFinite(parsedStock) || parsedStock < 0) {
+      alert("Please enter a valid stock amount.");
+      return;
+    }
+
+    if (imageItems.length === 0) {
+      alert("Please add at least one product image.");
       return;
     }
 
     try {
       setSaving(true);
+      setUploading(true);
 
-      const uploadedImageUrls = await uploadImages();
+      const { imageUrls, imageSettings } = await uploadImages();
+
+      let finalStatus = status;
+      let finalBadge = badge;
+      let finalStock = parsedStock;
+
+      if (status === "sold-out" || parsedStock === 0) {
+        finalStatus = "sold-out";
+        finalBadge = "sold-out";
+        finalStock = 0;
+      }
 
       await createProduct({
         slug: makeSlug(`${name}-${variant}`),
-        name,
-        variant,
+        name: name.trim(),
+        variant: variant.trim(),
         category,
-        price: Number(price),
-        displayPrice: formatPrice(price),
-        description,
-        images: uploadedImageUrls,
+
+        // Keep the old fields working across the current storefront.
+        price: parsedSellingPrice,
+        displayPrice: formatPrice(parsedSellingPrice),
+
+        // New professional pricing fields.
+        sellingPrice: parsedSellingPrice,
+        originalPrice: parsedOriginalPrice,
+
+        description: description.trim(),
+        images: imageUrls,
+        imageSettings,
+
         sizes: sizes
           .split(",")
           .map((item) => item.trim())
           .filter(Boolean),
-        stock: Number(stock),
+        stock: finalStock,
+
+        status: finalStatus,
+        badge: finalBadge,
+
         isNewArrival,
         newArrivalRow: isNewArrival ? newArrivalRow : "both",
+        newArrivalOrder: isNewArrival
+          ? optionalNumber(newArrivalOrder)
+          : undefined,
+
         isFeatured,
+        featuredOrder: isFeatured
+          ? optionalNumber(featuredOrder)
+          : undefined,
+
+        isIconic,
+        iconicOrder: isIconic ? optionalNumber(iconicOrder) : undefined,
+        homepageOrder: optionalNumber(homepageOrder),
       });
 
       alert("Product added successfully!");
       router.push("/admin/products");
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("SAVE PRODUCT ERROR:", error);
-      alert(error?.message || "Something went wrong while saving product.");
+      alert(getErrorMessage(error));
     } finally {
       setSaving(false);
       setUploading(false);
@@ -205,11 +600,11 @@ export default function NewProductPage() {
         minHeight: "100vh",
         background: "#f6f2eb",
         color: "#111",
-        padding: "42px",
+        padding: "clamp(22px, 4vw, 42px)",
         fontFamily: '"Outfit", sans-serif',
       }}
     >
-      <div style={{ maxWidth: "1180px", margin: "0 auto" }}>
+      <div style={{ maxWidth: "1280px", margin: "0 auto" }}>
         <Link
           href="/admin/products"
           style={{
@@ -233,7 +628,7 @@ export default function NewProductPage() {
           style={{
             margin: "0 0 38px",
             fontFamily: '"Bebas Neue", Impact, sans-serif',
-            fontSize: "78px",
+            fontSize: "clamp(54px, 8vw, 78px)",
             lineHeight: 0.85,
             fontWeight: 400,
             textTransform: "uppercase",
@@ -246,7 +641,8 @@ export default function NewProductPage() {
           onSubmit={handleSubmit}
           style={{
             display: "grid",
-            gridTemplateColumns: "1fr 0.9fr",
+            gridTemplateColumns:
+              "repeat(auto-fit, minmax(min(100%, 420px), 1fr))",
             gap: "34px",
             alignItems: "start",
           }}
@@ -255,19 +651,21 @@ export default function NewProductPage() {
             style={{
               background: "#f2eee7",
               border: "1px solid #e5ded4",
-              padding: "34px",
+              padding: "clamp(22px, 4vw, 34px)",
             }}
           >
+            <SectionTitle>Product Information</SectionTitle>
+
             <div style={twoColStyle}>
               <Input
-                label="Product Name"
+                label="Product Name *"
                 value={name}
                 onChange={setName}
                 placeholder="Oversized Tee"
               />
 
               <Input
-                label="Variant / Color"
+                label="Variant / Color *"
                 value={variant}
                 onChange={setVariant}
                 placeholder="Ivory"
@@ -291,17 +689,52 @@ export default function NewProductPage() {
                 </select>
               </div>
 
+              <div>
+                <label style={labelStyle}>Product Status</label>
+
+                <select
+                  value={status}
+                  onChange={(event) =>
+                    handleStatusChange(event.target.value as ProductStatus)
+                  }
+                  style={inputStyle}
+                >
+                  {statusOptions.map((item) => (
+                    <option key={item.value} value={item.value}>
+                      {item.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <div style={twoColStyle}>
               <Input
-                label="Price"
-                value={price}
-                onChange={setPrice}
+                label="Selling Price *"
+                value={sellingPrice}
+                onChange={setSellingPrice}
+                placeholder="999"
+                type="number"
+                min="0"
+              />
+
+              <Input
+                label="Original Price"
+                value={originalPrice}
+                onChange={setOriginalPrice}
                 placeholder="1299"
                 type="number"
+                min="0"
               />
             </div>
 
+            <p style={{ ...helpTextStyle, marginTop: "-8px" }}>
+              The original price is shown crossed out only when it is greater
+              than the selling price.
+            </p>
+
             <div style={{ marginBottom: "18px" }}>
-              <label style={labelStyle}>Description</label>
+              <label style={labelStyle}>Description *</label>
 
               <textarea
                 value={description}
@@ -330,59 +763,130 @@ export default function NewProductPage() {
                 onChange={setStock}
                 placeholder="10"
                 type="number"
+                min="0"
+                disabled={status === "sold-out"}
               />
             </div>
 
-            {isNewArrival ? (
-              <div style={{ marginBottom: "22px" }}>
-                <label style={labelStyle}>New Arrival Display Row</label>
+            <div style={twoColStyle}>
+              <div>
+                <label style={labelStyle}>Product Badge</label>
 
                 <select
-                  value={newArrivalRow}
+                  value={badge}
                   onChange={(event) =>
-                    setNewArrivalRow(event.target.value as NewArrivalRow)
+                    handleBadgeChange(event.target.value as ProductBadge)
                   }
                   style={inputStyle}
                 >
-                  {arrivalRows.map((item) => (
+                  {badgeOptions.map((item) => (
                     <option key={item.value} value={item.value}>
                       {item.label}
                     </option>
                   ))}
                 </select>
-
-                <p style={helpTextStyle}>
-                  Choose where this product appears in the two moving rows.
-                </p>
               </div>
-            ) : null}
+
+              <Input
+                label="General Homepage Order"
+                value={homepageOrder}
+                onChange={setHomepageOrder}
+                placeholder="Optional"
+                type="number"
+                min="0"
+              />
+            </div>
+
+            <div style={dividerStyle} />
+
+            <SectionTitle>Homepage Placement</SectionTitle>
 
             <div
               style={{
-                display: "flex",
-                gap: "24px",
-                alignItems: "center",
-                marginBottom: "28px",
+                display: "grid",
+                gridTemplateColumns:
+                  "repeat(auto-fit, minmax(180px, 1fr))",
+                gap: "14px",
+                marginBottom: "24px",
               }}
             >
-              <label style={checkboxStyle}>
-                <input
-                  type="checkbox"
-                  checked={isNewArrival}
-                  onChange={(event) => setIsNewArrival(event.target.checked)}
-                />
-                New Arrival
-              </label>
+              <ToggleCard
+                checked={isNewArrival}
+                onChange={setIsNewArrival}
+                label="New Arrival"
+              />
 
-              <label style={checkboxStyle}>
-                <input
-                  type="checkbox"
-                  checked={isFeatured}
-                  onChange={(event) => setIsFeatured(event.target.checked)}
-                />
-                Featured
-              </label>
+              <ToggleCard
+                checked={isFeatured}
+                onChange={setIsFeatured}
+                label="Featured"
+              />
+
+              <ToggleCard
+                checked={isIconic}
+                onChange={setIsIconic}
+                label="Iconic Product"
+              />
             </div>
+
+            {isNewArrival ? (
+              <div style={twoColStyle}>
+                <div>
+                  <label style={labelStyle}>New Arrival Display Row</label>
+
+                  <select
+                    value={newArrivalRow}
+                    onChange={(event) =>
+                      setNewArrivalRow(
+                        event.target.value as NewArrivalRow,
+                      )
+                    }
+                    style={inputStyle}
+                  >
+                    {arrivalRows.map((item) => (
+                      <option key={item.value} value={item.value}>
+                        {item.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <Input
+                  label="New Arrival Order"
+                  value={newArrivalOrder}
+                  onChange={setNewArrivalOrder}
+                  placeholder="Optional"
+                  type="number"
+                  min="0"
+                />
+              </div>
+            ) : null}
+
+            {isFeatured ? (
+              <div style={{ marginBottom: "18px" }}>
+                <Input
+                  label="Featured Order"
+                  value={featuredOrder}
+                  onChange={setFeaturedOrder}
+                  placeholder="Optional"
+                  type="number"
+                  min="0"
+                />
+              </div>
+            ) : null}
+
+            {isIconic ? (
+              <div style={{ marginBottom: "22px" }}>
+                <Input
+                  label="Iconic Product Order"
+                  value={iconicOrder}
+                  onChange={setIconicOrder}
+                  placeholder="1, 2 or 3"
+                  type="number"
+                  min="1"
+                />
+              </div>
+            ) : null}
 
             <button
               type="submit"
@@ -418,15 +922,15 @@ export default function NewProductPage() {
             style={{
               background: "#111",
               color: "#f6f2eb",
-              padding: "34px",
+              padding: "clamp(22px, 4vw, 34px)",
               minHeight: "520px",
             }}
           >
             <h2
               style={{
-                margin: "0 0 24px",
+                margin: "0 0 10px",
                 fontFamily: '"Bebas Neue", Impact, sans-serif',
-                fontSize: "52px",
+                fontSize: "clamp(42px, 6vw, 52px)",
                 lineHeight: 0.9,
                 fontWeight: 400,
                 textTransform: "uppercase",
@@ -435,19 +939,32 @@ export default function NewProductPage() {
               Product Images
             </h2>
 
+            <p
+              style={{
+                margin: "0 0 24px",
+                color: "rgba(246,242,235,0.62)",
+                fontSize: "13px",
+                lineHeight: 1.6,
+              }}
+            >
+              Add up to five images. Drag cards or use the arrow buttons to
+              reorder them. Front and back roles can be changed at any time.
+            </p>
+
             <label
               style={{
-                minHeight: "170px",
+                minHeight: "150px",
                 border: "1px dashed rgba(246,242,235,0.35)",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
                 flexDirection: "column",
                 gap: "12px",
-                cursor: "pointer",
+                cursor: imageItems.length >= 5 ? "not-allowed" : "pointer",
                 marginBottom: "22px",
                 color: "rgba(246,242,235,0.72)",
                 textAlign: "center",
+                opacity: imageItems.length >= 5 ? 0.5 : 1,
               }}
             >
               <Upload size={28} strokeWidth={1.5} />
@@ -460,89 +977,291 @@ export default function NewProductPage() {
                   textTransform: "uppercase",
                 }}
               >
-                Upload up to 5 images
+                {imageItems.length >= 5
+                  ? "Maximum 5 images added"
+                  : "Add product images"}
               </span>
 
               <span style={{ fontSize: "13px" }}>
-                First image is front. Second image is used on hover.
+                Front, back-hover and gallery images
               </span>
 
               <input
                 type="file"
                 multiple
+                disabled={imageItems.length >= 5}
                 accept="image/png,image/jpeg,image/jpg,image/webp"
                 onChange={handleImageChange}
                 style={{ display: "none" }}
               />
             </label>
 
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
-                gap: "12px",
-              }}
-            >
-              {previewImages.length === 0 ? (
-                <p
-                  style={{
-                    color: "rgba(246,242,235,0.54)",
-                    fontSize: "14px",
-                    lineHeight: 1.6,
-                  }}
-                >
+            {imageItems.length === 0 ? (
+              <div
+                style={{
+                  minHeight: "240px",
+                  border: "1px solid rgba(246,242,235,0.12)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  flexDirection: "column",
+                  gap: "12px",
+                  color: "rgba(246,242,235,0.45)",
+                  textAlign: "center",
+                  padding: "30px",
+                }}
+              >
+                <ImagePlus size={34} strokeWidth={1.2} />
+                <span style={{ fontSize: "14px" }}>
                   No images selected yet.
-                </p>
-              ) : (
-                previewImages.map((image, index) => (
-                  <div
-                    key={image}
+                </span>
+              </div>
+            ) : (
+              <div style={{ display: "grid", gap: "18px" }}>
+                {imageItems.map((item, index) => (
+                  <article
+                    key={item.id}
+                    draggable
+                    onDragStart={() => setDraggedImageIndex(index)}
+                    onDragEnd={() => setDraggedImageIndex(null)}
+                    onDragOver={(event) => event.preventDefault()}
+                    onDrop={() => handleImageDrop(index)}
                     style={{
-                      aspectRatio: "3 / 4",
-                      background: "#272727",
-                      position: "relative",
-                      overflow: "hidden",
+                      border: "1px solid rgba(246,242,235,0.16)",
+                      background: "#191919",
+                      padding: "14px",
+                      opacity: draggedImageIndex === index ? 0.55 : 1,
                     }}
                   >
-                    <img
-                      src={image}
-                      alt={`Preview ${index + 1}`}
+                    <div
                       style={{
-                        width: "100%",
-                        height: "100%",
-                        objectFit: "cover",
-                      }}
-                    />
-
-                    <span
-                      style={{
-                        position: "absolute",
-                        left: "10px",
-                        top: "10px",
-                        minWidth: "28px",
-                        height: "28px",
-                        padding: "0 8px",
-                        borderRadius: "999px",
-                        background: "#111",
-                        color: "#fff",
                         display: "flex",
                         alignItems: "center",
-                        justifyContent: "center",
-                        fontSize: "10px",
-                        fontWeight: 900,
-                        textTransform: "uppercase",
+                        justifyContent: "space-between",
+                        gap: "12px",
+                        marginBottom: "14px",
                       }}
                     >
-                      {index === 0 ? "Front" : index === 1 ? "Back" : index + 1}
-                    </span>
-                  </div>
-                ))
-              )}
-            </div>
+                      <div
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "10px",
+                        }}
+                      >
+                        <GripVertical
+                          size={18}
+                          color="rgba(246,242,235,0.5)"
+                        />
+                        <span
+                          style={{
+                            fontSize: "11px",
+                            fontWeight: 900,
+                            letterSpacing: "1px",
+                            textTransform: "uppercase",
+                          }}
+                        >
+                          Image {index + 1}
+                        </span>
+                      </div>
+
+                      <div style={{ display: "flex", gap: "6px" }}>
+                        <IconButton
+                          title="Move left"
+                          disabled={index === 0}
+                          onClick={() => moveImage(index, index - 1)}
+                        >
+                          <ChevronLeft size={16} />
+                        </IconButton>
+
+                        <IconButton
+                          title="Move right"
+                          disabled={index === imageItems.length - 1}
+                          onClick={() => moveImage(index, index + 1)}
+                        >
+                          <ChevronRight size={16} />
+                        </IconButton>
+
+                        <IconButton
+                          title="Remove image"
+                          onClick={() => {
+                            const confirmed = window.confirm(
+                              "Remove this image from the product?",
+                            );
+
+                            if (confirmed) removeImage(item.id);
+                          }}
+                        >
+                          <Trash2 size={15} />
+                        </IconButton>
+                      </div>
+                    </div>
+
+                    <div
+                      style={{
+                        display: "grid",
+                        gridTemplateColumns:
+                          "repeat(auto-fit, minmax(210px, 1fr))",
+                        gap: "16px",
+                        alignItems: "start",
+                      }}
+                    >
+                      <div>
+                        <div
+                          style={{
+                            width: "100%",
+                            aspectRatio: getPreviewAspectRatio(item.ratio),
+                            background: "#272727",
+                            position: "relative",
+                            overflow: "hidden",
+                            transition: "aspect-ratio 180ms ease",
+                          }}
+                        >
+                          <img
+                            src={item.previewUrl}
+                            alt={`${item.role} preview`}
+                            style={{
+                              width: "100%",
+                              height: "100%",
+                              objectFit: item.fit,
+                              objectPosition: `${item.positionX}% ${item.positionY}%`,
+                            }}
+                          />
+
+                          <span
+                            style={{
+                              position: "absolute",
+                              left: "10px",
+                              top: "10px",
+                              minHeight: "28px",
+                              padding: "0 10px",
+                              borderRadius: "999px",
+                              background: "#111",
+                              color: "#fff",
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              fontSize: "10px",
+                              fontWeight: 900,
+                              letterSpacing: "0.7px",
+                              textTransform: "uppercase",
+                            }}
+                          >
+                            {roleOptions.find(
+                              (option) => option.value === item.role,
+                            )?.label ?? item.role}
+                          </span>
+                        </div>
+
+                        <label
+                          htmlFor={`replace-${item.id}`}
+                          style={{
+                            height: "40px",
+                            marginTop: "10px",
+                            border: "1px solid rgba(246,242,235,0.2)",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            gap: "8px",
+                            cursor: "pointer",
+                            fontSize: "10px",
+                            fontWeight: 900,
+                            letterSpacing: "1px",
+                            textTransform: "uppercase",
+                          }}
+                        >
+                          <Upload size={14} />
+                          Replace Image
+                        </label>
+
+                        <input
+                          id={`replace-${item.id}`}
+                          type="file"
+                          accept="image/png,image/jpeg,image/jpg,image/webp"
+                          onChange={(event) => replaceImage(item.id, event)}
+                          style={{ display: "none" }}
+                        />
+                      </div>
+
+                      <div>
+                        <DarkSelect
+                          label="Image Role"
+                          value={item.role}
+                          onChange={(value) =>
+                            changeImageRole(
+                              item.id,
+                              value as ProductImageRole,
+                            )
+                          }
+                          options={roleOptions}
+                        />
+
+                        <div style={darkTwoColStyle}>
+                          <DarkSelect
+                            label="Ratio"
+                            value={item.ratio}
+                            onChange={(value) =>
+                              updateImageItem(item.id, {
+                                ratio: value as ProductImageRatio,
+                              })
+                            }
+                            options={ratioOptions}
+                          />
+
+                          <DarkSelect
+                            label="Fit"
+                            value={item.fit}
+                            onChange={(value) =>
+                              updateImageItem(item.id, {
+                                fit: value as ProductImageFit,
+                              })
+                            }
+                            options={fitOptions}
+                          />
+                        </div>
+
+                        <RangeControl
+                          label="Horizontal Position"
+                          value={item.positionX}
+                          onChange={(value) =>
+                            updateImageItem(item.id, { positionX: value })
+                          }
+                        />
+
+                        <RangeControl
+                          label="Vertical Position"
+                          value={item.positionY}
+                          onChange={(value) =>
+                            updateImageItem(item.id, { positionY: value })
+                          }
+                        />
+                      </div>
+                    </div>
+                  </article>
+                ))}
+              </div>
+            )}
           </section>
         </form>
       </div>
     </main>
+  );
+}
+
+function SectionTitle({ children }: { children: React.ReactNode }) {
+  return (
+    <h2
+      style={{
+        margin: "0 0 22px",
+        fontFamily: '"Bebas Neue", Impact, sans-serif',
+        fontSize: "34px",
+        lineHeight: 1,
+        fontWeight: 400,
+        textTransform: "uppercase",
+      }}
+    >
+      {children}
+    </h2>
   );
 }
 
@@ -552,12 +1271,16 @@ function Input({
   onChange,
   placeholder,
   type = "text",
+  min,
+  disabled = false,
 }: {
   label: string;
   value: string;
   onChange: (value: string) => void;
   placeholder: string;
   type?: string;
+  min?: string;
+  disabled?: boolean;
 }) {
   return (
     <div>
@@ -565,20 +1288,176 @@ function Input({
 
       <input
         type={type}
+        min={min}
         value={value}
+        disabled={disabled}
         onChange={(event) => onChange(event.target.value)}
         placeholder={placeholder}
-        style={inputStyle}
+        style={{
+          ...inputStyle,
+          opacity: disabled ? 0.55 : 1,
+          cursor: disabled ? "not-allowed" : "text",
+        }}
       />
     </div>
   );
 }
 
+function ToggleCard({
+  checked,
+  onChange,
+  label,
+}: {
+  checked: boolean;
+  onChange: (checked: boolean) => void;
+  label: string;
+}) {
+  return (
+    <label
+      style={{
+        minHeight: "54px",
+        padding: "0 15px",
+        border: checked ? "1px solid #111" : "1px solid #d8d0c4",
+        background: checked ? "#111" : "#f6f2eb",
+        color: checked ? "#fff" : "#111",
+        display: "flex",
+        alignItems: "center",
+        gap: "10px",
+        cursor: "pointer",
+        fontSize: "11px",
+        fontWeight: 900,
+        letterSpacing: "0.8px",
+        textTransform: "uppercase",
+      }}
+    >
+      <input
+        type="checkbox"
+        checked={checked}
+        onChange={(event) => onChange(event.target.checked)}
+      />
+      {label}
+    </label>
+  );
+}
+
+function DarkSelect({
+  label,
+  value,
+  onChange,
+  options,
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  options: Array<{ value: string; label: string }>;
+}) {
+  return (
+    <div style={{ marginBottom: "14px" }}>
+      <label style={darkLabelStyle}>{label}</label>
+
+      <select
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        style={darkInputStyle}
+      >
+        {options.map((option) => (
+          <option key={option.value} value={option.value}>
+            {option.label}
+          </option>
+        ))}
+      </select>
+    </div>
+  );
+}
+
+function RangeControl({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value: number;
+  onChange: (value: number) => void;
+}) {
+  return (
+    <div style={{ marginBottom: "16px" }}>
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          gap: "10px",
+          marginBottom: "8px",
+        }}
+      >
+        <label style={{ ...darkLabelStyle, marginBottom: 0 }}>{label}</label>
+        <span
+          style={{
+            color: "rgba(246,242,235,0.6)",
+            fontSize: "11px",
+          }}
+        >
+          {value}%
+        </span>
+      </div>
+
+      <input
+        type="range"
+        min="0"
+        max="100"
+        value={value}
+        onChange={(event) => onChange(Number(event.target.value))}
+        style={{ width: "100%", cursor: "pointer" }}
+      />
+    </div>
+  );
+}
+
+function IconButton({
+  title,
+  disabled = false,
+  onClick,
+  children,
+}: {
+  title: string;
+  disabled?: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      title={title}
+      disabled={disabled}
+      onClick={onClick}
+      style={{
+        width: "34px",
+        height: "34px",
+        border: "1px solid rgba(246,242,235,0.18)",
+        background: "transparent",
+        color: "#f6f2eb",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        cursor: disabled ? "not-allowed" : "pointer",
+        opacity: disabled ? 0.35 : 1,
+      }}
+    >
+      {children}
+    </button>
+  );
+}
+
 const twoColStyle: React.CSSProperties = {
   display: "grid",
-  gridTemplateColumns: "1fr 1fr",
+  gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
   gap: "18px",
   marginBottom: "18px",
+};
+
+const darkTwoColStyle: React.CSSProperties = {
+  display: "grid",
+  gridTemplateColumns: "repeat(auto-fit, minmax(130px, 1fr))",
+  gap: "12px",
 };
 
 const labelStyle: React.CSSProperties = {
@@ -587,6 +1466,16 @@ const labelStyle: React.CSSProperties = {
   fontSize: "12px",
   fontWeight: 900,
   letterSpacing: "1px",
+  textTransform: "uppercase",
+};
+
+const darkLabelStyle: React.CSSProperties = {
+  display: "block",
+  marginBottom: "8px",
+  color: "rgba(246,242,235,0.72)",
+  fontSize: "10px",
+  fontWeight: 900,
+  letterSpacing: "0.9px",
   textTransform: "uppercase",
 };
 
@@ -600,21 +1489,31 @@ const inputStyle: React.CSSProperties = {
   fontFamily: '"Outfit", sans-serif',
   fontSize: "14px",
   color: "#111",
+  boxSizing: "border-box",
+};
+
+const darkInputStyle: React.CSSProperties = {
+  width: "100%",
+  height: "42px",
+  border: "1px solid rgba(246,242,235,0.18)",
+  background: "#111",
+  color: "#f6f2eb",
+  outline: "none",
+  padding: "0 11px",
+  fontFamily: '"Outfit", sans-serif',
+  fontSize: "12px",
+  boxSizing: "border-box",
 };
 
 const helpTextStyle: React.CSSProperties = {
-  margin: "9px 0 0",
+  margin: "9px 0 18px",
   color: "#77736c",
   fontSize: "12px",
   lineHeight: 1.55,
 };
 
-const checkboxStyle: React.CSSProperties = {
-  display: "inline-flex",
-  alignItems: "center",
-  gap: "9px",
-  fontSize: "13px",
-  fontWeight: 900,
-  letterSpacing: "1px",
-  textTransform: "uppercase",
+const dividerStyle: React.CSSProperties = {
+  height: "1px",
+  background: "#ddd5ca",
+  margin: "30px 0",
 };
