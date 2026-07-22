@@ -2,13 +2,13 @@
 
 const INSTAGRAM_URL = "https://www.instagram.com/jittok.in/";
 
-const WHATSAPP_NUMBER = "91XXXXXXXXXX";
+const WHATSAPP_NUMBER = "919605300701";
 
 const WHATSAPP_MESSAGE =
   "Hi JITTOK, I would like to know more about your products.";
 
 export default function FloatingSocialButtons() {
-  const whatsappUrl = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(
+  const whatsappUrl = `https://wa.me/919605300701?text=${encodeURIComponent(
     WHATSAPP_MESSAGE
   )}`;
 

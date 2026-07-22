@@ -19,12 +19,25 @@ export default function Home() {
       <IconicProductsCurve />
       <SpiderDropBanner />
       <NewArrivals />
-      <JittokLineup />
+
+      <div className="desktop-only-lineup">
+        <JittokLineup />
+      </div>
+
+    
       <ReelsSection />
       <CustomerLoveSection />
       <BrandStatement />
       <TrustStrip />
       <Footer />
+
+      <style>{`
+        @media (max-width: 768px) {
+          .desktop-only-lineup {
+            display: none;
+          }
+        }
+      `}</style>
     </>
   );
 }
