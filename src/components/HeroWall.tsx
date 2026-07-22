@@ -1,10 +1,14 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { getHomeContent } from "@/lib/contentService";
-import BlurImage from "@/components/BlurImage";
+import { useMemo } from "react";
 
-const MIN_HERO_IMAGES = 3;
+const HERO_IMAGES = [
+  "/hero/hero-1.webp",
+  "/hero/hero-2.webp",
+  "/hero/hero-3.webp",
+  "/hero/hero-4.webp",
+  "/hero/hero-5.webp",
+];
 
 const DESKTOP_COLUMN_WIDTH = 45;
 const TABLET_COLUMN_WIDTH = 50;
@@ -14,145 +18,10 @@ const SMALL_MOBILE_COLUMN_WIDTH = 92;
 const STRIP_ITEM_COUNT = 24;
 
 export default function HeroWall() {
-  const [heroImages, setHeroImages] = useState<string[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    async function loadHeroImages() {
-      try {
-        const content = await getHomeContent();
-        const images = content.heroImages || [];
-
-        if (images.length >= MIN_HERO_IMAGES) {
-          setHeroImages(images);
-        }
-      } catch (error) {
-        console.error("LOAD HERO CONTENT ERROR:", error);
-      } finally {
-        setLoading(false);
-      }
-    }
-
-    loadHeroImages();
-  }, []);
-
-  const loopImages = useMemo(() => {
-    if (heroImages.length === 0) return [];
-
-    return [...heroImages, ...heroImages];
-  }, [heroImages]);
-
-  if (loading) {
-    return (
-      <section className="hero-wall hero-wall-skeleton">
-        <style jsx>{`
-          .hero-wall {
-            position: relative;
-            width: 100%;
-            height: calc(100vh - 76px);
-            min-height: 620px;
-            overflow: hidden;
-            background: #f4f1eb;
-          }
-
-          .hero-wall-skeleton {
-            display: grid;
-            grid-template-columns: repeat(3, minmax(0, 1fr));
-            gap: 2px;
-          }
-
-          .skeleton-panel {
-            background: linear-gradient(
-              110deg,
-              #e8e3db 8%,
-              #f8f6f2 18%,
-              #e8e3db 33%
-            );
-            background-size: 220% 100%;
-            animation: heroSkeleton 1.3s linear infinite;
-          }
-
-          @keyframes heroSkeleton {
-            from {
-              background-position: 200% 0;
-            }
-
-            to {
-              background-position: -20% 0;
-            }
-          }
-
-          @media (max-width: 768px) {
-            .hero-wall {
-              height: calc(125vw + 34px);
-              min-height: 0;
-            }
-
-            .hero-wall-skeleton {
-              grid-template-columns: 1fr;
-            }
-
-            .skeleton-panel:not(:first-child) {
-              display: none;
-            }
-          }
-        `}</style>
-
-        <div className="skeleton-panel" />
-        <div className="skeleton-panel" />
-        <div className="skeleton-panel" />
-      </section>
-    );
-  }
-
-  if (heroImages.length < MIN_HERO_IMAGES) {
-    return (
-      <section className="hero-wall hero-wall-fallback">
-        <style jsx>{`
-          .hero-wall {
-            position: relative;
-            width: 100%;
-            height: calc(100vh - 76px);
-            min-height: 620px;
-            overflow: hidden;
-            background: #111111;
-          }
-
-          .hero-wall-fallback {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 40px;
-            color: #f6f2eb;
-            font-family: "Outfit", sans-serif;
-            text-align: center;
-          }
-
-          .hero-wall-fallback h1 {
-            margin: 0 0 14px;
-            font-family: "Bebas Neue", Impact, sans-serif;
-            font-size: clamp(80px, 12vw, 160px);
-            font-weight: 400;
-            line-height: 0.82;
-          }
-
-          .hero-wall-fallback p {
-            margin: 0;
-            color: rgba(246, 242, 235, 0.7);
-            font-size: 12px;
-            font-weight: 800;
-            letter-spacing: 1.5px;
-            text-transform: uppercase;
-          }
-        `}</style>
-
-        <div>
-          <h1>JITTOK</h1>
-          <p>Add at least {MIN_HERO_IMAGES} hero images from admin/content</p>
-        </div>
-      </section>
-    );
-  }
+  const loopImages = useMemo(
+    () => [...HERO_IMAGES, ...HERO_IMAGES],
+    [],
+  );
 
   return (
     <section className="hero-wall">
@@ -403,25 +272,15 @@ export default function HeroWall() {
         <div className="hero-track">
           {loopImages.map((image, index) => (
             <div key={`${image}-${index}`} className="hero-item">
-              <BlurImage
+              <img
                 src={image}
                 alt={`JITTOK hero image ${
-                  (index % heroImages.length) + 1
+                  (index % HERO_IMAGES.length) + 1
                 }`}
-                loading={index < 5 ? "eager" : "lazy"}
+                loading={index < HERO_IMAGES.length ? "eager" : "lazy"}
+                fetchPriority={index === 0 ? "high" : "auto"}
                 decoding="async"
-                wrapperStyle={{
-                  width: "100%",
-                  height: "100%",
-                  background: "#ffffff",
-                }}
-                imageStyle={{
-                  width: "100%",
-                  height: "100%",
-                  objectFit: "var(--hero-fit)" as any,
-                  objectPosition: "center",
-                  background: "#ffffff",
-                }}
+                draggable={false}
               />
             </div>
           ))}
@@ -433,19 +292,29 @@ export default function HeroWall() {
       <div className="hero-strip">
         <div className="strip-track">
           <div className="strip-group">
-            {Array.from({ length: STRIP_ITEM_COUNT }).map((_, index) => (
-              <span key={`first-${index}`} className="strip-item">
-                JITTOK <small className="strip-dot">✦</small>
-              </span>
-            ))}
+            {Array.from({ length: STRIP_ITEM_COUNT }).map(
+              (_, index) => (
+                <span
+                  key={`first-${index}`}
+                  className="strip-item"
+                >
+                  JITTOK <small className="strip-dot">✦</small>
+                </span>
+              ),
+            )}
           </div>
 
           <div className="strip-group" aria-hidden="true">
-            {Array.from({ length: STRIP_ITEM_COUNT }).map((_, index) => (
-              <span key={`second-${index}`} className="strip-item">
-                JITTOK <small className="strip-dot">✦</small>
-              </span>
-            ))}
+            {Array.from({ length: STRIP_ITEM_COUNT }).map(
+              (_, index) => (
+                <span
+                  key={`second-${index}`}
+                  className="strip-item"
+                >
+                  JITTOK <small className="strip-dot">✦</small>
+                </span>
+              ),
+            )}
           </div>
         </div>
       </div>

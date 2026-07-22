@@ -1,50 +1,25 @@
 "use client";
 
-import {
-  useCallback,
-  useEffect,
-  useRef,
-  useState,
-} from "react";
+import { useEffect, useRef, useState } from "react";
 
-const LOADER_SESSION_KEY = "jittok-loader-seen";
-const MINIMUM_VISIBLE_TIME = 1600;
-const MAXIMUM_VISIBLE_TIME = 5200;
+const MINIMUM_VISIBLE_TIME = 4500;
+const MAXIMUM_VISIBLE_TIME = 15000;
 const EXIT_DURATION = 700;
 
 export default function SiteLoader() {
   const [visible, setVisible] = useState(true);
   const [leaving, setLeaving] = useState(false);
-  const [videoReady, setVideoReady] = useState(false);
-  const [videoFailed, setVideoFailed] = useState(false);
   const [pageReady, setPageReady] = useState(false);
   const [minimumTimePassed, setMinimumTimePassed] = useState(false);
-  const [animationFinished, setAnimationFinished] = useState(false);
 
-  const finishing = useRef(false);
-  const videoRef = useRef<HTMLVideoElement>(null);
+  const finished = useRef(false);
+  const minimumTimer = useRef<number | null>(null);
   const exitTimer = useRef<number | null>(null);
   const safetyTimer = useRef<number | null>(null);
-  const minimumTimer = useRef<number | null>(null);
-  const previousBodyOverflow = useRef("");
-
-  const finishLoader = useCallback(() => {
-    if (finishing.current) return;
-
-    finishing.current = true;
-    setLeaving(true);
-
-    exitTimer.current = window.setTimeout(() => {
-      document.body.style.overflow = previousBodyOverflow.current;
-      setVisible(false);
-
-    }, EXIT_DURATION);
-  }, []);
+  const previousOverflow = useRef("");
 
   useEffect(() => {
-    
-
-    previousBodyOverflow.current = document.body.style.overflow;
+    previousOverflow.current = document.body.style.overflow;
     document.body.style.overflow = "hidden";
 
     function markPageReady() {
@@ -64,12 +39,23 @@ export default function SiteLoader() {
     }, MINIMUM_VISIBLE_TIME);
 
     safetyTimer.current = window.setTimeout(() => {
-      finishLoader();
+      if (finished.current) return;
+
+      finished.current = true;
+      setLeaving(true);
+
+      exitTimer.current = window.setTimeout(() => {
+        document.body.style.overflow = previousOverflow.current;
+        setVisible(false);
+      }, EXIT_DURATION);
     }, MAXIMUM_VISIBLE_TIME);
 
     return () => {
       window.removeEventListener("load", markPageReady);
-      document.body.style.overflow = previousBodyOverflow.current;
+
+      if (minimumTimer.current) {
+        window.clearTimeout(minimumTimer.current);
+      }
 
       if (exitTimer.current) {
         window.clearTimeout(exitTimer.current);
@@ -79,39 +65,28 @@ export default function SiteLoader() {
         window.clearTimeout(safetyTimer.current);
       }
 
-      if (minimumTimer.current) {
-        window.clearTimeout(minimumTimer.current);
-      }
+      document.body.style.overflow = previousOverflow.current;
     };
-  }, [finishLoader]);
+  }, []);
 
   useEffect(() => {
-    if (!visible || finishing.current) return;
-
     if (
-      pageReady &&
-      minimumTimePassed &&
-      (animationFinished || videoFailed)
+      !visible ||
+      finished.current ||
+      !pageReady ||
+      !minimumTimePassed
     ) {
-      finishLoader();
+      return;
     }
-  }, [
-    animationFinished,
-    finishLoader,
-    minimumTimePassed,
-    pageReady,
-    videoFailed,
-    visible,
-  ]);
 
-  useEffect(() => {
-    if (!videoReady || videoFailed || !videoRef.current) return;
+    finished.current = true;
+    setLeaving(true);
 
-    videoRef.current.play().catch(() => {
-      setVideoFailed(true);
-      setAnimationFinished(true);
-    });
-  }, [videoReady, videoFailed]);
+    exitTimer.current = window.setTimeout(() => {
+      document.body.style.overflow = previousOverflow.current;
+      setVisible(false);
+    }, EXIT_DURATION);
+  }, [minimumTimePassed, pageReady, visible]);
 
   if (!visible) return null;
 
@@ -120,43 +95,22 @@ export default function SiteLoader() {
       className={`jittok-loader${leaving ? " is-leaving" : ""}`}
       role="status"
       aria-label="Loading JITTOK"
+      aria-live="polite"
     >
-      <div className="loaderGlow loaderGlowOne" aria-hidden="true" />
-      <div className="loaderGlow loaderGlowTwo" aria-hidden="true" />
-
-      <div className="loaderStage">
+      <div className="logoStage">
         <img
-          src="/jittok-loader-poster.png"
-          alt=""
-          aria-hidden="true"
-          className={`loaderPoster${
-            videoReady && !videoFailed ? " is-hidden" : ""
-          }`}
+          src="/jittok-logo.png"
+          alt="JITTOK"
+          className="loaderLogo"
+          draggable={false}
         />
 
-        {!videoFailed ? (
-          <video
-            ref={videoRef}
-            className={`loaderVideo${
-              videoReady ? " is-ready" : ""
-            }`}
-            src="/jittok-loader.mp4"
-            poster="/jittok-loader-poster.png"
-            autoPlay
-            muted
-            playsInline
-            preload="auto"
-            onCanPlay={() => setVideoReady(true)}
-            onEnded={() => setAnimationFinished(true)}
-            onError={() => {
-              setVideoFailed(true);
-              setAnimationFinished(true);
-            }}
-          />
-        ) : null}
+        <span className="logoShine" aria-hidden="true" />
       </div>
 
-      <div className="loaderFrame" aria-hidden="true" />
+      <span className="loadingDot loadingDotOne" aria-hidden="true" />
+      <span className="loadingDot loadingDotTwo" aria-hidden="true" />
+      <span className="loadingDot loadingDotThree" aria-hidden="true" />
 
       <style jsx>{`
         .jittok-loader {
@@ -168,10 +122,10 @@ export default function SiteLoader() {
           overflow: hidden;
           background: #000000;
           opacity: 1;
+          visibility: visible;
           pointer-events: all;
-          isolation: isolate;
           transition:
-            opacity ${EXIT_DURATION}ms cubic-bezier(0.22, 1, 0.36, 1),
+            opacity ${EXIT_DURATION}ms ease,
             visibility ${EXIT_DURATION}ms ease;
         }
 
@@ -181,194 +135,170 @@ export default function SiteLoader() {
           pointer-events: none;
         }
 
-        .loaderStage {
-          position: absolute;
-          inset: 0;
-          overflow: hidden;
-          background: #000000;
-          transform: scale(1.035);
+        .logoStage {
+          position: relative;
+          width: min(66vw, 900px);
+          aspect-ratio: 3 / 1;
+          display: grid;
+          place-items: center;
           animation:
-            loaderEntrance 900ms cubic-bezier(0.22, 1, 0.36, 1)
-              both,
-            loaderBreath 3.2s ease-in-out 900ms infinite alternate;
+            logoEnter 900ms cubic-bezier(0.22, 1, 0.36, 1) both,
+            logoFloat 3.2s ease-in-out 900ms infinite alternate;
           will-change: transform, opacity;
         }
 
-        .loaderVideo,
-        .loaderPoster {
+        .loaderLogo,
+        .logoShine {
           position: absolute;
           inset: 0;
           width: 100%;
           height: 100%;
+        }
+
+        .loaderLogo {
           display: block;
-          object-fit: cover;
+          object-fit: contain;
           object-position: center;
-          background: #000000;
+          filter: contrast(1.04);
+          user-select: none;
+          -webkit-user-drag: none;
         }
 
-        .loaderVideo {
-          z-index: 2;
-          opacity: 0;
-          transform: scale(1.015);
-          transition:
-            opacity 320ms ease,
-            transform 1.8s cubic-bezier(0.22, 1, 0.36, 1);
-        }
-
-        .loaderVideo.is-ready {
-          opacity: 1;
-          transform: scale(1);
-        }
-
-        .loaderPoster {
-          z-index: 1;
-          opacity: 1;
-          animation: fallbackDance 2.4s ease-in-out infinite;
-          transition: opacity 360ms ease;
-        }
-
-        .loaderPoster.is-hidden {
-          opacity: 0;
-        }
-
-        .loaderGlow {
-          position: absolute;
-          z-index: 3;
-          width: 52vw;
-          height: 52vw;
-          max-width: 760px;
-          max-height: 760px;
-          border-radius: 50%;
-          background: radial-gradient(
-            circle,
-            rgba(255, 255, 255, 0.065) 0%,
-            rgba(255, 255, 255, 0.018) 42%,
-            rgba(255, 255, 255, 0) 72%
+        .logoShine {
+          background: linear-gradient(
+            105deg,
+            transparent 34%,
+            rgba(255, 255, 255, 0.1) 41%,
+            rgba(255, 255, 255, 0.95) 50%,
+            rgba(255, 255, 255, 0.12) 59%,
+            transparent 66%
           );
-          filter: blur(30px);
-          pointer-events: none;
+          background-size: 260% 100%;
+          background-position: 180% 0;
+
+          -webkit-mask-image: url("/jittok-logo.png");
+          mask-image: url("/jittok-logo.png");
+          -webkit-mask-repeat: no-repeat;
+          mask-repeat: no-repeat;
+          -webkit-mask-position: center;
+          mask-position: center;
+          -webkit-mask-size: contain;
+          mask-size: contain;
+
           mix-blend-mode: screen;
-          animation: glowFloat 4s ease-in-out infinite alternate;
-        }
-
-        .loaderGlowOne {
-          left: -14vw;
-          top: -18vw;
-        }
-
-        .loaderGlowTwo {
-          right: -18vw;
-          bottom: -22vw;
-          animation-delay: -1.8s;
-        }
-
-        .loaderFrame {
-          position: absolute;
-          inset: 14px;
-          z-index: 4;
-          border: 1px solid rgba(255, 255, 255, 0.08);
+          animation: shineSweep 3.8s ease-in-out infinite;
           pointer-events: none;
-          opacity: 0.8;
-          transition: opacity 300ms ease;
         }
 
-        .is-leaving .loaderStage {
-          transform: scale(1.09);
+        .loadingDot {
+          position: absolute;
+          left: 50%;
+          top: calc(50% + 72px);
+          width: 5px;
+          height: 5px;
+          border-radius: 50%;
+          background: #111111;
+          opacity: 0.2;
+          transform: translateX(-50%);
+          animation: dotPulse 1.5s ease-in-out infinite;
+        }
+
+        .loadingDotOne {
+          margin-left: -14px;
+        }
+
+        .loadingDotTwo {
+          animation-delay: 0.2s;
+        }
+
+        .loadingDotThree {
+          margin-left: 14px;
+          animation-delay: 0.4s;
+        }
+
+        .is-leaving .logoStage,
+        .is-leaving .loadingDot {
           opacity: 0;
+          transform: scale(1.05);
           transition:
-            transform ${EXIT_DURATION}ms
-              cubic-bezier(0.22, 1, 0.36, 1),
+            transform ${EXIT_DURATION}ms cubic-bezier(0.22, 1, 0.36, 1),
             opacity ${EXIT_DURATION}ms ease;
         }
 
-        .is-leaving .loaderGlow,
-        .is-leaving .loaderFrame {
-          opacity: 0;
-        }
-
-        @keyframes loaderEntrance {
+        @keyframes logoEnter {
           from {
             opacity: 0;
-            transform: scale(1.13);
+            transform: scale(0.9);
           }
 
           to {
             opacity: 1;
-            transform: scale(1.035);
+            transform: scale(1);
           }
         }
 
-        @keyframes loaderBreath {
+        @keyframes logoFloat {
           from {
-            transform: scale(1.025) rotate(-0.18deg);
+            transform: scale(1) translateY(0);
           }
 
           to {
-            transform: scale(1.055) rotate(0.18deg);
+            transform: scale(1.025) translateY(-3px);
           }
         }
 
-        @keyframes fallbackDance {
+        @keyframes shineSweep {
+          0% {
+            background-position: 180% 0;
+            opacity: 0;
+          }
+
+          18% {
+            opacity: 1;
+          }
+
+          72% {
+            opacity: 1;
+          }
+
+          100% {
+            background-position: -80% 0;
+            opacity: 0;
+          }
+        }
+
+        @keyframes dotPulse {
           0%,
           100% {
-            transform: scale(1.02) translateY(0) rotate(-0.25deg);
+            opacity: 0.18;
+            transform: translateX(-50%) scale(0.8);
           }
 
-          45% {
-            transform: scale(1.07) translateY(-5px) rotate(0.35deg);
-          }
-
-          70% {
-            transform: scale(1.045) translateY(2px) rotate(-0.1deg);
+          50% {
+            opacity: 0.75;
+            transform: translateX(-50%) scale(1);
           }
         }
 
-        @keyframes glowFloat {
-          from {
-            transform: translate3d(-2%, -1%, 0) scale(0.96);
+        @media (max-width: 600px) {
+          .logoStage {
+            width: min(100vw, 900px);
           }
 
-          to {
-            transform: translate3d(2%, 2%, 0) scale(1.04);
-          }
-        }
-
-        @media (max-width: 768px) {
-          .loaderStage {
-            transform: scale(1.02);
-          }
-
-          .loaderVideo,
-          .loaderPoster {
-            object-fit: cover;
-          }
-
-          .loaderFrame {
-            inset: 8px;
-          }
-
-          .loaderGlow {
-            width: 92vw;
-            height: 92vw;
-          }
-        }
-
-        @media (orientation: landscape) and (max-height: 620px) {
-          .loaderVideo,
-          .loaderPoster {
-            object-fit: contain;
+          .loadingDot {
+            top: calc(50% + 58px);
           }
         }
 
         @media (prefers-reduced-motion: reduce) {
-          .loaderStage,
-          .loaderPoster,
-          .loaderGlow {
+          .logoStage,
+          .logoShine,
+          .loadingDot {
             animation: none !important;
           }
 
           .jittok-loader,
-          .loaderStage {
+          .logoStage {
             transition-duration: 250ms !important;
           }
         }
