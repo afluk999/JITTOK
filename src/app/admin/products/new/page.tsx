@@ -398,7 +398,6 @@ export default function NewProductPage() {
       };
     }
 
-   
     const imageUrls: string[] = [];
     const imageSettings: ProductImageSetting[] = [];
 
@@ -407,15 +406,11 @@ export default function NewProductPage() {
       const formData = new FormData();
 
       formData.append("file", item.file);
-      formData.append("upload_preset", uploadPreset);
 
-      const response = await fetch(
-        `https://api.cloudinary.com/v1_1/${cloudName}/image/upload`,
-        {
-          method: "POST",
-          body: formData,
-        },
-      );
+      const response = await fetch("/api/cloudinary-upload", {
+        method: "POST",
+        body: formData,
+      });
 
       const responseText = await response.text();
 
@@ -428,27 +423,24 @@ export default function NewProductPage() {
       }
 
       if (!response.ok) {
-        console.error("CLOUDINARY DIRECT UPLOAD ERROR:", data);
-
-        const cloudinaryError = data.error as
-          | { message?: string }
-          | undefined;
+        console.error("PRODUCT IMAGE UPLOAD ERROR:", data);
 
         throw new Error(
-          cloudinaryError?.message ||
+          (typeof data.error === "string" ? data.error : "") ||
             (typeof data.message === "string" ? data.message : "") ||
             (typeof data.rawResponse === "string"
               ? data.rawResponse
               : "") ||
-            "Image upload failed",
+            "Image upload failed.",
         );
       }
 
       if (typeof data.secure_url !== "string") {
-        throw new Error("Cloudinary did not return an image URL.");
+        throw new Error("Upload did not return an image URL.");
       }
 
       imageUrls.push(data.secure_url);
+
       imageSettings.push({
         url: data.secure_url,
         role: item.role,

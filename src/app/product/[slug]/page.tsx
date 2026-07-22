@@ -292,13 +292,25 @@ export default function ProductPage() {
   }
 
   function handleWhatsAppOrder() {
-    if (!selectedSize && product.sizes?.length) {
+    const currentProduct = product;
+
+    if (!currentProduct) {
+      alert("Product details are still loading. Please try again.");
+      return;
+    }
+
+    if (!selectedSize && currentProduct.sizes?.length) {
       alert("Please select a size before ordering.");
       return;
     }
 
-    if (!isSoldOut && quantity > Number(product.stock || 0)) {
-      alert(`Only ${product.stock} item(s) are currently available.`);
+    if (
+      !isSoldOut &&
+      quantity > Number(currentProduct.stock || 0)
+    ) {
+      alert(
+        `Only ${currentProduct.stock} item(s) are currently available.`,
+      );
       return;
     }
 
@@ -307,7 +319,7 @@ export default function ProductPage() {
       .slice(-6)
       .toUpperCase()}`;
 
-    const productUrl = `${window.location.origin}/product/${product.slug}`;
+    const productUrl = `${window.location.origin}/product/${currentProduct.slug}`;
     const requestTitle = isSoldOut
       ? "JITTOK PRODUCT AVAILABILITY REQUEST"
       : "NEW JITTOK ORDER REQUEST";
@@ -317,14 +329,16 @@ export default function ProductPage() {
 *Order Reference:* ${orderReference}
 *Source:* JITTOK Website
 
-*Product:* ${product.name}
-*Variant:* ${product.variant || "Standard"}
+*Product:* ${currentProduct.name}
+*Variant:* ${currentProduct.variant || "Standard"}
 *Size:* ${size}
 *Quantity:* ${quantity}
 *Unit Price:* ${sellingDisplayPrice}
 *Order Total:* ${orderTotalDisplayPrice}
 *Stock Status:* ${
-      isSoldOut ? "Currently sold out" : `${product.stock} available`
+      isSoldOut
+        ? "Currently sold out"
+        : `${currentProduct.stock} available`
     }
 
 *Product Link:*
@@ -344,8 +358,8 @@ Please confirm availability, delivery charges, payment method, and the final ord
 
     console.info("JITTOK WHATSAPP ORDER PREPARED", {
       orderReference,
-      product: product.name,
-      variant: product.variant,
+      product: currentProduct.name,
+      variant: currentProduct.variant,
       size,
       quantity,
       unitPrice: sellingPrice,
