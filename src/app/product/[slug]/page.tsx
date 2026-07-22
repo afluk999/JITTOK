@@ -250,6 +250,8 @@ export default function ProductPage() {
       : "");
 
   const sellingDisplayPrice = formatPrice(sellingPrice);
+  const orderTotal = sellingPrice * quantity;
+  const orderTotalDisplayPrice = formatPrice(orderTotal);
 
   const savingAmount =
     hasOriginalPrice && originalPrice !== null
@@ -289,21 +291,71 @@ export default function ProductPage() {
     router.push("/cart");
   }
 
-  const directWhatsAppMessage = `Hi JITTOK,
+  function handleWhatsAppOrder() {
+    if (!selectedSize && product.sizes?.length) {
+      alert("Please select a size before ordering.");
+      return;
+    }
 
-Source: JITTOK WEBSITE
-Product: ${product.name}
-Variant: ${product.variant}
-Size: ${size}
-Quantity: ${quantity}
-Price: ${sellingDisplayPrice}
-Product Link: /product/${product.slug}
+    if (!isSoldOut && quantity > Number(product.stock || 0)) {
+      alert(`Only ${product.stock} item(s) are currently available.`);
+      return;
+    }
 
-Please confirm availability and delivery details.`;
+    const orderReference = `JT-${Date.now()
+      .toString(36)
+      .slice(-6)
+      .toUpperCase()}`;
 
-  const whatsappUrl = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(
-    directWhatsAppMessage,
-  )}`;
+    const productUrl = `${window.location.origin}/product/${product.slug}`;
+    const requestTitle = isSoldOut
+      ? "JITTOK PRODUCT AVAILABILITY REQUEST"
+      : "NEW JITTOK ORDER REQUEST";
+
+    const whatsappMessage = `*${requestTitle}*
+
+*Order Reference:* ${orderReference}
+*Source:* JITTOK Website
+
+*Product:* ${product.name}
+*Variant:* ${product.variant || "Standard"}
+*Size:* ${size}
+*Quantity:* ${quantity}
+*Unit Price:* ${sellingDisplayPrice}
+*Order Total:* ${orderTotalDisplayPrice}
+*Stock Status:* ${
+      isSoldOut ? "Currently sold out" : `${product.stock} available`
+    }
+
+*Product Link:*
+${productUrl}
+
+*Customer Details*
+Name:
+Delivery Place:
+Pincode:
+Phone Number:
+
+Please confirm availability, delivery charges, payment method, and the final order total.`;
+
+    const whatsappUrl = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(
+      whatsappMessage,
+    )}`;
+
+    console.info("JITTOK WHATSAPP ORDER PREPARED", {
+      orderReference,
+      product: product.name,
+      variant: product.variant,
+      size,
+      quantity,
+      unitPrice: sellingPrice,
+      total: orderTotal,
+      productUrl,
+      soldOut: isSoldOut,
+    });
+
+    window.open(whatsappUrl, "_blank", "noopener,noreferrer");
+  }
 
   return (
     <>
@@ -893,15 +945,14 @@ Please confirm availability and delivery details.`;
                   marginTop: "18px",
                 }}
               >
-                <a
-                  href={whatsappUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
+                <button
+                  type="button"
+                  onClick={handleWhatsAppOrder}
                   style={{
                     height: "54px",
+                    border: "none",
                     background: "#25D366",
                     color: "#111",
-                    textDecoration: "none",
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
@@ -910,13 +961,14 @@ Please confirm availability and delivery details.`;
                     fontWeight: 900,
                     letterSpacing: "1px",
                     textTransform: "uppercase",
+                    cursor: "pointer",
                   }}
                 >
                   <FaWhatsapp size={18} />
                   {isSoldOut
                     ? "Ask on WhatsApp"
                     : "Order on WhatsApp"}
-                </a>
+                </button>
 
                 <button
                   type="button"

@@ -6,20 +6,18 @@ import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { useCart } from "@/context/CartContext";
 import { getHomeContent } from "@/lib/contentService";
+import { getProductSellingPrice } from "@/lib/productService";
 import { Minus, Plus, Trash2, ShoppingBag, ArrowLeft } from "lucide-react";
 import { FaWhatsapp } from "react-icons/fa";
 
 export default function CartPage() {
   const {
     cartItems,
-    subtotal,
     shipping,
-    total,
     increaseQuantity,
     decreaseQuantity,
     removeFromCart,
     clearCart,
-    getWhatsAppMessage,
   } = useCart();
 
   const [whatsappNumber, setWhatsappNumber] = useState("919605300701");
@@ -59,10 +57,124 @@ export default function CartPage() {
     loadSettings();
   }, []);
 
-  const cleanWhatsappNumber = whatsappNumber.replace(/^\+/, "");
-  const whatsappUrl = `https://wa.me/${cleanWhatsappNumber}?text=${encodeURIComponent(
-    getWhatsAppMessage()
-  )}`;
+  const cleanWhatsappNumber =
+    whatsappNumber.replace(/\D/g, "") || "919605300701";
+
+  const calculatedSubtotal = cartItems.reduce((sum, item) => {
+    const unitPrice = getProductSellingPrice(item.product as any);
+    return sum + unitPrice * item.quantity;
+  }, 0);
+
+  const calculatedTotal = calculatedSubtotal + shipping;
+
+  function handleWhatsAppCheckout() {
+    if (cartItems.length === 0) {
+      alert("Your cart is empty.");
+      return;
+    }
+
+    const unavailableItem = cartItems.find(
+      (item) => {
+        const product = item.product as any;
+
+        return (
+          product.status === "sold-out" ||
+          Number(product.stock || 0) <= 0
+        );
+      },
+    );
+
+    if (unavailableItem) {
+      alert(
+        `${unavailableItem.product.name} is currently sold out. Please remove it before ordering.`,
+      );
+      return;
+    }
+
+    const overStockItem = cartItems.find(
+      (item) => {
+        const product = item.product as any;
+
+        return (
+          Number(product.stock || 0) > 0 &&
+          item.quantity > Number(product.stock)
+        );
+      },
+    );
+
+    if (overStockItem) {
+      alert(
+        `Only ${(overStockItem.product as any).stock} item(s) of ${overStockItem.product.name} are available.`,
+      );
+      return;
+    }
+
+    const orderReference = `JT-${Date.now()
+      .toString(36)
+      .slice(-6)
+      .toUpperCase()}`;
+
+    const itemLines = cartItems
+      .map((item, index) => {
+        const unitPrice = getProductSellingPrice(item.product as any);
+        const lineTotal = unitPrice * item.quantity;
+        const productUrl = `${window.location.origin}/product/${item.product.slug}`;
+
+        return `${index + 1}. *${item.product.name}*
+Variant: ${item.product.variant || "Standard"}
+Size: ${item.size}
+Quantity: ${item.quantity}
+Unit Price: ₹${unitPrice.toLocaleString("en-IN")}.00
+Item Total: ₹${lineTotal.toLocaleString("en-IN")}.00
+Product Link: ${productUrl}`;
+      })
+      .join("\n\n");
+
+    const whatsappMessage = `*NEW JITTOK CART ORDER*
+
+*Order Reference:* ${orderReference}
+*Source:* JITTOK Website
+*Number of Products:* ${cartItems.length}
+
+${itemLines}
+
+*ORDER SUMMARY*
+Subtotal: ₹${calculatedSubtotal.toLocaleString("en-IN")}.00
+Shipping: ${
+      shipping === 0
+        ? "Free"
+        : `₹${shipping.toLocaleString("en-IN")}.00`
+    }
+*Total: ₹${calculatedTotal.toLocaleString("en-IN")}.00*
+
+*Customer Details*
+Name:
+Delivery Address:
+Pincode:
+Phone Number:
+
+Please confirm product availability, delivery details, payment method, and the final order total.`;
+
+    const whatsappUrl = `https://wa.me/${cleanWhatsappNumber}?text=${encodeURIComponent(
+      whatsappMessage,
+    )}`;
+
+    console.info("JITTOK CART WHATSAPP ORDER PREPARED", {
+      orderReference,
+      items: cartItems.map((item) => ({
+        product: item.product.name,
+        variant: item.product.variant,
+        size: item.size,
+        quantity: item.quantity,
+        unitPrice: getProductSellingPrice(item.product as any),
+      })),
+      subtotal: calculatedSubtotal,
+      shipping,
+      total: calculatedTotal,
+    });
+
+    window.open(whatsappUrl, "_blank", "noopener,noreferrer");
+  }
 
   return (
     <>
@@ -302,9 +414,10 @@ export default function CartPage() {
                           }}
                         >
                           ₹
-                          {(item.product.price * item.quantity).toLocaleString(
-                            "en-IN"
-                          )}
+                          {(
+                            getProductSellingPrice(item.product as any) *
+                            item.quantity
+                          ).toLocaleString("en-IN")}
                           .00
                         </p>
 
@@ -335,10 +448,30 @@ export default function CartPage() {
                           </span>
 
                           <button
+                            type="button"
+                            disabled={
+                              Number((item.product as any).stock || 0) > 0 &&
+                              item.quantity >=
+                                Number((item.product as any).stock)
+                            }
                             onClick={() =>
                               increaseQuantity(item.product.slug, item.size)
                             }
-                            style={qtyButtonStyle}
+                            style={{
+                              ...qtyButtonStyle,
+                              cursor:
+                                Number((item.product as any).stock || 0) > 0 &&
+                                item.quantity >=
+                                  Number((item.product as any).stock)
+                                  ? "not-allowed"
+                                  : "pointer",
+                              opacity:
+                                Number((item.product as any).stock || 0) > 0 &&
+                                item.quantity >=
+                                  Number((item.product as any).stock)
+                                  ? 0.45
+                                  : 1,
+                            }}
                           >
                             <Plus size={14} />
                           </button>
@@ -385,7 +518,7 @@ export default function CartPage() {
 
                 <SummaryRow
                   label="Subtotal"
-                  value={`₹${subtotal.toLocaleString("en-IN")}.00`}
+                  value={`₹${calculatedSubtotal.toLocaleString("en-IN")}.00`}
                 />
 
                 <SummaryRow
@@ -403,20 +536,20 @@ export default function CartPage() {
 
                 <SummaryRow
                   label="Total"
-                  value={`₹${total.toLocaleString("en-IN")}.00`}
+                  value={`₹${calculatedTotal.toLocaleString("en-IN")}.00`}
                   big
                 />
 
-                <a
-                  href={whatsappUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
+                <button
+                  type="button"
+                  onClick={handleWhatsAppCheckout}
                   style={{
+                    width: "100%",
                     height: "56px",
                     marginTop: "28px",
+                    border: "none",
                     background: "#25D366",
                     color: "#111",
-                    textDecoration: "none",
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
@@ -425,11 +558,12 @@ export default function CartPage() {
                     fontWeight: 900,
                     letterSpacing: "1px",
                     textTransform: "uppercase",
+                    cursor: "pointer",
                   }}
                 >
                   <FaWhatsapp size={18} />
                   Order on WhatsApp
-                </a>
+                </button>
               </aside>
             </section>
           )}
