@@ -338,9 +338,9 @@ export default function IconicProductsCurve() {
               margin: "0 auto",
               display: "grid",
               gridTemplateColumns: isPhone
-                ? "1fr"
+                ? "repeat(2, minmax(0, 1fr))"
                 : "repeat(3, minmax(0, 1fr))",
-              gap: isPhone ? "18px" : "22px",
+              gap: isPhone ? "16px 12px" : "22px",
               alignItems: "start",
             }}
           >
@@ -365,6 +365,17 @@ export default function IconicProductsCurve() {
                   ease: [0.22, 1, 0.36, 1],
                 }}
                 whileHover={isPhone ? undefined : { y: -6 }}
+                style={
+                  isPhone &&
+                  products.length % 2 === 1 &&
+                  index === products.length - 1
+                    ? {
+                        gridColumn: "1 / -1",
+                        width: "calc((100% - 12px) / 2)",
+                        justifySelf: "center",
+                      }
+                    : undefined
+                }
               >
                 <SignatureCard
                   product={product}
