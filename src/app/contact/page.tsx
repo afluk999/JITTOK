@@ -280,7 +280,7 @@ ${message || "I want to know more about your products."}`;
               <div style={{ marginBottom: "18px" }}>
                 <Input
                   label="Phone"
-                  placeholder="+91 00000 00000"
+                  placeholder="+91 96053 00701"
                   value={phone}
                   onChange={setPhone}
                 />

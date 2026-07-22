@@ -42,7 +42,7 @@ const defaultHomeContent: HomeContent = {
     "JITTOK creates everyday essentials with clean design, comfort, and confidence.",
   whatsappNumber: "919605300701",
   instagramUsername: "@jittok",
-  instagramUrl: "https://www.instagram.com/",
+  instagramUrl: "https://www.instagram.com/jittok.in/",
 };
 
 const homeContentRef = doc(db, "siteContent", "home");

@@ -1,6 +1,6 @@
 "use client";
 
-const INSTAGRAM_URL = "https://www.instagram.com/YOUR_USERNAME/";
+const INSTAGRAM_URL = "https://www.instagram.com/jittok.in/";
 
 const WHATSAPP_NUMBER = "91XXXXXXXXXX";
 

@@ -782,7 +782,7 @@ function SettingsBlock({
         <input
           value={instagramUrl}
           onChange={(event) => setInstagramUrl(event.target.value)}
-          placeholder="https://www.instagram.com/..."
+          placeholder="https://www.instagram.com/jittok.in/"
           style={inputStyle}
         />
       </section>
