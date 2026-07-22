@@ -6,9 +6,9 @@ import SpiderDropBanner from "@/components/SpiderDropBanner";
 import { JittokLineup } from "@/components/JittokLineup";
 import Editorial from "@/components/Editorial";
 import ReelsSection from "@/components/ReelsSection";
-import InstagramSection from "@/components/InstagramSection";
 import CustomerLoveSection from "@/components/CustomerLoveSection";
 import BrandStatement from "@/components/BrandStatement";
+import TrustStrip from "@/components/TrustStrip";
 import Footer from "@/components/Footer";
 
 export default function Home() {
@@ -23,6 +23,7 @@ export default function Home() {
       <ReelsSection />
       <CustomerLoveSection />
       <BrandStatement />
+      <TrustStrip />
       <Footer />
     </>
   );

@@ -182,8 +182,8 @@ const [savingIconic, setSavingIconic] = useState(false);
       const uploaded = await uploadFiles(heroFiles);
       const finalImages = [...heroImages, ...uploaded].slice(0, 12);
 
-      if (finalImages.length < 5) {
-        alert("Please add at least 5 hero images.");
+      if (finalImages.length < 3) {
+        alert("Please add at least 3 hero images.");
         return;
       }
 
@@ -263,7 +263,7 @@ const [savingIconic, setSavingIconic] = useState(false);
       const currentImages = signatureImages[slug] || [];
       const selectedFiles = signatureFiles[slug] || [];
       const uploaded = await uploadFiles(selectedFiles);
-      const finalImages = [...currentImages, ...uploaded].slice(0, 5);
+      const finalImages = [...currentImages, ...uploaded].slice(0, 3);
 
       if (finalImages.length < 1) {
         alert("Please add at least 1 image for this signature product.");

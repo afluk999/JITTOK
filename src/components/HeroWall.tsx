@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { getHomeContent } from "@/lib/contentService";
 import BlurImage from "@/components/BlurImage";
 
-const MIN_HERO_IMAGES = 4;
+const MIN_HERO_IMAGES = 3;
 
 const DESKTOP_COLUMN_WIDTH = 45;
 const TABLET_COLUMN_WIDTH = 50;
