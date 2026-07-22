@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
@@ -12,7 +12,7 @@ export default function Footer() {
     "Premium everyday essentials designed for comfort, movement, and timeless streetwear style."
   );
   const [instagramUsername, setInstagramUsername] = useState("@jittok");
-  const [instagramUrl, setInstagramUrl] = useState("https://www.instagram.com/jittok.in?utm_source=ig_web_button_share_sheet&igsh=ZDNlZDc0MzIxNw==");
+  const [instagramUrl, setInstagramUrl] = useState("https://www.instagram.com/jittok.in/");
   const [whatsappNumber, setWhatsappNumber] = useState("919605300701");
 
   useEffect(() => {
@@ -43,7 +43,7 @@ export default function Footer() {
             "Premium everyday essentials designed for comfort, movement, and timeless streetwear style."
         );
         setInstagramUsername(content.instagramUsername || "@jittok");
-        setInstagramUrl(content.instagramUrl || "https://www.instagram.com/jittok.in?utm_source=ig_web_button_share_sheet&igsh=ZDNlZDc0MzIxNw==");
+        setInstagramUrl(content.instagramUrl || "https://www.instagram.com/jittok.in/");
         setWhatsappNumber(content.whatsappNumber || "919605300701");
       } catch (error) {
         console.error("LOAD FOOTER SETTINGS ERROR:", error);

@@ -28,7 +28,7 @@ import {
 } from "lucide-react";
 import { FaWhatsapp } from "react-icons/fa";
 
-const WHATSAPP_NUMBER = "910000000000";
+const WHATSAPP_NUMBER = "919605300701";
 
 type ProductWithOffers = FirebaseProduct & {
   originalDisplayPrice?: string;

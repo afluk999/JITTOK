@@ -11,7 +11,7 @@ import type { CSSProperties, ReactNode } from "react";
 export default function ContactPage() {
   const [isPhone, setIsPhone] = useState(false);
 
-  const [whatsappNumber, setWhatsappNumber] = useState("910000000000");
+  const [whatsappNumber, setWhatsappNumber] = useState("919605300701");
   const [instagramUrl, setInstagramUrl] = useState("https://www.instagram.com/");
   const [instagramUsername, setInstagramUsername] = useState("@jittok");
 
@@ -47,7 +47,7 @@ export default function ContactPage() {
       try {
         const content = await getHomeContent();
 
-        setWhatsappNumber(content.whatsappNumber || "910000000000");
+        setWhatsappNumber(content.whatsappNumber || "919605300701");
         setInstagramUrl(content.instagramUrl || "https://www.instagram.com/");
         setInstagramUsername(content.instagramUsername || "@jittok");
       } catch (error) {

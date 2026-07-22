@@ -22,7 +22,7 @@ export default function CartPage() {
     getWhatsAppMessage,
   } = useCart();
 
-  const [whatsappNumber, setWhatsappNumber] = useState("910000000000");
+  const [whatsappNumber, setWhatsappNumber] = useState("919605300701");
   const [isPhone, setIsPhone] = useState(false);
 
   useEffect(() => {
@@ -50,7 +50,7 @@ export default function CartPage() {
     async function loadSettings() {
       try {
         const content = await getHomeContent();
-        setWhatsappNumber(content.whatsappNumber || "910000000000");
+        setWhatsappNumber(content.whatsappNumber || "919605300701");
       } catch (error) {
         console.error("LOAD CART SETTINGS ERROR:", error);
       }

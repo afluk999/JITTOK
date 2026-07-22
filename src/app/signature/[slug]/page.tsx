@@ -56,7 +56,7 @@ export default function SignatureProductPage() {
   const [quantity, setQuantity] = useState(1);
   const [liked, setLiked] = useState(false);
   const [added, setAdded] = useState(false);
-  const [whatsappNumber, setWhatsappNumber] = useState("910000000000");
+  const [whatsappNumber, setWhatsappNumber] = useState("919605300701");
   const [openSection, setOpenSection] = useState<"details" | "shipping" | null>(
     "details"
   );
@@ -103,7 +103,7 @@ export default function SignatureProductPage() {
           isFeatured: true,
         });
 
-        setWhatsappNumber(content.whatsappNumber || "910000000000");
+        setWhatsappNumber(content.whatsappNumber || "919605300701");
       } catch (error) {
         console.error("LOAD SIGNATURE PRODUCT ERROR:", error);
       }
