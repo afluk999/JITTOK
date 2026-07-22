@@ -1,407 +1,375 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
+
+const LOADER_SESSION_KEY = "jittok-loader-seen";
+const MINIMUM_VISIBLE_TIME = 1600;
+const MAXIMUM_VISIBLE_TIME = 5200;
+const EXIT_DURATION = 700;
 
 export default function SiteLoader() {
   const [visible, setVisible] = useState(true);
   const [leaving, setLeaving] = useState(false);
-  const [progress, setProgress] = useState(0);
+  const [videoReady, setVideoReady] = useState(false);
+  const [videoFailed, setVideoFailed] = useState(false);
+  const [pageReady, setPageReady] = useState(false);
+  const [minimumTimePassed, setMinimumTimePassed] = useState(false);
+  const [animationFinished, setAnimationFinished] = useState(false);
 
-  const progressTimer = useRef<number | null>(null);
-  const finished = useRef(false);
+  const finishing = useRef(false);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const exitTimer = useRef<number | null>(null);
+  const safetyTimer = useRef<number | null>(null);
+  const minimumTimer = useRef<number | null>(null);
+  const previousBodyOverflow = useRef("");
+
+  const finishLoader = useCallback(() => {
+    if (finishing.current) return;
+
+    finishing.current = true;
+    setLeaving(true);
+
+    exitTimer.current = window.setTimeout(() => {
+      document.body.style.overflow = previousBodyOverflow.current;
+      setVisible(false);
+
+    }, EXIT_DURATION);
+  }, []);
 
   useEffect(() => {
-    try {
-      if (window.sessionStorage.getItem("jittok-loader-seen") === "1") {
-        setVisible(false);
-        return;
-      }
-    } catch {
-      // Continue with the loader when sessionStorage is unavailable.
-    }
+    
 
-    const startedAt = Date.now();
-    const minimumVisibleTime = 1250;
+    previousBodyOverflow.current = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
 
-    progressTimer.current = window.setInterval(() => {
-      setProgress((current) => {
-        if (current >= 92) return current;
-
-        const increase =
-          current < 35 ? 7 : current < 70 ? 4 : current < 86 ? 2 : 1;
-
-        return Math.min(92, current + increase);
-      });
-    }, 85);
-
-    function finishLoader() {
-      if (finished.current) return;
-      finished.current = true;
-
-      const elapsed = Date.now() - startedAt;
-      const remaining = Math.max(0, minimumVisibleTime - elapsed);
-
-      window.setTimeout(() => {
-        if (progressTimer.current) {
-          window.clearInterval(progressTimer.current);
-        }
-
-        setProgress(100);
-
-        window.setTimeout(() => {
-          setLeaving(true);
-
-          window.setTimeout(() => {
-            setVisible(false);
-
-            try {
-              window.sessionStorage.setItem("jittok-loader-seen", "1");
-            } catch {
-              // Ignore storage errors.
-            }
-          }, 850);
-        }, 280);
-      }, remaining);
+    function markPageReady() {
+      setPageReady(true);
     }
 
     if (document.readyState === "complete") {
-      finishLoader();
+      markPageReady();
     } else {
-      window.addEventListener("load", finishLoader, { once: true });
+      window.addEventListener("load", markPageReady, {
+        once: true,
+      });
     }
 
-    const safetyTimer = window.setTimeout(finishLoader, 5000);
+    minimumTimer.current = window.setTimeout(() => {
+      setMinimumTimePassed(true);
+    }, MINIMUM_VISIBLE_TIME);
+
+    safetyTimer.current = window.setTimeout(() => {
+      finishLoader();
+    }, MAXIMUM_VISIBLE_TIME);
 
     return () => {
-      window.removeEventListener("load", finishLoader);
+      window.removeEventListener("load", markPageReady);
+      document.body.style.overflow = previousBodyOverflow.current;
 
-      if (progressTimer.current) {
-        window.clearInterval(progressTimer.current);
+      if (exitTimer.current) {
+        window.clearTimeout(exitTimer.current);
       }
 
-      window.clearTimeout(safetyTimer);
+      if (safetyTimer.current) {
+        window.clearTimeout(safetyTimer.current);
+      }
+
+      if (minimumTimer.current) {
+        window.clearTimeout(minimumTimer.current);
+      }
     };
-  }, []);
+  }, [finishLoader]);
+
+  useEffect(() => {
+    if (!visible || finishing.current) return;
+
+    if (
+      pageReady &&
+      minimumTimePassed &&
+      (animationFinished || videoFailed)
+    ) {
+      finishLoader();
+    }
+  }, [
+    animationFinished,
+    finishLoader,
+    minimumTimePassed,
+    pageReady,
+    videoFailed,
+    visible,
+  ]);
+
+  useEffect(() => {
+    if (!videoReady || videoFailed || !videoRef.current) return;
+
+    videoRef.current.play().catch(() => {
+      setVideoFailed(true);
+      setAnimationFinished(true);
+    });
+  }, [videoReady, videoFailed]);
 
   if (!visible) return null;
 
-  const panelBase: React.CSSProperties = {
-    position: "absolute",
-    left: 0,
-    width: "100%",
-    height: "50.5%",
-    background: "#ffffff",
-    zIndex: 1,
-    transition: "transform 0.85s cubic-bezier(0.76, 0, 0.24, 1)",
-    willChange: "transform",
-  };
-
   return (
     <div
-      className={leaving ? "jittok-loader is-leaving" : "jittok-loader"}
+      className={`jittok-loader${leaving ? " is-leaving" : ""}`}
       role="status"
       aria-label="Loading JITTOK"
-      style={{
-        position: "fixed",
-        inset: 0,
-        zIndex: 99999,
-        overflow: "hidden",
-        background: "#ffffff",
-        color: "#111111",
-        fontFamily: '"Outfit", sans-serif',
-        pointerEvents: "all",
-      }}
     >
-      <div
-        className="panel panelTop"
-        style={{
-          ...panelBase,
-          top: 0,
-          borderBottom: "1px solid rgba(17,17,17,0.07)",
-        }}
-      />
+      <div className="loaderGlow loaderGlowOne" aria-hidden="true" />
+      <div className="loaderGlow loaderGlowTwo" aria-hidden="true" />
 
-      <div
-        className="panel panelBottom"
-        style={{
-          ...panelBase,
-          bottom: 0,
-          borderTop: "1px solid rgba(17,17,17,0.07)",
-        }}
-      />
+      <div className="loaderStage">
+        <img
+          src="/jittok-loader-poster.png"
+          alt=""
+          aria-hidden="true"
+          className={`loaderPoster${
+            videoReady && !videoFailed ? " is-hidden" : ""
+          }`}
+        />
 
-      <div
-        className="backgroundWord"
-        aria-hidden="true"
-        style={{
-          position: "absolute",
-          left: "50%",
-          top: "50%",
-          zIndex: 2,
-          transform: "translate(-50%, -50%)",
-          color: "rgba(17,17,17,0.035)",
-          fontFamily: '"Bebas Neue", Impact, sans-serif',
-          fontSize: "clamp(180px, 34vw, 620px)",
-          lineHeight: 0.72,
-          letterSpacing: "-0.045em",
-          whiteSpace: "nowrap",
-          userSelect: "none",
-          WebkitUserSelect: "none",
-          animation: "backgroundDrift 7s ease-in-out infinite alternate",
-          transition: "opacity 0.34s ease",
-        }}
-      >
-        JITTOK
+        {!videoFailed ? (
+          <video
+            ref={videoRef}
+            className={`loaderVideo${
+              videoReady ? " is-ready" : ""
+            }`}
+            src="/jittok-loader.mp4"
+            poster="/jittok-loader-poster.png"
+            autoPlay
+            muted
+            playsInline
+            preload="auto"
+            onCanPlay={() => setVideoReady(true)}
+            onEnded={() => setAnimationFinished(true)}
+            onError={() => {
+              setVideoFailed(true);
+              setAnimationFinished(true);
+            }}
+          />
+        ) : null}
       </div>
 
-      <span
-        className="corner cornerTop"
-        style={{
-          position: "absolute",
-          top: "22px",
-          left: "24px",
-          zIndex: 4,
-          color: "rgba(17,17,17,0.5)",
-          fontSize: "8px",
-          fontWeight: 900,
-          letterSpacing: "1.5px",
-          textTransform: "uppercase",
-          transition: "opacity 0.25s ease",
-        }}
-      >
-        JITTOK / Loading
-      </span>
-
-      <span
-        className="corner cornerBottom"
-        style={{
-          position: "absolute",
-          right: "24px",
-          bottom: "22px",
-          zIndex: 4,
-          color: "rgba(17,17,17,0.5)",
-          fontSize: "8px",
-          fontWeight: 900,
-          letterSpacing: "1.5px",
-          textTransform: "uppercase",
-          transition: "opacity 0.25s ease",
-        }}
-      >
-        Too loud to blend in
-      </span>
-
-      <div
-        className="content"
-        style={{
-          position: "absolute",
-          inset: 0,
-          zIndex: 3,
-          display: "grid",
-          placeItems: "center",
-          padding: "28px",
-          boxSizing: "border-box",
-          transition:
-            "opacity 0.35s ease, transform 0.65s cubic-bezier(0.22, 1, 0.36, 1)",
-        }}
-      >
-        <div
-          className="center"
-          style={{
-            width: "min(88vw, 560px)",
-            display: "grid",
-            justifyItems: "center",
-            textAlign: "center",
-          }}
-        >
-          <div
-            className="logoStage"
-            style={{
-              position: "relative",
-              width: "min(72vw, 360px)",
-              height: "clamp(92px, 15vw, 138px)",
-              overflow: "hidden",
-              animation:
-                "logoEnter 0.9s cubic-bezier(0.22, 1, 0.36, 1) both",
-            }}
-          >
-            <img
-              src="/jittok-logo.png"
-              alt=""
-              aria-hidden="true"
-              className="logoBase"
-              style={{
-                position: "absolute",
-                inset: 0,
-                width: "100%",
-                height: "100%",
-                objectFit: "contain",
-                display: "block",
-                opacity: 0.18,
-                filter: "blur(8px)",
-                transform: "scale(1.08)",
-              }}
-            />
-
-            <img
-              src="/jittok-logo.png"
-              alt="JITTOK"
-              className="logoSharp"
-              style={{
-                position: "absolute",
-                inset: 0,
-                width: "100%",
-                height: "100%",
-                objectFit: "contain",
-                display: "block",
-                clipPath: `inset(0 ${100 - progress}% 0 0)`,
-                transition: "clip-path 0.16s linear",
-                filter: "contrast(1.04)",
-              }}
-            />
-
-            <span
-              className="scanLine"
-              aria-hidden="true"
-              style={{
-                position: "absolute",
-                top: "11%",
-                bottom: "11%",
-                left: `${progress}%`,
-                width: "1px",
-                background: "rgba(17,17,17,0.55)",
-                boxShadow:
-                  "0 0 0 5px rgba(255,255,255,0.54), 0 0 28px rgba(17,17,17,0.12)",
-                transform: "translateX(-1px)",
-                transition: "left 0.16s linear",
-              }}
-            />
-          </div>
-
-          <div
-            className="meta"
-            style={{
-              width: "min(78vw, 360px)",
-              marginTop: "26px",
-            }}
-          >
-            <div
-              className="metaRow"
-              style={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-                gap: "18px",
-                marginBottom: "10px",
-                fontSize: "9px",
-                fontWeight: 900,
-                letterSpacing: "1.7px",
-                textTransform: "uppercase",
-              }}
-            >
-              <span>Preparing the drop</span>
-              <span>{String(progress).padStart(2, "0")}%</span>
-            </div>
-
-            <div
-              className="progressTrack"
-              style={{
-                position: "relative",
-                width: "100%",
-                height: "2px",
-                overflow: "hidden",
-                background: "rgba(17,17,17,0.11)",
-              }}
-            >
-              <div
-                className="progressFill"
-                style={{
-                  width: `${progress}%`,
-                  height: "100%",
-                  background: "#111111",
-                  transition: "width 0.16s linear",
-                }}
-              />
-            </div>
-          </div>
-        </div>
-      </div>
+      <div className="loaderFrame" aria-hidden="true" />
 
       <style jsx>{`
-        .is-leaving .panelTop {
-          transform: translateY(-102%);
+        .jittok-loader {
+          position: fixed;
+          inset: 0;
+          z-index: 99999;
+          display: grid;
+          place-items: center;
+          overflow: hidden;
+          background: #000000;
+          opacity: 1;
+          pointer-events: all;
+          isolation: isolate;
+          transition:
+            opacity ${EXIT_DURATION}ms cubic-bezier(0.22, 1, 0.36, 1),
+            visibility ${EXIT_DURATION}ms ease;
         }
 
-        .is-leaving .panelBottom {
-          transform: translateY(102%);
+        .jittok-loader.is-leaving {
+          opacity: 0;
+          visibility: hidden;
+          pointer-events: none;
         }
 
-        .is-leaving .content,
-        .is-leaving .backgroundWord,
-        .is-leaving .corner {
+        .loaderStage {
+          position: absolute;
+          inset: 0;
+          overflow: hidden;
+          background: #000000;
+          transform: scale(1.035);
+          animation:
+            loaderEntrance 900ms cubic-bezier(0.22, 1, 0.36, 1)
+              both,
+            loaderBreath 3.2s ease-in-out 900ms infinite alternate;
+          will-change: transform, opacity;
+        }
+
+        .loaderVideo,
+        .loaderPoster {
+          position: absolute;
+          inset: 0;
+          width: 100%;
+          height: 100%;
+          display: block;
+          object-fit: cover;
+          object-position: center;
+          background: #000000;
+        }
+
+        .loaderVideo {
+          z-index: 2;
+          opacity: 0;
+          transform: scale(1.015);
+          transition:
+            opacity 320ms ease,
+            transform 1.8s cubic-bezier(0.22, 1, 0.36, 1);
+        }
+
+        .loaderVideo.is-ready {
+          opacity: 1;
+          transform: scale(1);
+        }
+
+        .loaderPoster {
+          z-index: 1;
+          opacity: 1;
+          animation: fallbackDance 2.4s ease-in-out infinite;
+          transition: opacity 360ms ease;
+        }
+
+        .loaderPoster.is-hidden {
           opacity: 0;
         }
 
-        .is-leaving .content {
-          transform: scale(0.96);
+        .loaderGlow {
+          position: absolute;
+          z-index: 3;
+          width: 52vw;
+          height: 52vw;
+          max-width: 760px;
+          max-height: 760px;
+          border-radius: 50%;
+          background: radial-gradient(
+            circle,
+            rgba(255, 255, 255, 0.065) 0%,
+            rgba(255, 255, 255, 0.018) 42%,
+            rgba(255, 255, 255, 0) 72%
+          );
+          filter: blur(30px);
+          pointer-events: none;
+          mix-blend-mode: screen;
+          animation: glowFloat 4s ease-in-out infinite alternate;
         }
 
-        @keyframes logoEnter {
+        .loaderGlowOne {
+          left: -14vw;
+          top: -18vw;
+        }
+
+        .loaderGlowTwo {
+          right: -18vw;
+          bottom: -22vw;
+          animation-delay: -1.8s;
+        }
+
+        .loaderFrame {
+          position: absolute;
+          inset: 14px;
+          z-index: 4;
+          border: 1px solid rgba(255, 255, 255, 0.08);
+          pointer-events: none;
+          opacity: 0.8;
+          transition: opacity 300ms ease;
+        }
+
+        .is-leaving .loaderStage {
+          transform: scale(1.09);
+          opacity: 0;
+          transition:
+            transform ${EXIT_DURATION}ms
+              cubic-bezier(0.22, 1, 0.36, 1),
+            opacity ${EXIT_DURATION}ms ease;
+        }
+
+        .is-leaving .loaderGlow,
+        .is-leaving .loaderFrame {
+          opacity: 0;
+        }
+
+        @keyframes loaderEntrance {
           from {
             opacity: 0;
-            transform: translateY(16px) scale(0.94);
+            transform: scale(1.13);
           }
 
           to {
             opacity: 1;
-            transform: translateY(0) scale(1);
+            transform: scale(1.035);
           }
         }
 
-        @keyframes backgroundDrift {
+        @keyframes loaderBreath {
           from {
-            transform: translate(-51.5%, -50%);
+            transform: scale(1.025) rotate(-0.18deg);
           }
 
           to {
-            transform: translate(-48.5%, -50%);
+            transform: scale(1.055) rotate(0.18deg);
           }
         }
 
-        @media (max-width: 600px) {
-          .backgroundWord {
-            font-size: 58vw !important;
+        @keyframes fallbackDance {
+          0%,
+          100% {
+            transform: scale(1.02) translateY(0) rotate(-0.25deg);
           }
 
-          .logoStage {
-            width: min(76vw, 300px) !important;
-            height: 104px !important;
+          45% {
+            transform: scale(1.07) translateY(-5px) rotate(0.35deg);
           }
 
-          .meta {
-            width: min(78vw, 300px) !important;
-            margin-top: 20px !important;
+          70% {
+            transform: scale(1.045) translateY(2px) rotate(-0.1deg);
+          }
+        }
+
+        @keyframes glowFloat {
+          from {
+            transform: translate3d(-2%, -1%, 0) scale(0.96);
           }
 
-          .cornerTop {
-            top: 16px !important;
-            left: 16px !important;
+          to {
+            transform: translate3d(2%, 2%, 0) scale(1.04);
+          }
+        }
+
+        @media (max-width: 768px) {
+          .loaderStage {
+            transform: scale(1.02);
           }
 
-          .cornerBottom {
-            right: 16px !important;
-            bottom: 16px !important;
+          .loaderVideo,
+          .loaderPoster {
+            object-fit: cover;
+          }
+
+          .loaderFrame {
+            inset: 8px;
+          }
+
+          .loaderGlow {
+            width: 92vw;
+            height: 92vw;
+          }
+        }
+
+        @media (orientation: landscape) and (max-height: 620px) {
+          .loaderVideo,
+          .loaderPoster {
+            object-fit: contain;
           }
         }
 
         @media (prefers-reduced-motion: reduce) {
-          .backgroundWord,
-          .logoStage {
+          .loaderStage,
+          .loaderPoster,
+          .loaderGlow {
             animation: none !important;
           }
 
-          .panel,
-          .content {
-            transition-duration: 0.25s !important;
+          .jittok-loader,
+          .loaderStage {
+            transition-duration: 250ms !important;
           }
         }
       `}</style>
