@@ -3,6 +3,7 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { CartProvider } from "@/context/CartContext";
 import SiteLoader from "@/components/SiteLoader";
+import { RouteScrollManager } from "@/components/RouteScrollManager";
 import AnnouncementBar from "@/components/AnnouncementBar";
 
 const SITE_URL = "https://jittok.in";
@@ -98,7 +99,7 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   maximumScale: 5,
-  themeColor: "#111111",
+  themeColor: "#050505",
   colorScheme: "light",
 };
 
@@ -154,6 +155,7 @@ export default function RootLayout({
       <body>
         <CartProvider>
           <SiteLoader />
+          <RouteScrollManager />
           <AnnouncementBar />
           {children}
         </CartProvider>

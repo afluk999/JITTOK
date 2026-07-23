@@ -92,7 +92,7 @@ export default function SiteLoader() {
 
   return (
     <div
-      className={`jittok-loader${leaving ? " is-leaving" : ""}`}
+      className={`jittokLoader${leaving ? " isLeaving" : ""}`}
       role="status"
       aria-label="Loading JITTOK"
       aria-live="polite"
@@ -108,19 +108,23 @@ export default function SiteLoader() {
         <span className="logoShine" aria-hidden="true" />
       </div>
 
-      <span className="loadingDot loadingDotOne" aria-hidden="true" />
-      <span className="loadingDot loadingDotTwo" aria-hidden="true" />
-      <span className="loadingDot loadingDotThree" aria-hidden="true" />
+      <div className="loadingDots" aria-hidden="true">
+        <span />
+        <span />
+        <span />
+      </div>
 
       <style jsx>{`
-        .jittok-loader {
+        .jittokLoader {
           position: fixed;
           inset: 0;
           z-index: 99999;
-          display: grid;
-          place-items: center;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
           overflow: hidden;
-          background: #ffffff;
+          background: #050505;
           opacity: 1;
           visibility: visible;
           pointer-events: all;
@@ -129,7 +133,7 @@ export default function SiteLoader() {
             visibility ${EXIT_DURATION}ms ease;
         }
 
-        .jittok-loader.is-leaving {
+        .jittokLoader.isLeaving {
           opacity: 0;
           visibility: hidden;
           pointer-events: none;
@@ -137,7 +141,7 @@ export default function SiteLoader() {
 
         .logoStage {
           position: relative;
-          width: min(34vw, 220px);
+          width: min(76vw, 500px);
           aspect-ratio: 3 / 1;
           display: grid;
           place-items: center;
@@ -159,7 +163,7 @@ export default function SiteLoader() {
           display: block;
           object-fit: contain;
           object-position: center;
-          filter: contrast(1.04);
+          filter: brightness(0) invert(1);
           user-select: none;
           -webkit-user-drag: none;
         }
@@ -168,9 +172,9 @@ export default function SiteLoader() {
           background: linear-gradient(
             105deg,
             transparent 34%,
-            rgba(255, 255, 255, 0.1) 41%,
+            rgba(255, 255, 255, 0.08) 42%,
             rgba(255, 255, 255, 0.95) 50%,
-            rgba(255, 255, 255, 0.12) 59%,
+            rgba(255, 255, 255, 0.1) 58%,
             transparent 66%
           );
           background-size: 260% 100%;
@@ -190,36 +194,33 @@ export default function SiteLoader() {
           pointer-events: none;
         }
 
-        .loadingDot {
-          position: absolute;
-          left: 50%;
-          top: calc(50% + 72px);
-          width: 5px;
-          height: 5px;
+        .loadingDots {
+          display: flex;
+          gap: 10px;
+          margin-top: 26px;
+        }
+
+        .loadingDots span {
+          width: 6px;
+          height: 6px;
           border-radius: 50%;
-          background: #111111;
+          background: #ffffff;
           opacity: 0.2;
-          transform: translateX(-50%);
           animation: dotPulse 1.5s ease-in-out infinite;
         }
 
-        .loadingDotOne {
-          margin-left: -14px;
-        }
-
-        .loadingDotTwo {
+        .loadingDots span:nth-child(2) {
           animation-delay: 0.2s;
         }
 
-        .loadingDotThree {
-          margin-left: 14px;
+        .loadingDots span:nth-child(3) {
           animation-delay: 0.4s;
         }
 
-        .is-leaving .logoStage,
-        .is-leaving .loadingDot {
+        .isLeaving .logoStage,
+        .isLeaving .loadingDots {
           opacity: 0;
-          transform: scale(1.05);
+          transform: scale(1.04);
           transition:
             transform ${EXIT_DURATION}ms cubic-bezier(0.22, 1, 0.36, 1),
             opacity ${EXIT_DURATION}ms ease;
@@ -243,7 +244,7 @@ export default function SiteLoader() {
           }
 
           to {
-            transform: scale(1.025) translateY(-3px);
+            transform: scale(1.025) translateY(-4px);
           }
         }
 
@@ -271,33 +272,33 @@ export default function SiteLoader() {
           0%,
           100% {
             opacity: 0.18;
-            transform: translateX(-50%) scale(0.8);
+            transform: scale(0.8);
           }
 
           50% {
-            opacity: 0.75;
-            transform: translateX(-50%) scale(1);
+            opacity: 0.85;
+            transform: scale(1);
           }
         }
 
         @media (max-width: 600px) {
           .logoStage {
-            width: min(44vw, 160px);
+            width: min(78vw, 310px);
           }
 
-          .loadingDot {
-            top: calc(50% + 58px);
+          .loadingDots {
+            margin-top: 20px;
           }
         }
 
         @media (prefers-reduced-motion: reduce) {
           .logoStage,
           .logoShine,
-          .loadingDot {
+          .loadingDots span {
             animation: none !important;
           }
 
-          .jittok-loader,
+          .jittokLoader,
           .logoStage {
             transition-duration: 250ms !important;
           }
