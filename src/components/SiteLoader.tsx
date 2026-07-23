@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import loaderLogo from "@/assets/jittok-loader-logo.png";
 
 const MINIMUM_VISIBLE_TIME = 4500;
 const MAXIMUM_VISIBLE_TIME = 15000;
@@ -10,7 +11,8 @@ export default function SiteLoader() {
   const [visible, setVisible] = useState(true);
   const [leaving, setLeaving] = useState(false);
   const [pageReady, setPageReady] = useState(false);
-  const [minimumTimePassed, setMinimumTimePassed] = useState(false);
+  const [minimumTimePassed, setMinimumTimePassed] =
+    useState(false);
 
   const finished = useRef(false);
   const minimumTimer = useRef<number | null>(null);
@@ -19,7 +21,8 @@ export default function SiteLoader() {
   const previousOverflow = useRef("");
 
   useEffect(() => {
-    previousOverflow.current = document.body.style.overflow;
+    previousOverflow.current =
+      document.body.style.overflow;
     document.body.style.overflow = "hidden";
 
     function markPageReady() {
@@ -45,7 +48,8 @@ export default function SiteLoader() {
       setLeaving(true);
 
       exitTimer.current = window.setTimeout(() => {
-        document.body.style.overflow = previousOverflow.current;
+        document.body.style.overflow =
+          previousOverflow.current;
         setVisible(false);
       }, EXIT_DURATION);
     }, MAXIMUM_VISIBLE_TIME);
@@ -53,19 +57,20 @@ export default function SiteLoader() {
     return () => {
       window.removeEventListener("load", markPageReady);
 
-      if (minimumTimer.current) {
+      if (minimumTimer.current !== null) {
         window.clearTimeout(minimumTimer.current);
       }
 
-      if (exitTimer.current) {
+      if (exitTimer.current !== null) {
         window.clearTimeout(exitTimer.current);
       }
 
-      if (safetyTimer.current) {
+      if (safetyTimer.current !== null) {
         window.clearTimeout(safetyTimer.current);
       }
 
-      document.body.style.overflow = previousOverflow.current;
+      document.body.style.overflow =
+        previousOverflow.current;
     };
   }, []);
 
@@ -83,7 +88,8 @@ export default function SiteLoader() {
     setLeaving(true);
 
     exitTimer.current = window.setTimeout(() => {
-      document.body.style.overflow = previousOverflow.current;
+      document.body.style.overflow =
+        previousOverflow.current;
       setVisible(false);
     }, EXIT_DURATION);
   }, [minimumTimePassed, pageReady, visible]);
@@ -92,26 +98,29 @@ export default function SiteLoader() {
 
   return (
     <div
-      className={`jittokLoader${leaving ? " isLeaving" : ""}`}
+      className={`jittokLoader${
+        leaving ? " isLeaving" : ""
+      }`}
       role="status"
       aria-label="Loading JITTOK"
       aria-live="polite"
     >
       <div className="logoStage">
         <img
-          src="/jittok-logo.png"
+          src={loaderLogo.src}
           alt="JITTOK"
           className="loaderLogo"
           draggable={false}
         />
 
-        <span className="logoShine" aria-hidden="true" />
-      </div>
-
-      <div className="loadingDots" aria-hidden="true">
-        <span />
-        <span />
-        <span />
+        <span
+          className="logoShine"
+          aria-hidden="true"
+          style={{
+            WebkitMaskImage: `url("${loaderLogo.src}")`,
+            maskImage: `url("${loaderLogo.src}")`,
+          }}
+        />
       </div>
 
       <style jsx>{`
@@ -119,10 +128,8 @@ export default function SiteLoader() {
           position: fixed;
           inset: 0;
           z-index: 99999;
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          justify-content: center;
+          display: grid;
+          place-items: center;
           overflow: hidden;
           background: #050505;
           opacity: 1;
@@ -141,13 +148,16 @@ export default function SiteLoader() {
 
         .logoStage {
           position: relative;
-          width: min(76vw, 500px);
-          aspect-ratio: 3 / 1;
+          width: min(52vw, 340px);
+          aspect-ratio: 412 / 295;
           display: grid;
           place-items: center;
           animation:
-            logoEnter 900ms cubic-bezier(0.22, 1, 0.36, 1) both,
-            logoFloat 3.2s ease-in-out 900ms infinite alternate;
+            logoOpen 900ms
+              cubic-bezier(0.22, 1, 0.36, 1)
+              both,
+            logoDance 3.4s ease-in-out 900ms
+              infinite alternate;
           will-change: transform, opacity;
         }
 
@@ -163,88 +173,68 @@ export default function SiteLoader() {
           display: block;
           object-fit: contain;
           object-position: center;
-          filter: brightness(0) invert(1);
           user-select: none;
           -webkit-user-drag: none;
         }
 
         .logoShine {
           background: linear-gradient(
-            105deg,
-            transparent 34%,
-            rgba(255, 255, 255, 0.08) 42%,
-            rgba(255, 255, 255, 0.95) 50%,
-            rgba(255, 255, 255, 0.1) 58%,
-            transparent 66%
+            110deg,
+            transparent 35%,
+            rgba(255, 255, 255, 0.08) 43%,
+            rgba(255, 255, 255, 0.94) 50%,
+            rgba(255, 255, 255, 0.1) 57%,
+            transparent 65%
           );
           background-size: 260% 100%;
           background-position: 180% 0;
-
-          -webkit-mask-image: url("/jittok-logo.png");
-          mask-image: url("/jittok-logo.png");
           -webkit-mask-repeat: no-repeat;
           mask-repeat: no-repeat;
           -webkit-mask-position: center;
           mask-position: center;
           -webkit-mask-size: contain;
           mask-size: contain;
-
           mix-blend-mode: screen;
-          animation: shineSweep 3.8s ease-in-out infinite;
+          animation: shineSweep 3.2s
+            ease-in-out infinite;
           pointer-events: none;
         }
 
-        .loadingDots {
-          display: flex;
-          gap: 10px;
-          margin-top: 26px;
-        }
-
-        .loadingDots span {
-          width: 6px;
-          height: 6px;
-          border-radius: 50%;
-          background: #ffffff;
-          opacity: 0.2;
-          animation: dotPulse 1.5s ease-in-out infinite;
-        }
-
-        .loadingDots span:nth-child(2) {
-          animation-delay: 0.2s;
-        }
-
-        .loadingDots span:nth-child(3) {
-          animation-delay: 0.4s;
-        }
-
-        .isLeaving .logoStage,
-        .isLeaving .loadingDots {
+        .isLeaving .logoStage {
           opacity: 0;
-          transform: scale(1.04);
+          transform: scale(1.035);
           transition:
-            transform ${EXIT_DURATION}ms cubic-bezier(0.22, 1, 0.36, 1),
+            transform ${EXIT_DURATION}ms
+              cubic-bezier(0.22, 1, 0.36, 1),
             opacity ${EXIT_DURATION}ms ease;
         }
 
-        @keyframes logoEnter {
-          from {
+        @keyframes logoOpen {
+          0% {
             opacity: 0;
-            transform: scale(0.9);
+            transform: scale(0.91);
           }
 
-          to {
+          68% {
+            opacity: 1;
+            transform: scale(1.025);
+          }
+
+          100% {
             opacity: 1;
             transform: scale(1);
           }
         }
 
-        @keyframes logoFloat {
+        @keyframes logoDance {
           from {
-            transform: scale(1) translateY(0);
+            transform: translateY(0)
+              rotate(-0.25deg);
           }
 
           to {
-            transform: scale(1.025) translateY(-4px);
+            transform: translateY(-4px)
+              rotate(0.25deg);
           }
         }
 
@@ -258,7 +248,7 @@ export default function SiteLoader() {
             opacity: 1;
           }
 
-          72% {
+          74% {
             opacity: 1;
           }
 
@@ -268,33 +258,15 @@ export default function SiteLoader() {
           }
         }
 
-        @keyframes dotPulse {
-          0%,
-          100% {
-            opacity: 0.18;
-            transform: scale(0.8);
-          }
-
-          50% {
-            opacity: 0.85;
-            transform: scale(1);
-          }
-        }
-
         @media (max-width: 600px) {
           .logoStage {
-            width: min(78vw, 310px);
-          }
-
-          .loadingDots {
-            margin-top: 20px;
+            width: min(68vw, 260px);
           }
         }
 
         @media (prefers-reduced-motion: reduce) {
           .logoStage,
-          .logoShine,
-          .loadingDots span {
+          .logoShine {
             animation: none !important;
           }
 

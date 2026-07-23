@@ -1,5 +1,7 @@
 "use client";
 
+import loaderLogo from "@/assets/jittok-loader-logo.png";
+
 type JittokLoadingLogoProps = {
   minHeight?: number | string;
   background?: string;
@@ -9,12 +11,16 @@ type JittokLoadingLogoProps = {
 };
 
 export default function JittokLoadingLogo({
-  minHeight = 280,
-  background = "#ffffff",
-  logoWidth = 132,
+  minHeight = 260,
+  background = "#050505",
+  logoWidth = 138,
   compact = false,
   label = "Loading",
 }: JittokLoadingLogoProps) {
+  const finalLogoWidth = compact
+    ? Math.min(logoWidth, 112)
+    : logoWidth;
+
   return (
     <div
       className="jittokInlineLoader"
@@ -27,12 +33,10 @@ export default function JittokLoadingLogo({
     >
       <div
         className="jittokInlineLogoStage"
-        style={{
-          width: compact ? Math.min(logoWidth, 104) : logoWidth,
-        }}
+        style={{ width: finalLogoWidth }}
       >
         <img
-          src="/jittok-logo.png"
+          src={loaderLogo.src}
           alt="JITTOK"
           className="jittokInlineLogo"
           draggable={false}
@@ -41,32 +45,35 @@ export default function JittokLoadingLogo({
         <span
           className="jittokInlineShine"
           aria-hidden="true"
+          style={{
+            WebkitMaskImage: `url("${loaderLogo.src}")`,
+            maskImage: `url("${loaderLogo.src}")`,
+          }}
         />
-      </div>
-
-      <div className="jittokInlineDots" aria-hidden="true">
-        <span />
-        <span />
-        <span />
       </div>
 
       <style jsx>{`
         .jittokInlineLoader {
           width: 100%;
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          justify-content: center;
-          box-sizing: border-box;
+          display: grid;
+          place-items: center;
           overflow: hidden;
+          box-sizing: border-box;
         }
 
         .jittokInlineLogoStage {
           position: relative;
-          aspect-ratio: 3 / 1;
+          max-width: 72vw;
+          aspect-ratio: 412 / 295;
           display: grid;
           place-items: center;
-          animation: jittokInlineFloat 2.8s ease-in-out infinite alternate;
+          animation:
+            inlineOpen 760ms
+              cubic-bezier(0.22, 1, 0.36, 1)
+              both,
+            inlineDance 3.2s ease-in-out 760ms
+              infinite alternate;
+          will-change: transform, opacity;
         }
 
         .jittokInlineLogo,
@@ -87,64 +94,57 @@ export default function JittokLoadingLogo({
 
         .jittokInlineShine {
           background: linear-gradient(
-            105deg,
-            transparent 34%,
-            rgba(255, 255, 255, 0.08) 42%,
+            110deg,
+            transparent 35%,
+            rgba(255, 255, 255, 0.08) 43%,
             rgba(255, 255, 255, 0.92) 50%,
-            rgba(255, 255, 255, 0.1) 58%,
-            transparent 66%
+            rgba(255, 255, 255, 0.1) 57%,
+            transparent 65%
           );
           background-size: 260% 100%;
           background-position: 180% 0;
-
-          -webkit-mask-image: url("/jittok-logo.png");
-          mask-image: url("/jittok-logo.png");
           -webkit-mask-repeat: no-repeat;
           mask-repeat: no-repeat;
           -webkit-mask-position: center;
           mask-position: center;
           -webkit-mask-size: contain;
           mask-size: contain;
-
           mix-blend-mode: screen;
-          animation: jittokInlineShine 3.4s ease-in-out infinite;
+          animation: inlineShine 3.2s
+            ease-in-out infinite;
           pointer-events: none;
         }
 
-        .jittokInlineDots {
-          display: flex;
-          gap: 7px;
-          margin-top: 16px;
+        @keyframes inlineOpen {
+          0% {
+            opacity: 0;
+            transform: scale(0.92);
+          }
+
+          68% {
+            opacity: 1;
+            transform: scale(1.02);
+          }
+
+          100% {
+            opacity: 1;
+            transform: scale(1);
+          }
         }
 
-        .jittokInlineDots span {
-          width: 4px;
-          height: 4px;
-          border-radius: 50%;
-          background: #111111;
-          opacity: 0.2;
-          animation: jittokInlineDot 1.4s ease-in-out infinite;
-        }
-
-        .jittokInlineDots span:nth-child(2) {
-          animation-delay: 0.18s;
-        }
-
-        .jittokInlineDots span:nth-child(3) {
-          animation-delay: 0.36s;
-        }
-
-        @keyframes jittokInlineFloat {
+        @keyframes inlineDance {
           from {
-            transform: translateY(0) scale(1);
+            transform: translateY(0)
+              rotate(-0.2deg);
           }
 
           to {
-            transform: translateY(-2px) scale(1.018);
+            transform: translateY(-3px)
+              rotate(0.2deg);
           }
         }
 
-        @keyframes jittokInlineShine {
+        @keyframes inlineShine {
           0% {
             background-position: 180% 0;
             opacity: 0;
@@ -164,23 +164,9 @@ export default function JittokLoadingLogo({
           }
         }
 
-        @keyframes jittokInlineDot {
-          0%,
-          100% {
-            opacity: 0.18;
-            transform: scale(0.8);
-          }
-
-          50% {
-            opacity: 0.7;
-            transform: scale(1);
-          }
-        }
-
         @media (prefers-reduced-motion: reduce) {
           .jittokInlineLogoStage,
-          .jittokInlineShine,
-          .jittokInlineDots span {
+          .jittokInlineShine {
             animation: none !important;
           }
         }
