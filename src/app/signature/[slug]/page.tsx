@@ -30,6 +30,15 @@ type PageProduct = SignatureProduct & {
   isFeatured: boolean;
 };
 
+function formatPrice(value: number) {
+  return new Intl.NumberFormat("en-IN", {
+    style: "currency",
+    currency: "INR",
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(value);
+}
+
 export default function SignatureProductPage() {
   const params = useParams();
   const router = useRouter();
@@ -46,19 +55,19 @@ export default function SignatureProductPage() {
           isNewArrival: false,
           isFeatured: true,
         }
-      : null
+      : null,
   );
   const [isPhone, setIsPhone] = useState(false);
   const [selectedSize, setSelectedSize] = useState(
-    baseProduct?.sizes?.[0] || ""
+    baseProduct?.sizes?.[0] || "",
   );
   const [activeImage, setActiveImage] = useState(0);
   const [quantity, setQuantity] = useState(1);
   const [liked, setLiked] = useState(false);
   const [added, setAdded] = useState(false);
   const [whatsappNumber, setWhatsappNumber] = useState("919605300701");
-  const [openSection, setOpenSection] = useState<"details" | "shipping" | null>(
-    "details"
+  const [openSection, setOpenSection] = useState<"shipping" | null>(
+    null
   );
 
   useEffect(() => {
@@ -73,17 +82,22 @@ export default function SignatureProductPage() {
   }, []);
 
   useEffect(() => {
+    let cancelled = false;
+
     async function loadSignatureSettings() {
       if (!baseProduct) return;
 
       try {
         const content = await getHomeContent();
 
+        if (cancelled) return;
+
+        const savedDetails =
+          content.signatureProductDetails?.[baseProduct.slug];
+
         const separateGallery =
           content.signatureProductImages?.[baseProduct.slug] || [];
 
-        // One-time fallback keeps the old homepage image working until
-        // a separate signature gallery is uploaded from admin/content.
         const oldIconicImage =
           content.iconicImages?.[baseProduct.imageIndex] || "";
 
@@ -94,22 +108,73 @@ export default function SignatureProductPage() {
               ? [oldIconicImage]
               : [];
 
-        setActiveImage(0);
+        const price = savedDetails?.price ?? baseProduct.price;
+        const originalPrice =
+          savedDetails?.originalPrice ??
+          baseProduct.originalPrice;
 
-        setProduct({
+        const mergedProduct: PageProduct = {
           ...baseProduct,
+          ...(savedDetails
+            ? {
+                id: savedDetails.id || baseProduct.id,
+                name: savedDetails.name || baseProduct.name,
+                variant:
+                  savedDetails.variant || baseProduct.variant,
+                category:
+                  savedDetails.category || baseProduct.category,
+                price,
+                originalPrice,
+                description:
+                  savedDetails.description ||
+                  baseProduct.description,
+                productDetails:
+                  savedDetails.productDetails ||
+                  baseProduct.productDetails,
+                sizes:
+                  savedDetails.sizes?.length > 0
+                    ? savedDetails.sizes
+                    : baseProduct.sizes,
+                stock:
+                  typeof savedDetails.stock === "number"
+                    ? savedDetails.stock
+                    : baseProduct.stock,
+              }
+            : {}),
+          slug: baseProduct.slug,
+          displayPrice: formatPrice(price),
+          originalDisplayPrice: formatPrice(originalPrice),
           images,
           isNewArrival: false,
           isFeatured: true,
-        });
+        };
 
-        setWhatsappNumber(content.whatsappNumber || "919605300701");
+        setActiveImage(0);
+        setSelectedSize(mergedProduct.sizes[0] || "");
+        setProduct(mergedProduct);
+        setWhatsappNumber(
+          content.whatsappNumber || "919605300701",
+        );
       } catch (error) {
         console.error("LOAD SIGNATURE PRODUCT ERROR:", error);
+
+        if (!cancelled) {
+          setProduct({
+            ...baseProduct,
+            images: [],
+            isNewArrival: false,
+            isFeatured: true,
+          });
+          setSelectedSize(baseProduct.sizes[0] || "");
+        }
       }
     }
 
     loadSignatureSettings();
+
+    return () => {
+      cancelled = true;
+    };
   }, [baseProduct]);
 
   if (!baseProduct || !product) {
@@ -134,7 +199,7 @@ export default function SignatureProductPage() {
 
   const selectedProductSize =
     selectedSize || product.sizes[0] || "Free Size";
-  const saving = product.originalPrice - product.price;
+  const saving = Math.max(0, product.originalPrice - product.price);
   const cartProduct = product as any;
 
   function handleAddToCart() {
@@ -243,16 +308,27 @@ Please confirm availability and delivery details.`;
                 ) : (
                   <div
                     style={{
-                      color: "#8a857d",
-                      fontSize: "12px",
-                      fontWeight: 900,
-                      letterSpacing: "2px",
-                      textTransform: "uppercase",
-                      textAlign: "center",
+                      width: "100%",
+                      minHeight: isPhone ? "480px" : "650px",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
                       padding: "30px",
+                      background: "#f1ede6",
+                      boxSizing: "border-box",
                     }}
                   >
-                    Add 1 to 5 signature images in admin/content
+                    <img
+                      src="/jittok-logo.png"
+                      alt="JITTOK"
+                      style={{
+                        width: isPhone ? "108px" : "138px",
+                        maxWidth: "55%",
+                        height: "auto",
+                        objectFit: "contain",
+                        opacity: 0.32,
+                      }}
+                    />
                   </div>
                 )}
 
@@ -377,33 +453,37 @@ Please confirm availability and delivery details.`;
                   marginBottom: "20px",
                 }}
               >
-                <span
-                  style={{
-                    color: "#8a857d",
-                    fontSize: "17px",
-                    fontWeight: 700,
-                    textDecoration: "line-through",
-                  }}
-                >
-                  {product.originalDisplayPrice}
-                </span>
+                {product.originalPrice > product.price ? (
+                  <span
+                    style={{
+                      color: "#8a857d",
+                      fontSize: "17px",
+                      fontWeight: 700,
+                      textDecoration: "line-through",
+                    }}
+                  >
+                    {product.originalDisplayPrice}
+                  </span>
+                ) : null}
 
                 <span style={{ fontSize: "29px", fontWeight: 900 }}>
                   {product.displayPrice}
                 </span>
 
-                <span
-                  style={{
-                    padding: "5px 8px",
-                    background: "#e8f5e9",
-                    color: "#237a35",
-                    fontSize: "10px",
-                    fontWeight: 900,
-                    textTransform: "uppercase",
-                  }}
-                >
-                  Save ₹{saving}
-                </span>
+                {saving > 0 ? (
+                  <span
+                    style={{
+                      padding: "5px 8px",
+                      background: "#e8f5e9",
+                      color: "#237a35",
+                      fontSize: "10px",
+                      fontWeight: 900,
+                      textTransform: "uppercase",
+                    }}
+                  >
+                    Save ₹{saving}
+                  </span>
+                ) : null}
               </div>
 
               <p
@@ -416,6 +496,26 @@ Please confirm availability and delivery details.`;
               >
                 {product.description}
               </p>
+
+              {product.productDetails ? (
+                <div
+                  style={{
+                    margin: "0 0 26px",
+                    padding: "16px 0",
+                    borderTop: "1px solid #e5dfd6",
+                    borderBottom: "1px solid #e5dfd6",
+                    color: "#4d4943",
+                    fontSize: "11px",
+                    fontWeight: 800,
+                    letterSpacing: "0.65px",
+                    lineHeight: 1.7,
+                    textTransform: "uppercase",
+                    whiteSpace: "pre-line",
+                  }}
+                >
+                  {product.productDetails}
+                </div>
+              ) : null}
 
               <div style={{ marginBottom: "24px" }}>
                 <p
@@ -574,17 +674,6 @@ Please confirm availability and delivery details.`;
                 />
               </div>
 
-              <Accordion
-                title="Product Details"
-                open={openSection === "details"}
-                onClick={() =>
-                  setOpenSection(
-                    openSection === "details" ? null : "details"
-                  )
-                }
-              >
-                {product.productDetails}
-              </Accordion>
 
               <Accordion
                 title="Shipping"

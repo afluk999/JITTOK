@@ -22,18 +22,6 @@ export default function SiteLoader() {
     previousOverflow.current = document.body.style.overflow;
     document.body.style.overflow = "hidden";
 
-    const initialLoader = document.getElementById(
-      "jittok-initial-loader",
-    );
-
-    document.documentElement.classList.remove(
-      "jittok-preloading",
-    );
-
-    if (initialLoader) {
-      initialLoader.remove();
-    }
-
     function markPageReady() {
       setPageReady(true);
     }

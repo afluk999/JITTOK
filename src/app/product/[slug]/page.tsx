@@ -1,19 +1,23 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import JittokLoadingLogo from "@/components/JittokLoadingLogo";
-import { useCart } from "@/context/CartContext";
-import { getHomeContent } from "@/lib/contentService";
 import {
-  getSignatureProductBySlug,
-  type SignatureProduct,
-} from "@/data/signatureProducts";
+  getProductBySlugFromFirebase,
+  getProductOriginalPrice,
+  getProductSellingPrice,
+  type FirebaseProduct,
+  type ProductBadge,
+  type ProductImageSetting,
+} from "@/lib/productService";
+import { useCart } from "@/context/CartContext";
 import {
   ArrowLeft,
+  ArrowRight,
   Heart,
   Minus,
   PackageCheck,
@@ -25,158 +29,173 @@ import {
 } from "lucide-react";
 import { FaWhatsapp } from "react-icons/fa";
 
-type PageProduct = SignatureProduct & {
-  images: string[];
-  isNewArrival: boolean;
-  isFeatured: boolean;
+const WHATSAPP_NUMBER = "919605300701";
+
+type ProductWithOffers = FirebaseProduct & {
+  originalDisplayPrice?: string;
+  prepaidDiscount?: number;
+  productDetails?: string;
+};
+
+type GalleryImage = {
+  url: string;
+  fit: "cover" | "contain";
+  positionX: number;
+  positionY: number;
+};
+
+const badgeLabels: Record<Exclude<ProductBadge, "none">, string> = {
+  new: "New",
+  bestseller: "Bestseller",
+  limited: "Limited",
+  "sold-out": "Sold Out",
 };
 
 function formatPrice(value: number) {
-  return new Intl.NumberFormat("en-IN", {
-    style: "currency",
-    currency: "INR",
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(value);
+  return `₹${Number(value || 0).toLocaleString("en-IN")}.00`;
 }
 
-export default function SignatureProductPage() {
+function getGalleryImages(product: ProductWithOffers): GalleryImage[] {
+  const sortedSettings = [...(product.imageSettings ?? [])].sort(
+    (firstImage, secondImage) =>
+      (firstImage.order ?? 0) - (secondImage.order ?? 0),
+  );
+
+  if (sortedSettings.length > 0) {
+    return sortedSettings.slice(0, 5).map((image) => ({
+      url: image.url,
+      fit: image.fit ?? "cover",
+      positionX: image.positionX ?? 50,
+      positionY: image.positionY ?? 50,
+    }));
+  }
+
+  return (product.images ?? []).slice(0, 5).map((url) => ({
+    url,
+    fit: "cover",
+    positionX: 50,
+    positionY: 50,
+  }));
+}
+
+function getProductBadge(product: ProductWithOffers) {
+  const isSoldOut =
+    product.status === "sold-out" || Number(product.stock || 0) <= 0;
+
+  if (isSoldOut) {
+    return {
+      label: "Sold Out",
+      style: {
+        background: "#821f19",
+        color: "#fff",
+      } as React.CSSProperties,
+    };
+  }
+
+  if (product.badge && product.badge !== "none") {
+    const badgeStyles: Record<
+      Exclude<ProductBadge, "none">,
+      React.CSSProperties
+    > = {
+      new: {
+        background: "#fff",
+        color: "#111",
+        border: "1px solid rgba(17,17,17,0.15)",
+      },
+      bestseller: {
+        background: "#111",
+        color: "#fff",
+      },
+      limited: {
+        background: "#f3e6ba",
+        color: "#111",
+      },
+      "sold-out": {
+        background: "#821f19",
+        color: "#fff",
+      },
+    };
+
+    return {
+      label: badgeLabels[product.badge],
+      style: badgeStyles[product.badge],
+    };
+  }
+
+  if (product.stock > 0 && product.stock <= 3) {
+    return {
+      label: `Only ${product.stock} Left`,
+      style: {
+        background: "#f6d86b",
+        color: "#111",
+      } as React.CSSProperties,
+    };
+  }
+
+  return null;
+}
+
+export default function ProductPage() {
   const params = useParams();
   const router = useRouter();
+  const slug = params.slug as string;
+
   const { addToCart } = useCart();
 
-  const slug = String(params.slug || "");
-  const baseProduct = getSignatureProductBySlug(slug);
-
-  const [product, setProduct] = useState<PageProduct | null>(null);
+  const [product, setProduct] = useState<ProductWithOffers | null>(null);
   const [loading, setLoading] = useState(true);
-  const [unavailable, setUnavailable] = useState(false);
   const [isPhone, setIsPhone] = useState(false);
-  const [selectedSize, setSelectedSize] = useState("");
+
   const [activeImage, setActiveImage] = useState(0);
+  const [selectedSize, setSelectedSize] = useState("");
   const [quantity, setQuantity] = useState(1);
   const [liked, setLiked] = useState(false);
   const [added, setAdded] = useState(false);
-  const [whatsappNumber, setWhatsappNumber] = useState("919605300701");
-  const [openSection, setOpenSection] = useState<"shipping" | null>(
-    null
-  );
+  const [openInfo, setOpenInfo] = useState<string | null>(null);
 
   useEffect(() => {
-    function updatePhone() {
+    function checkPhone() {
       setIsPhone(window.innerWidth <= 900);
     }
 
-    updatePhone();
-    window.addEventListener("resize", updatePhone);
+    checkPhone();
+    window.addEventListener("resize", checkPhone);
 
-    return () => window.removeEventListener("resize", updatePhone);
+    return () => window.removeEventListener("resize", checkPhone);
   }, []);
 
   useEffect(() => {
-    let cancelled = false;
-
-    async function loadSignatureSettings() {
-      if (!baseProduct) {
-        setLoading(false);
-        return;
-      }
-
-      setLoading(true);
-      setUnavailable(false);
-
+    async function loadProduct() {
       try {
-        const content = await getHomeContent();
+        setLoading(true);
 
-        if (cancelled) return;
+        const data = (await getProductBySlugFromFirebase(
+          slug,
+        )) as ProductWithOffers | null;
 
-        const savedDetails =
-          content.signatureProductDetails?.[baseProduct.slug];
-
-        if (savedDetails?.visible === false) {
-          setProduct(null);
-          setUnavailable(true);
-          return;
-        }
-
-        const separateGallery =
-          content.signatureProductImages?.[baseProduct.slug] || [];
-
-        // Keep the previous homepage image as a temporary image fallback.
-        const oldIconicImage =
-          content.iconicImages?.[baseProduct.imageIndex] || "";
-
-        const images =
-          separateGallery.length > 0
-            ? separateGallery.slice(0, 5)
-            : oldIconicImage
-              ? [oldIconicImage]
-              : [];
-
-        const price = savedDetails?.price ?? baseProduct.price;
-        const originalPrice =
-          savedDetails?.originalPrice ??
-          baseProduct.originalPrice;
-
-        const mergedProduct: PageProduct = {
-          ...baseProduct,
-
-          ...(savedDetails
-            ? {
-                id: savedDetails.id || baseProduct.id,
-                slug: baseProduct.slug,
-                name: savedDetails.name,
-                variant: savedDetails.variant,
-                category: savedDetails.category,
-                price,
-                originalPrice,
-                description: savedDetails.description,
-                productDetails: savedDetails.productDetails,
-                sizes: savedDetails.sizes,
-                stock: savedDetails.stock,
-              }
-            : {}),
-
-          displayPrice: formatPrice(price),
-          originalDisplayPrice: formatPrice(originalPrice),
-          images,
-          isNewArrival: false,
-          isFeatured: true,
-        };
-
+        setProduct(data);
         setActiveImage(0);
-        setSelectedSize(mergedProduct.sizes[0] || "");
-        setProduct(mergedProduct);
-        setWhatsappNumber(
-          content.whatsappNumber || "919605300701"
-        );
+        setQuantity(1);
+
+        if (data?.sizes?.[0]) {
+          setSelectedSize(data.sizes[0]);
+        } else {
+          setSelectedSize("");
+        }
       } catch (error) {
-        console.error("LOAD SIGNATURE PRODUCT ERROR:", error);
-
-        if (!cancelled) {
-          const fallbackProduct: PageProduct = {
-            ...baseProduct,
-            images: [],
-            isNewArrival: false,
-            isFeatured: true,
-          };
-
-          setProduct(fallbackProduct);
-          setSelectedSize(fallbackProduct.sizes[0] || "");
-        }
+        console.error("LOAD PRODUCT ERROR:", error);
       } finally {
-        if (!cancelled) {
-          setLoading(false);
-        }
+        setLoading(false);
       }
     }
 
-    loadSignatureSettings();
+    loadProduct();
+  }, [slug]);
 
-    return () => {
-      cancelled = true;
-    };
-  }, [baseProduct]);
+  const images = useMemo(
+    () => (product ? getGalleryImages(product) : []),
+    [product],
+  );
 
   if (loading) {
     return (
@@ -186,78 +205,178 @@ export default function SignatureProductPage() {
         <main
           style={{
             minHeight: "100vh",
-            paddingTop: isPhone ? "76px" : "90px",
             background: "#f8f4ec",
+            paddingTop: isPhone ? "76px" : "90px",
             fontFamily: '"Outfit", sans-serif',
           }}
         >
           <JittokLoadingLogo
-            minHeight={
-              isPhone
-                ? "calc(100vh - 76px)"
-                : "calc(100vh - 90px)"
-            }
+            minHeight={isPhone ? "calc(100vh - 76px)" : "calc(100vh - 90px)"}
             background="#f8f4ec"
             logoWidth={isPhone ? 118 : 142}
-            label="Loading Signature product"
+            label="Loading product"
           />
         </main>
       </>
     );
   }
 
-  if (!baseProduct || unavailable || !product) {
+  if (!product) {
     return (
       <>
         <Navbar />
+
         <main
           style={{
-            minHeight: "70vh",
-            padding: "150px 24px",
+            minHeight: "100vh",
             background: "#f8f4ec",
+            padding: isPhone ? "120px 18px" : "160px 42px",
             fontFamily: '"Outfit", sans-serif',
           }}
         >
-          <h1>Signature product unavailable</h1>
-          <Link href="/">Return home</Link>
+          <h1>Product not found</h1>
+          <Link href="/collections">Back to collections</Link>
         </main>
+
         <Footer />
       </>
     );
   }
 
-  const selectedProductSize =
-    selectedSize || product.sizes[0] || "Free Size";
-  const saving = Math.max(0, product.originalPrice - product.price);
-  const cartProduct = product as any;
+  const size = selectedSize || product.sizes?.[0] || "Free Size";
+  const sellingPrice = getProductSellingPrice(product);
+  const originalPrice = getProductOriginalPrice(product);
+  const prepaidDiscount = Number(product.prepaidDiscount ?? 50);
+  const hasOriginalPrice =
+    originalPrice !== null && originalPrice > sellingPrice;
+
+  const originalDisplayPrice =
+    product.originalDisplayPrice ||
+    (hasOriginalPrice && originalPrice !== null
+      ? formatPrice(originalPrice)
+      : "");
+
+  const sellingDisplayPrice = formatPrice(sellingPrice);
+  const orderTotal = sellingPrice * quantity;
+  const orderTotalDisplayPrice = formatPrice(orderTotal);
+
+  const savingAmount =
+    hasOriginalPrice && originalPrice !== null
+      ? Math.max(originalPrice - sellingPrice, 0)
+      : 0;
+
+  const isSoldOut =
+    product.status === "sold-out" || Number(product.stock || 0) <= 0;
+
+  const maximumQuantity = Math.max(Number(product.stock || 1), 1);
+  const productBadge = getProductBadge(product);
+  const selectedGalleryImage = images[activeImage] ?? images[0];
 
   function handleAddToCart() {
-    addToCart(cartProduct, selectedProductSize, quantity);
+    if (isSoldOut) {
+      alert("This product is currently sold out.");
+      return;
+    }
+
+    addToCart(product as any, size, quantity);
     setAdded(true);
     window.dispatchEvent(new Event("cart-updated"));
-    window.setTimeout(() => setAdded(false), 1400);
+
+    window.setTimeout(() => {
+      setAdded(false);
+    }, 1400);
   }
 
   function handleBuyNow() {
-    addToCart(cartProduct, selectedProductSize, quantity);
+    if (isSoldOut) {
+      alert("This product is currently sold out.");
+      return;
+    }
+
+    addToCart(product as any, size, quantity);
     window.dispatchEvent(new Event("cart-updated"));
     router.push("/cart");
   }
 
-  const cleanWhatsappNumber = whatsappNumber.replace(/[^\d]/g, "");
-  const whatsappMessage = `Hi JITTOK, I want to order this signature product.
+  function handleWhatsAppOrder() {
+    const currentProduct = product;
 
-Product: ${product.name}
-Variant: ${product.variant}
-Size: ${selectedProductSize}
-Quantity: ${quantity}
-Price: ${product.displayPrice}
+    if (!currentProduct) {
+      alert("Product details are still loading. Please try again.");
+      return;
+    }
 
-Please confirm availability and delivery details.`;
+    if (!selectedSize && currentProduct.sizes?.length) {
+      alert("Please select a size before ordering.");
+      return;
+    }
 
-  const whatsappUrl = `https://wa.me/${cleanWhatsappNumber}?text=${encodeURIComponent(
-    whatsappMessage
-  )}`;
+    if (
+      !isSoldOut &&
+      quantity > Number(currentProduct.stock || 0)
+    ) {
+      alert(
+        `Only ${currentProduct.stock} item(s) are currently available.`,
+      );
+      return;
+    }
+
+    const orderReference = `JT-${Date.now()
+      .toString(36)
+      .slice(-6)
+      .toUpperCase()}`;
+
+    const productUrl = `${window.location.origin}/product/${currentProduct.slug}`;
+    const requestTitle = isSoldOut
+      ? "JITTOK PRODUCT AVAILABILITY REQUEST"
+      : "NEW JITTOK ORDER REQUEST";
+
+    const whatsappMessage = `*${requestTitle}*
+
+*Order Reference:* ${orderReference}
+*Source:* JITTOK Website
+
+*Product:* ${currentProduct.name}
+*Variant:* ${currentProduct.variant || "Standard"}
+*Size:* ${size}
+*Quantity:* ${quantity}
+*Unit Price:* ${sellingDisplayPrice}
+*Order Total:* ${orderTotalDisplayPrice}
+*Stock Status:* ${
+      isSoldOut
+        ? "Currently sold out"
+        : `${currentProduct.stock} available`
+    }
+
+*Product Link:*
+${productUrl}
+
+*Customer Details*
+Name:
+Delivery Place:
+Pincode:
+Phone Number:
+
+Please confirm availability, delivery charges, payment method, and the final order total.`;
+
+    const whatsappUrl = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(
+      whatsappMessage,
+    )}`;
+
+    console.info("JITTOK WHATSAPP ORDER PREPARED", {
+      orderReference,
+      product: currentProduct.name,
+      variant: currentProduct.variant,
+      size,
+      quantity,
+      unitPrice: sellingPrice,
+      total: orderTotal,
+      productUrl,
+      soldOut: isSoldOut,
+    });
+
+    window.open(whatsappUrl, "_blank", "noopener,noreferrer");
+  }
 
   return (
     <>
@@ -267,194 +386,256 @@ Please confirm availability and delivery details.`;
         style={{
           minHeight: "100vh",
           background: "#f8f4ec",
-          color: "#111",
-          padding: isPhone ? "92px 12px 42px" : "126px 42px 70px",
+          padding: isPhone ? "88px 12px 36px" : "118px 42px 52px",
           fontFamily: '"Outfit", sans-serif',
+          color: "#111",
         }}
       >
-        <div style={{ maxWidth: "1280px", margin: "0 auto" }}>
-          <Link
-            href="/#iconic-products"
-            style={{
-              marginBottom: "22px",
-              color: "#5f5a53",
-              textDecoration: "none",
-              display: "inline-flex",
-              alignItems: "center",
-              gap: "9px",
-              fontSize: "11px",
-              fontWeight: 900,
-              letterSpacing: "1px",
-              textTransform: "uppercase",
-            }}
-          >
-            <ArrowLeft size={15} />
-            Back to signature products
-          </Link>
+        <div style={{ maxWidth: "1360px", margin: "0 auto" }}>
+          {!isPhone ? (
+            <div
+              style={{
+                height: "54px",
+                display: "grid",
+                gridTemplateColumns: "1fr auto 1fr",
+                alignItems: "center",
+                borderBottom: "1px solid rgba(17,17,17,0.08)",
+                marginBottom: "22px",
+                color: "#8a857d",
+                fontSize: "11px",
+                fontWeight: 800,
+                letterSpacing: "1px",
+                textTransform: "uppercase",
+              }}
+            >
+              <span>01 / Interactive Showcase</span>
+              <span />
+
+              <Link
+                href="/collections"
+                style={{
+                  justifySelf: "end",
+                  color: "#111",
+                  textDecoration: "none",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "10px",
+                }}
+              >
+                View All <ArrowRight size={14} />
+              </Link>
+            </div>
+          ) : null}
 
           <section
             style={{
+              minHeight: isPhone ? "auto" : "650px",
               display: "grid",
-              gridTemplateColumns: isPhone ? "1fr" : "minmax(0, 1.25fr) 440px",
-              background: "#ffffff",
-              border: "1px solid rgba(17,17,17,0.08)",
+              gridTemplateColumns: isPhone
+                ? "1fr"
+                : "200px minmax(0, 1fr) 420px",
+              background: "#f1ede6",
+              border: "1px solid rgba(17,17,17,0.06)",
+              borderRadius: isPhone ? "10px" : "18px",
               overflow: "hidden",
             }}
           >
-            <div
+            <aside
               style={{
-                minWidth: 0,
-                background: "#f1ede6",
-                display: "grid",
-                gridTemplateRows: "minmax(0, 1fr) auto",
+                padding: isPhone ? "12px" : "32px 22px",
+                borderRight: isPhone
+                  ? "none"
+                  : "1px solid rgba(17,17,17,0.06)",
+                borderBottom: isPhone
+                  ? "1px solid rgba(17,17,17,0.06)"
+                  : "none",
+                display: isPhone ? "flex" : "grid",
+                gap: isPhone ? "9px" : "13px",
+                alignContent: "start",
+                overflowX: isPhone ? "auto" : "visible",
+                order: isPhone ? 2 : 1,
               }}
             >
-              <div
-                style={{
-                  position: "relative",
-                  minHeight: isPhone ? "480px" : "650px",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  overflow: "hidden",
-                }}
-              >
-                {product.images[activeImage] ? (
-                  <img
-                    src={product.images[activeImage]}
-                    alt={`${product.name} image ${activeImage + 1}`}
+              {images.length === 0 ? (
+                <ThumbnailPlaceholder index={0} active isPhone={isPhone} />
+              ) : (
+                images.map((image, index) => (
+                  <button
+                    key={`${image.url}-${index}`}
+                    type="button"
+                    onClick={() => setActiveImage(index)}
                     style={{
-                      width: "100%",
-                      height: "100%",
-                      minHeight: isPhone ? "480px" : "650px",
-                      objectFit: "contain",
-                      objectPosition: "center",
-                      display: "block",
-                      padding: isPhone ? "10px" : "24px",
-                      boxSizing: "border-box",
-                    }}
-                  />
-                ) : (
-                  <div
-                    style={{
-                      width: "100%",
-                      minHeight: isPhone ? "480px" : "650px",
-                      display: "flex",
+                      display: "grid",
+                      gridTemplateColumns: isPhone ? "1fr" : "28px 1fr",
                       alignItems: "center",
-                      justifyContent: "center",
-                      padding: "30px",
-                      background: "#f1ede6",
-                      boxSizing: "border-box",
+                      gap: "12px",
+                      border: "none",
+                      background: "transparent",
+                      padding: 0,
+                      cursor: "pointer",
+                      flex: isPhone ? "0 0 72px" : undefined,
                     }}
                   >
-                    <img
-                      src="/jittok-logo.png"
-                      alt="JITTOK"
-                      style={{
-                        width: isPhone ? "108px" : "138px",
-                        maxWidth: "55%",
-                        height: "auto",
-                        objectFit: "contain",
-                        opacity: 0.32,
-                      }}
-                    />
-                  </div>
-                )}
+                    {!isPhone ? (
+                      <span
+                        style={{
+                          color:
+                            activeImage === index ? "#111" : "#9d978f",
+                          fontSize: "12px",
+                          fontWeight: 800,
+                        }}
+                      >
+                        {String(index + 1).padStart(2, "0")}
+                      </span>
+                    ) : null}
 
-                {product.images.length > 0 ? (
-                  <span
-                    style={{
-                      position: "absolute",
-                      left: "16px",
-                      bottom: "14px",
-                      padding: "7px 10px",
-                      background: "rgba(17,17,17,0.72)",
-                      color: "#ffffff",
-                      fontSize: "10px",
-                      fontWeight: 900,
-                      letterSpacing: "1px",
-                    }}
-                  >
-                    {String(activeImage + 1).padStart(2, "0")} /{" "}
-                    {String(product.images.length).padStart(2, "0")}
-                  </span>
-                ) : null}
-              </div>
-
-              {product.images.length > 1 ? (
-                <div
-                  style={{
-                    display: "flex",
-                    gap: "10px",
-                    padding: isPhone ? "10px" : "12px",
-                    background: "#ffffff",
-                    borderTop: "1px solid rgba(17,17,17,0.08)",
-                    overflowX: "auto",
-                  }}
-                >
-                  {product.images.map((image, index) => (
-                    <button
-                      key={`${image}-${index}`}
-                      type="button"
-                      onClick={() => setActiveImage(index)}
-                      aria-label={`Show product image ${index + 1}`}
+                    <div
                       style={{
-                        width: isPhone ? "72px" : "82px",
-                        height: isPhone ? "86px" : "98px",
-                        flex: "0 0 auto",
-                        padding: 0,
+                        width: isPhone ? "72px" : "auto",
+                        height: isPhone ? "88px" : "94px",
+                        background: "#e8e1d7",
+                        overflow: "hidden",
+                        borderRadius: "7px",
                         border:
                           activeImage === index
-                            ? "2px solid #111"
-                            : "1px solid rgba(17,17,17,0.12)",
-                        background: "#f1ede6",
-                        overflow: "hidden",
-                        cursor: "pointer",
+                            ? "1px solid #111"
+                            : "1px solid rgba(17,17,17,0.06)",
                       }}
                     >
                       <img
-                        src={image}
+                        src={image.url}
                         alt={`${product.name} thumbnail ${index + 1}`}
                         style={{
                           width: "100%",
                           height: "100%",
-                          objectFit: "cover",
-                          objectPosition: "center",
+                          objectFit: image.fit,
+                          objectPosition: `${image.positionX}% ${image.positionY}%`,
                           display: "block",
+                          background: "#ebe7df",
                         }}
                       />
-                    </button>
-                  ))}
-                </div>
+                    </div>
+                  </button>
+                ))
+              )}
+            </aside>
+
+            <div
+              style={{
+                position: "relative",
+                minHeight: isPhone ? "460px" : undefined,
+                background: "#ebe7df",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                overflow: "hidden",
+                order: isPhone ? 1 : 2,
+              }}
+            >
+              {selectedGalleryImage ? (
+                <img
+                  src={selectedGalleryImage.url}
+                  alt={product.name}
+                  style={{
+                    width: "100%",
+                    height: "100%",
+                    minHeight: isPhone ? "460px" : "650px",
+                    objectFit: selectedGalleryImage.fit,
+                    objectPosition: `${selectedGalleryImage.positionX}% ${selectedGalleryImage.positionY}%`,
+                    display: "block",
+                    background: "#ebe7df",
+                  }}
+                />
+              ) : (
+                <ImagePlaceholder text="Main Product Image" />
+              )}
+
+              {productBadge ? (
+                <span
+                  style={{
+                    position: "absolute",
+                    top: isPhone ? "16px" : "24px",
+                    left: isPhone ? "16px" : "24px",
+                    zIndex: 5,
+                    minHeight: "30px",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    padding: "0 11px",
+                    fontSize: "9px",
+                    fontWeight: 900,
+                    letterSpacing: "1px",
+                    textTransform: "uppercase",
+                    boxShadow: "0 5px 18px rgba(0,0,0,0.13)",
+                    ...productBadge.style,
+                  }}
+                >
+                  {productBadge.label}
+                </span>
               ) : null}
+
+              <div
+                style={{
+                  position: "absolute",
+                  left: isPhone ? "16px" : "24px",
+                  bottom: isPhone ? "16px" : "24px",
+                  color:
+                    selectedGalleryImage?.fit === "contain"
+                      ? "#111"
+                      : "rgba(255,255,255,0.94)",
+                  fontSize: "11px",
+                  fontWeight: 800,
+                  letterSpacing: "1px",
+                  textTransform: "uppercase",
+                  textShadow:
+                    selectedGalleryImage?.fit === "contain"
+                      ? "none"
+                      : "0 4px 18px rgba(0,0,0,0.35)",
+                }}
+              >
+                {String(activeImage + 1).padStart(2, "0")}
+                <br />
+                {product.name}
+                <br />
+                <span style={{ opacity: 0.7 }}>{product.variant}</span>
+              </div>
             </div>
 
             <aside
               style={{
-                padding: isPhone ? "30px 20px 26px" : "54px 40px 42px",
                 background: "#ffffff",
+                padding: isPhone ? "30px 20px 24px" : "58px 44px 42px",
+                display: "flex",
+                flexDirection: "column",
+                order: 3,
               }}
             >
               <p
                 style={{
-                  margin: "0 0 14px",
-                  color: "#6d6861",
+                  margin: "0 0 15px",
                   fontSize: "11px",
                   fontWeight: 900,
-                  letterSpacing: "1.3px",
+                  letterSpacing: "1.2px",
                   textTransform: "uppercase",
                 }}
               >
-                Signature Collection
+                {productBadge?.label ??
+                  (product.isNewArrival
+                    ? "New Arrival"
+                    : product.category)}
               </p>
 
               <h1
                 style={{
                   margin: 0,
-                  fontFamily: '"Bebas Neue", Impact, sans-serif',
-                  fontSize: isPhone ? "62px" : "78px",
+                  fontFamily:
+                    '"Bebas Neue", Impact, "Arial Narrow", sans-serif',
+                  fontSize: isPhone
+                    ? "clamp(54px, 16vw, 74px)"
+                    : "clamp(56px, 5vw, 78px)",
                   lineHeight: 0.86,
                   fontWeight: 400,
+                  letterSpacing: "-0.5px",
                   textTransform: "uppercase",
                 }}
               >
@@ -463,12 +644,12 @@ Please confirm availability and delivery details.`;
 
               <p
                 style={{
-                  margin: "20px 0 18px",
-                  color: "#4d4943",
-                  fontSize: "12px",
-                  fontWeight: 900,
+                  margin: "20px 0 21px",
+                  fontSize: "13px",
+                  fontWeight: 800,
                   letterSpacing: "1px",
                   textTransform: "uppercase",
+                  color: "#4d4943",
                 }}
               >
                 {product.variant}
@@ -476,30 +657,37 @@ Please confirm availability and delivery details.`;
 
               <div
                 style={{
+                  marginBottom: "12px",
                   display: "flex",
                   alignItems: "baseline",
-                  gap: "12px",
-                  marginBottom: "20px",
+                  gap: "11px",
+                  flexWrap: "wrap",
                 }}
               >
-                {product.originalPrice > product.price ? (
+                {hasOriginalPrice ? (
                   <span
                     style={{
                       color: "#8a857d",
                       fontSize: "17px",
                       fontWeight: 700,
                       textDecoration: "line-through",
+                      textDecorationThickness: "1.5px",
                     }}
                   >
-                    {product.originalDisplayPrice}
+                    {originalDisplayPrice}
                   </span>
                 ) : null}
 
-                <span style={{ fontSize: "29px", fontWeight: 900 }}>
-                  {product.displayPrice}
+                <span
+                  style={{
+                    fontSize: "27px",
+                    fontWeight: 900,
+                  }}
+                >
+                  {sellingDisplayPrice}
                 </span>
 
-                {saving > 0 ? (
+                {savingAmount > 0 ? (
                   <span
                     style={{
                       padding: "5px 8px",
@@ -507,17 +695,36 @@ Please confirm availability and delivery details.`;
                       color: "#237a35",
                       fontSize: "10px",
                       fontWeight: 900,
+                      letterSpacing: "0.7px",
                       textTransform: "uppercase",
                     }}
                   >
-                    Save ₹{saving}
+                    Save {formatPrice(savingAmount)}
                   </span>
                 ) : null}
               </div>
 
               <p
                 style={{
-                  margin: "0 0 26px",
+                  margin: "0 0 20px",
+                  color: isSoldOut ? "#821f19" : "#4d4943",
+                  fontSize: "11px",
+                  fontWeight: 900,
+                  letterSpacing: "0.9px",
+                  textTransform: "uppercase",
+                }}
+              >
+                {isSoldOut
+                  ? "Currently sold out"
+                  : product.stock <= 3
+                    ? `Only ${product.stock} left in stock`
+                    : `${product.stock} available`}
+              </p>
+
+              <p
+                style={{
+                  margin: "0 0 25px",
+                  maxWidth: "330px",
                   color: "#4d4943",
                   fontSize: "14px",
                   lineHeight: 1.75,
@@ -526,71 +733,71 @@ Please confirm availability and delivery details.`;
                 {product.description}
               </p>
 
-              {product.productDetails ? (
+
+              <InfoRow
+                title="Size"
+                open={openInfo === "size"}
+                onClick={() =>
+                  setOpenInfo(openInfo === "size" ? null : "size")
+                }
+              >
                 <div
                   style={{
-                    margin: "0 0 26px",
-                    padding: "16px 0",
-                    borderTop: "1px solid #e5dfd6",
-                    borderBottom: "1px solid #e5dfd6",
-                    color: "#4d4943",
-                    fontSize: "11px",
-                    fontWeight: 800,
-                    letterSpacing: "0.65px",
-                    lineHeight: 1.7,
-                    textTransform: "uppercase",
-                    whiteSpace: "pre-line",
+                    display: "flex",
+                    gap: "9px",
+                    flexWrap: "wrap",
+                    paddingTop: "8px",
                   }}
                 >
-                  {product.productDetails}
-                </div>
-              ) : null}
-
-              <div style={{ marginBottom: "24px" }}>
-                <p
-                  style={{
-                    margin: "0 0 10px",
-                    fontSize: "11px",
-                    fontWeight: 900,
-                    letterSpacing: "1px",
-                    textTransform: "uppercase",
-                  }}
-                >
-                  Select Size
-                </p>
-
-                <div style={{ display: "flex", gap: "9px", flexWrap: "wrap" }}>
-                  {product.sizes.map((size) => (
+                  {product.sizes?.map((productSize) => (
                     <button
-                      key={size}
+                      key={productSize}
                       type="button"
-                      onClick={() => setSelectedSize(size)}
+                      disabled={isSoldOut}
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        setSelectedSize(productSize);
+                      }}
                       style={{
-                        minWidth: "46px",
-                        height: "40px",
+                        minWidth: "44px",
+                        height: "38px",
                         border:
-                          selectedProductSize === size
+                          size === productSize
                             ? "1px solid #111"
                             : "1px solid #d4ccc1",
                         background:
-                          selectedProductSize === size ? "#111" : "#ffffff",
-                        color:
-                          selectedProductSize === size ? "#ffffff" : "#111",
+                          size === productSize ? "#111" : "transparent",
+                        color: size === productSize ? "#fff" : "#111",
                         fontSize: "12px",
-                        fontWeight: 900,
-                        cursor: "pointer",
+                        fontWeight: 800,
+                        cursor: isSoldOut ? "not-allowed" : "pointer",
+                        opacity: isSoldOut ? 0.45 : 1,
                       }}
                     >
-                      {size}
+                      {productSize}
                     </button>
                   ))}
                 </div>
-              </div>
+              </InfoRow>
+
+              <InfoRow
+                title="Shipping"
+                open={openInfo === "shipping"}
+                onClick={() =>
+                  setOpenInfo(
+                    openInfo === "shipping" ? null : "shipping",
+                  )
+                }
+              >
+                Free shipping on prepaid orders. COD is available. Orders are
+                normally dispatched within 24 hours.
+              </InfoRow>
 
               <div
                 style={{
+                  marginTop: "24px",
                   display: "grid",
-                  gridTemplateColumns: isPhone ? "112px 1fr" : "136px 1fr",
+                  gridTemplateColumns: isPhone ? "116px 1fr" : "136px 1fr",
                   gap: "10px",
                 }}
               >
@@ -601,12 +808,17 @@ Please confirm availability and delivery details.`;
                     display: "grid",
                     gridTemplateColumns: "38px 1fr 38px",
                     alignItems: "center",
+                    opacity: isSoldOut ? 0.5 : 1,
                   }}
                 >
                   <button
                     type="button"
+                    aria-label="Decrease quantity"
+                    disabled={isSoldOut}
                     onClick={() =>
-                      setQuantity((previous) => Math.max(1, previous - 1))
+                      setQuantity((previous) =>
+                        Math.max(1, previous - 1),
+                      )
                     }
                     style={quantityButtonStyle}
                   >
@@ -617,7 +829,7 @@ Please confirm availability and delivery details.`;
                     style={{
                       textAlign: "center",
                       fontSize: "15px",
-                      fontWeight: 900,
+                      fontWeight: 800,
                     }}
                   >
                     {quantity}
@@ -625,7 +837,13 @@ Please confirm availability and delivery details.`;
 
                   <button
                     type="button"
-                    onClick={() => setQuantity((previous) => previous + 1)}
+                    aria-label="Increase quantity"
+                    disabled={isSoldOut || quantity >= maximumQuantity}
+                    onClick={() =>
+                      setQuantity((previous) =>
+                        Math.min(maximumQuantity, previous + 1),
+                      )
+                    }
                     style={quantityButtonStyle}
                   >
                     <Plus size={15} />
@@ -635,87 +853,99 @@ Please confirm availability and delivery details.`;
                 <button
                   type="button"
                   onClick={handleAddToCart}
+                  disabled={isSoldOut}
                   style={{
                     height: "54px",
                     border: "none",
-                    background: added ? "#347a48" : "#111",
-                    color: "#ffffff",
+                    background: isSoldOut
+                      ? "#918b83"
+                      : added
+                        ? "#347a48"
+                        : "#111",
+                    color: "#fff",
                     fontSize: "12px",
                     fontWeight: 900,
                     letterSpacing: "1px",
                     textTransform: "uppercase",
-                    cursor: "pointer",
+                    cursor: isSoldOut ? "not-allowed" : "pointer",
                   }}
                 >
-                  {added ? "Added ✓" : "Add to Cart"}
+                  {isSoldOut
+                    ? "Sold Out"
+                    : added
+                      ? "Added ✓"
+                      : "Add to Cart"}
                 </button>
               </div>
 
               <button
                 type="button"
                 onClick={handleBuyNow}
+                disabled={isSoldOut}
                 style={{
                   width: "100%",
                   height: "56px",
                   marginTop: "10px",
                   border: "none",
-                  background: "#b50f14",
-                  color: "#ffffff",
+                  background: isSoldOut ? "#918b83" : "#0a0a0a",
+                  color: "#fff",
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
                   gap: "10px",
                   fontSize: "13px",
                   fontWeight: 900,
-                  cursor: "pointer",
+                  letterSpacing: "0.4px",
+                  cursor: isSoldOut ? "not-allowed" : "pointer",
                 }}
               >
                 <Zap size={17} fill="currentColor" />
-                Buy it now
+                {isSoldOut ? "Currently Sold Out" : "Buy it now"}
               </button>
+
+              {!isSoldOut ? (
+                <div
+                  style={{
+                    padding: "18px 0",
+                    borderBottom: "1px solid #e5dfd6",
+                    color: "#3e4753",
+                    fontSize: "15px",
+                    fontWeight: 800,
+                  }}
+                >
+                  Save ₹{prepaidDiscount.toLocaleString("en-IN")} with Prepaid
+                </div>
+              ) : null}
 
               <div
                 style={{
-                  marginTop: "20px",
-                  padding: "18px 0",
-                  borderTop: "1px solid #e5dfd6",
-                  borderBottom: "1px solid #e5dfd6",
                   display: "grid",
                   gap: "16px",
+                  padding: "20px 0",
+                  borderBottom: "1px solid #e5dfd6",
                 }}
               >
-                <Benefit
-                  icon={<Truck size={21} />}
+                <BenefitRow
+                  icon={<Truck size={22} />}
                   title="Free Shipping"
                   subtitle="On prepaid orders"
                 />
-                <Benefit
-                  icon={<WalletCards size={21} />}
+
+                <BenefitRow
+                  icon={<WalletCards size={22} />}
                   title="COD Available"
                 />
-                <Benefit
-                  icon={<RefreshCw size={21} />}
+
+                <BenefitRow
+                  icon={<RefreshCw size={22} />}
                   title="Easy Size Exchange"
                 />
-                <Benefit
-                  icon={<PackageCheck size={21} />}
+
+                <BenefitRow
+                  icon={<PackageCheck size={22} />}
                   title="Dispatch within 24 Hours"
                 />
               </div>
-
-
-              <Accordion
-                title="Shipping"
-                open={openSection === "shipping"}
-                onClick={() =>
-                  setOpenSection(
-                    openSection === "shipping" ? null : "shipping"
-                  )
-                }
-              >
-                Free shipping on prepaid orders. COD is available. Orders are
-                normally dispatched within 24 hours.
-              </Accordion>
 
               <div
                 style={{
@@ -725,36 +955,39 @@ Please confirm availability and delivery details.`;
                   marginTop: "18px",
                 }}
               >
-                <a
-                  href={whatsappUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
+                <button
+                  type="button"
+                  onClick={handleWhatsAppOrder}
                   style={{
                     height: "54px",
-                    background: "#25d366",
+                    border: "none",
+                    background: "#25D366",
                     color: "#111",
-                    textDecoration: "none",
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
-                    gap: "10px",
+                    gap: "12px",
                     fontSize: "12px",
                     fontWeight: 900,
+                    letterSpacing: "1px",
                     textTransform: "uppercase",
+                    cursor: "pointer",
                   }}
                 >
                   <FaWhatsapp size={18} />
-                  Order on WhatsApp
-                </a>
+                  {isSoldOut
+                    ? "Ask on WhatsApp"
+                    : "Order on WhatsApp"}
+                </button>
 
                 <button
                   type="button"
-                  onClick={() => setLiked((previous) => !previous)}
+                  onClick={() => setLiked(!liked)}
                   aria-label="Add to favourites"
                   style={{
                     height: "54px",
                     border: "1px solid #d4ccc1",
-                    background: "#ffffff",
+                    background: "transparent",
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
@@ -764,12 +997,63 @@ Please confirm availability and delivery details.`;
                   <Heart
                     size={20}
                     fill={liked ? "#111" : "none"}
-                    strokeWidth={1.7}
+                    strokeWidth={1.6}
                   />
                 </button>
               </div>
             </aside>
           </section>
+
+          {!isPhone ? (
+            <div
+              style={{
+                height: "76px",
+                display: "grid",
+                gridTemplateColumns: "1fr auto 1fr",
+                alignItems: "center",
+                color: "#8a857d",
+                fontSize: "11px",
+                fontWeight: 800,
+                letterSpacing: "1px",
+                textTransform: "uppercase",
+              }}
+            >
+              <Link
+                href="/collections"
+                style={{
+                  color: "#8a857d",
+                  textDecoration: "none",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "12px",
+                }}
+              >
+                <ArrowLeft size={14} />
+                Prev Product
+              </Link>
+
+              <span>
+                {String(activeImage + 1).padStart(2, "0")}{" "}
+                <span style={{ opacity: 0.4 }}>——</span>{" "}
+                {String(Math.max(images.length, 1)).padStart(2, "0")}
+              </span>
+
+              <Link
+                href="/collections"
+                style={{
+                  justifySelf: "end",
+                  color: "#8a857d",
+                  textDecoration: "none",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "12px",
+                }}
+              >
+                Next Product
+                <ArrowRight size={14} />
+              </Link>
+            </div>
+          ) : null}
         </div>
       </main>
 
@@ -778,7 +1062,7 @@ Please confirm availability and delivery details.`;
   );
 }
 
-function Benefit({
+function BenefitRow({
   icon,
   title,
   subtitle,
@@ -792,16 +1076,25 @@ function Benefit({
       style={{
         display: "grid",
         gridTemplateColumns: "30px 1fr",
-        gap: "11px",
+        gap: "12px",
         alignItems: "center",
       }}
     >
-      <span style={{ color: "#b50f14", display: "flex" }}>{icon}</span>
+      <span style={{ color: "#0b0b0b", display: "flex" }}>{icon}</span>
 
       <div>
-        <p style={{ margin: 0, fontSize: "14px", fontWeight: 800 }}>{title}</p>
+        <p style={{ margin: 0, fontSize: "14px", fontWeight: 700 }}>
+          {title}
+        </p>
+
         {subtitle ? (
-          <p style={{ margin: "2px 0 0", color: "#77808d", fontSize: "13px" }}>
+          <p
+            style={{
+              margin: "2px 0 0",
+              color: "#77808d",
+              fontSize: "13px",
+            }}
+          >
             {subtitle}
           </p>
         ) : null}
@@ -810,7 +1103,78 @@ function Benefit({
   );
 }
 
-function Accordion({
+function ThumbnailPlaceholder({
+  index,
+  active,
+  isPhone,
+}: {
+  index: number;
+  active?: boolean;
+  isPhone?: boolean;
+}) {
+  return (
+    <div
+      style={{
+        display: "grid",
+        gridTemplateColumns: isPhone ? "1fr" : "28px 1fr",
+        alignItems: "center",
+        gap: "12px",
+        width: isPhone ? "72px" : "auto",
+      }}
+    >
+      {!isPhone ? (
+        <span
+          style={{
+            color: active ? "#111" : "#9d978f",
+            fontSize: "12px",
+            fontWeight: 800,
+          }}
+        >
+          {String(index + 1).padStart(2, "0")}
+        </span>
+      ) : null}
+
+      <div
+        style={{
+          width: isPhone ? "72px" : "auto",
+          height: isPhone ? "88px" : "94px",
+          borderRadius: "7px",
+          border: active
+            ? "1px solid #111"
+            : "1px solid rgba(17,17,17,0.06)",
+          position: "relative",
+          overflow: "hidden",
+        }}
+      >
+        <ImagePlaceholder text="Image" />
+      </div>
+    </div>
+  );
+}
+
+function ImagePlaceholder({ text }: { text: string }) {
+  return (
+    <div
+      style={{
+        position: "absolute",
+        inset: 0,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        color: "#918a80",
+        fontSize: "11px",
+        letterSpacing: "5px",
+        textTransform: "uppercase",
+        background:
+          "linear-gradient(180deg, #eee9e0 0%, #dcd4c8 100%)",
+      }}
+    >
+      {text}
+    </div>
+  );
+}
+
+function InfoRow({
   title,
   children,
   open,
@@ -825,17 +1189,17 @@ function Accordion({
     <div
       onClick={onClick}
       style={{
+        borderTop: "1px solid #ddd5ca",
         padding: "17px 0",
-        borderBottom: "1px solid #e5dfd6",
         cursor: "pointer",
       }}
     >
       <div
         style={{
           display: "flex",
-          alignItems: "center",
           justifyContent: "space-between",
           gap: "20px",
+          alignItems: "center",
         }}
       >
         <span
@@ -855,10 +1219,10 @@ function Accordion({
       {open ? (
         <div
           style={{
-            marginTop: "13px",
-            color: "#4d4943",
+            marginTop: "14px",
+            color: "#020202",
             fontSize: "13px",
-            lineHeight: 1.7,
+            lineHeight: 1.65,
             whiteSpace: "pre-line",
           }}
         >
