@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
+import JittokLoadingLogo from "@/components/JittokLoadingLogo";
 import { getHomeContent } from "@/lib/contentService";
 import {
   getIconicProducts,
@@ -19,6 +20,7 @@ type CardProduct = {
   id: string;
   slug: string;
   name: string;
+  variant?: string;
   href: string;
 
   frontImage: string;
@@ -135,6 +137,7 @@ function mapFirebaseProduct(product: FirebaseProduct): CardProduct {
     id: product.id || product.slug,
     slug: product.slug,
     name: product.name,
+    variant: product.variant || "",
     href: `/product/${product.slug}`,
 
     frontImage,
@@ -181,6 +184,7 @@ function mapSignatureProduct(
     id: product.slug,
     slug: product.slug,
     name: product.name,
+    variant: product.variant || "",
     href: `/signature/${product.slug}`,
 
     frontImage,
@@ -307,6 +311,10 @@ export default function IconicProductsCurve() {
     loadIconicProducts();
   }, []);
 
+  if (!loading && products.length === 0) {
+    return null;
+  }
+
   return (
     <section
       id="iconic-products"
@@ -327,9 +335,13 @@ export default function IconicProductsCurve() {
         }}
       >
         {loading ? (
-          <div className="ipStatusBox">Loading iconic products...</div>
-        ) : products.length === 0 ? (
-          <div className="ipStatusBox">No iconic products yet.</div>
+          <JittokLoadingLogo
+            minHeight={isPhone ? 220 : 300}
+            background="#ffffff"
+            logoWidth={isPhone ? 108 : 138}
+            compact={isPhone}
+            label="Loading featured products"
+          />
         ) : (
           <div
             style={{
@@ -389,19 +401,6 @@ export default function IconicProductsCurve() {
       </div>
 
       <style jsx global>{`
-        .ipStatusBox {
-          min-height: 280px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          color: #77736c;
-          font-size: 11px;
-          font-weight: 900;
-          letter-spacing: 1px;
-          text-align: center;
-          text-transform: uppercase;
-        }
-
         .ipBadge {
           position: absolute;
           top: 14px;
@@ -473,10 +472,28 @@ function SignatureCard({
   isPhone: boolean;
 }) {
   const [hovered, setHovered] = useState(false);
+  const [showBackOnPhone, setShowBackOnPhone] = useState(false);
 
   const hasDifferentBackImage =
     Boolean(product.backImage) &&
     product.backImage !== product.frontImage;
+
+  const displayBackImage =
+    hasDifferentBackImage &&
+    (isPhone ? showBackOnPhone : hovered);
+
+  function handleCardClick(
+    event: React.MouseEvent<HTMLAnchorElement>,
+  ) {
+    if (
+      isPhone &&
+      hasDifferentBackImage &&
+      !showBackOnPhone
+    ) {
+      event.preventDefault();
+      setShowBackOnPhone(true);
+    }
+  }
 
   const currentPrice = formatProductPrice(product.sellingPrice);
   const originalPrice = formatProductPrice(product.originalPrice);
@@ -496,6 +513,12 @@ function SignatureCard({
   return (
     <Link
       href={product.href}
+      onClick={handleCardClick}
+      aria-label={
+        isPhone && hasDifferentBackImage && !showBackOnPhone
+          ? `Show the back of ${product.name}`
+          : `View ${product.name}`
+      }
       onMouseEnter={() => {
         if (!isPhone) {
           setHovered(true);
@@ -547,12 +570,9 @@ function SignatureCard({
                 objectPosition: `${product.frontPositionX}% ${product.frontPositionY}%`,
                 boxSizing: "border-box",
                 background: "#ffffff",
-                opacity:
-                  hovered && hasDifferentBackImage
-                    ? 0
-                    : 1,
+                opacity: displayBackImage ? 0 : 1,
                 transform:
-                  hovered && hasDifferentBackImage
+                  displayBackImage
                     ? "scale(1.04)"
                     : product.frontFit === "contain"
                       ? isPhone
@@ -585,12 +605,9 @@ function SignatureCard({
                   objectPosition: `${product.backPositionX}% ${product.backPositionY}%`,
                   boxSizing: "border-box",
                   background: "#ffffff",
-                  opacity:
-                    hovered && hasDifferentBackImage
-                      ? 1
-                      : 0,
+                  opacity: displayBackImage ? 1 : 0,
                   transform:
-                    hovered && hasDifferentBackImage
+                    displayBackImage
                       ? product.backFit === "contain"
                         ? "scale(1.1)"
                         : "scale(1)"
@@ -610,22 +627,52 @@ function SignatureCard({
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              padding: "20px",
-              color: "#8a857d",
-              fontSize: "11px",
-              fontWeight: 800,
-              letterSpacing: "2px",
-              textAlign: "center",
-              textTransform: "uppercase",
+              padding: "24px",
+              background: "#f4f1eb",
             }}
           >
-            Add an Iconic product from the admin panel
+            <img
+              src="/jittok-logo.png"
+              alt="JITTOK"
+              style={{
+                width: isPhone ? "92px" : "118px",
+                maxWidth: "58%",
+                height: "auto",
+                objectFit: "contain",
+                opacity: 0.34,
+              }}
+            />
           </div>
         )}
 
         {cardBadge ? (
           <span className={cardBadge.className}>
             {cardBadge.label}
+          </span>
+        ) : null}
+
+        {isPhone && hasDifferentBackImage ? (
+          <span
+            style={{
+              position: "absolute",
+              right: "10px",
+              bottom: "10px",
+              zIndex: 5,
+              minHeight: "24px",
+              padding: "0 8px",
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+              background: "rgba(255,255,255,0.92)",
+              border: "1px solid rgba(17,17,17,0.1)",
+              color: "#111111",
+              fontSize: "7px",
+              fontWeight: 900,
+              letterSpacing: "0.7px",
+              textTransform: "uppercase",
+            }}
+          >
+            {showBackOnPhone ? "Tap again to view" : "Tap for back"}
           </span>
         ) : null}
 
@@ -647,38 +694,63 @@ function SignatureCard({
 
       <div
         style={{
-          minHeight: isPhone ? "68px" : "70px",
-          padding: isPhone ? "13px 15px" : "14px 16px",
-          display: "flex",
+          minHeight: isPhone ? "86px" : "78px",
+          padding: isPhone ? "12px" : "14px 16px",
+          display: "grid",
+          gridTemplateColumns: "minmax(0, 1fr) auto",
           alignItems: "center",
-          justifyContent: "space-between",
-          gap: "12px",
+          gap: isPhone ? "8px" : "14px",
           boxSizing: "border-box",
           background: "#ffffff",
           borderTop: "1px solid rgba(17,17,17,0.1)",
         }}
       >
-        <h3
-          style={{
-            margin: 0,
-            maxWidth: "58%",
-            color: "#111111",
-            fontSize: "12px",
-            fontWeight: 900,
-            letterSpacing: "0.7px",
-            lineHeight: 1.25,
-            textTransform: "uppercase",
-          }}
-        >
-          {product.name}
-        </h3>
+        <div style={{ minWidth: 0 }}>
+          <h3
+            style={{
+              margin: 0,
+              color: "#111111",
+              fontSize: isPhone ? "10px" : "12px",
+              fontWeight: 900,
+              letterSpacing: isPhone ? "0.45px" : "0.7px",
+              lineHeight: 1.24,
+              textTransform: "uppercase",
+              display: "-webkit-box",
+              WebkitBoxOrient: "vertical",
+              WebkitLineClamp: 2,
+              overflow: "hidden",
+            }}
+          >
+            {product.name}
+          </h3>
+
+          {product.variant ? (
+            <p
+              style={{
+                margin: "5px 0 0",
+                color: "#77736c",
+                fontSize: isPhone ? "8px" : "9px",
+                fontWeight: 800,
+                letterSpacing: "0.65px",
+                lineHeight: 1.2,
+                textTransform: "uppercase",
+                whiteSpace: "nowrap",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+              }}
+            >
+              {product.variant}
+            </p>
+          ) : null}
+        </div>
 
         <div
           style={{
             display: "flex",
-            alignItems: "baseline",
+            flexDirection: isPhone ? "column-reverse" : "row",
+            alignItems: isPhone ? "flex-end" : "baseline",
             justifyContent: "flex-end",
-            gap: "6px",
+            gap: isPhone ? "2px" : "6px",
             flexShrink: 0,
             whiteSpace: "nowrap",
           }}
@@ -687,7 +759,7 @@ function SignatureCard({
             <span
               style={{
                 color: "#8b867f",
-                fontSize: "10px",
+                fontSize: isPhone ? "8px" : "10px",
                 fontWeight: 700,
                 textDecoration: "line-through",
               }}
@@ -699,7 +771,7 @@ function SignatureCard({
           <span
             style={{
               color: "#111111",
-              fontSize: "14px",
+              fontSize: isPhone ? "12px" : "14px",
               fontWeight: 900,
             }}
           >

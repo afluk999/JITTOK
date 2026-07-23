@@ -22,6 +22,18 @@ export default function SiteLoader() {
     previousOverflow.current = document.body.style.overflow;
     document.body.style.overflow = "hidden";
 
+    const initialLoader = document.getElementById(
+      "jittok-initial-loader",
+    );
+
+    document.documentElement.classList.remove(
+      "jittok-preloading",
+    );
+
+    if (initialLoader) {
+      initialLoader.remove();
+    }
+
     function markPageReady() {
       setPageReady(true);
     }
@@ -120,7 +132,7 @@ export default function SiteLoader() {
           display: grid;
           place-items: center;
           overflow: hidden;
-          background: #000000;
+          background: #ffffff;
           opacity: 1;
           visibility: visible;
           pointer-events: all;
@@ -137,7 +149,7 @@ export default function SiteLoader() {
 
         .logoStage {
           position: relative;
-          width: min(66vw, 900px);
+          width: min(34vw, 220px);
           aspect-ratio: 3 / 1;
           display: grid;
           place-items: center;
@@ -282,7 +294,7 @@ export default function SiteLoader() {
 
         @media (max-width: 600px) {
           .logoStage {
-            width: min(100vw, 900px);
+            width: min(44vw, 160px);
           }
 
           .loadingDot {

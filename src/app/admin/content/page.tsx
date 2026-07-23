@@ -12,10 +12,12 @@ import { useRouter } from "next/navigation";
 import { onAuthStateChanged } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import {
+  defaultSignatureProductDetails,
   getHomeContent,
   updateHomeContent,
   type DropBannerContent,
   type HomeSectionVisibility,
+  type SignatureProductContent,
   type SocialItem,
 } from "@/lib/contentService";
 import {
@@ -165,6 +167,10 @@ export default function AdminContentPage() {
     Record<string, string[]>
   >({});
 
+  const [signatureDetails, setSignatureDetails] = useState<
+    Record<string, SignatureProductContent>
+  >(defaultSignatureProductDetails);
+
   const [reelsItems, setReelsItems] = useState<SocialItem[]>([]);
   const [reelFile, setReelFile] = useState<File | null>(null);
   const [reelPreview, setReelPreview] = useState("");
@@ -249,6 +255,10 @@ export default function AdminContentPage() {
       setEditorialImages(content.editorialImages || []);
       setIconicImages(content.iconicImages || []);
       setSignatureImages(content.signatureProductImages || {});
+      setSignatureDetails(
+        content.signatureProductDetails ||
+          defaultSignatureProductDetails,
+      );
       setReelsItems(content.reelsItems || []);
       setInstagramPosts(content.instagramPosts || []);
     } catch (error) {
@@ -446,9 +456,25 @@ export default function AdminContentPage() {
     }
   }
 
-  async function saveSignatureImages(slug: string) {
+  async function saveSignatureProduct(slug: string) {
     try {
       setSavingSignatureSlug(slug);
+
+      const details = signatureDetails[slug];
+
+      if (!details) {
+        throw new Error("Signature product details are missing.");
+      }
+
+      if (!details.name.trim()) {
+        alert("Please enter the Signature product name.");
+        return;
+      }
+
+      if (details.price <= 0) {
+        alert("Please enter a valid selling price.");
+        return;
+      }
 
       const currentImages = signatureImages[slug] || [];
       const selectedFiles = signatureFiles[slug] || [];
@@ -459,33 +485,68 @@ export default function AdminContentPage() {
       ].slice(0, 5);
 
       if (finalImages.length < 1) {
-        alert("Please keep at least 1 image for this signature product.");
+        alert("Please keep at least 1 image for this Signature product.");
         return;
       }
+
+      const cleanedSizes = details.sizes
+        .map((size) => size.trim())
+        .filter(Boolean);
+
+      const cleanedDetails: SignatureProductContent = {
+        ...details,
+        slug,
+        name: details.name.trim(),
+        variant: details.variant.trim(),
+        category: details.category.trim() || "Signature",
+        price: Math.max(0, Number(details.price) || 0),
+        originalPrice: Math.max(
+          0,
+          Number(details.originalPrice) || 0,
+        ),
+        stock: Math.max(0, Number(details.stock) || 0),
+        order: Math.max(0, Number(details.order) || 0),
+        sizes:
+          cleanedSizes.length > 0
+            ? cleanedSizes
+            : ["S", "M", "L", "XL"],
+        description: details.description.trim(),
+        productDetails: details.productDetails.trim(),
+        visible: details.visible !== false,
+      };
 
       const updatedSignatureImages = {
         ...signatureImages,
         [slug]: finalImages,
       };
 
+      const updatedSignatureDetails = {
+        ...signatureDetails,
+        [slug]: cleanedDetails,
+      };
+
       await updateHomeContent({
         signatureProductImages: updatedSignatureImages,
+        signatureProductDetails: updatedSignatureDetails,
       });
 
       setSignatureImages(updatedSignatureImages);
+      setSignatureDetails(updatedSignatureDetails);
+
       setSignatureFiles((previous) => ({
         ...previous,
         [slug]: [],
       }));
+
       setSignaturePreviews((previous) => ({
         ...previous,
         [slug]: [],
       }));
 
-      alert("Signature product gallery saved successfully.");
+      alert(`${cleanedDetails.name} saved successfully.`);
     } catch (error: any) {
-      console.error("SAVE SIGNATURE IMAGES ERROR:", error);
-      alert(error?.message || "Failed to save signature gallery.");
+      console.error("SAVE SIGNATURE PRODUCT ERROR:", error);
+      alert(error?.message || "Failed to save Signature product.");
     } finally {
       setSavingSignatureSlug("");
     }
@@ -875,77 +936,101 @@ export default function AdminContentPage() {
 
         <section style={signatureHeadingStyle}>
           <p style={signatureEyebrowStyle}>
-            Separate fallback galleries
+            Signature collection
           </p>
 
           <h2 style={signatureTitleStyle}>
-            Signature Product Galleries
+            Signature Product Manager
           </h2>
 
           <p style={signatureTextStyle}>
-            Upload up to 5 separate images for each fallback signature
-            product. Firebase products marked as Iconic take priority on
-            the homepage.
+            Edit each Signature product’s name, price, description,
+            sizes, stock, display order and 1–5 image gallery. These
+            products remain separate from New Arrivals and Iconic
+            products.
           </p>
         </section>
 
-        {signatureProducts.map((product, index) => (
-          <div key={product.slug}>
-            <ImageContentBlock
-              title={`${product.name} Gallery`}
-              description="Upload 1 to 5 images for this fallback signature product."
-              existingImages={signatureImages[product.slug] || []}
-              previewImages={signaturePreviews[product.slug] || []}
-              maxCount={5}
-              uploadLabel={`Add ${product.name} Images`}
-              inputAccept="image/png,image/jpeg,image/jpg,image/webp"
-              onFileChange={(event) =>
-                handleSignatureChange(product.slug, event)
-              }
-              onRemoveExisting={(imageIndex) =>
-                setSignatureImages((previous) => ({
-                  ...previous,
-                  [product.slug]: (
-                    previous[product.slug] || []
-                  ).filter(
-                    (_, itemIndex) => itemIndex !== imageIndex,
-                  ),
-                }))
-              }
-              onMoveExisting={(fromIndex, toIndex) =>
-                setSignatureImages((previous) => ({
-                  ...previous,
-                  [product.slug]: moveItem(
-                    previous[product.slug] || [],
-                    fromIndex,
-                    toIndex,
-                  ),
-                }))
-              }
-              onClearSelected={() => {
-                setSignatureFiles((previous) => ({
-                  ...previous,
-                  [product.slug]: [],
-                }));
-                setSignaturePreviews((previous) => ({
-                  ...previous,
-                  [product.slug]: [],
-                }));
-              }}
-              onSave={() =>
-                saveSignatureImages(product.slug)
-              }
-              saving={
-                savingSignatureSlug === product.slug
-              }
-              saveText={`Save ${product.name} Gallery`}
-            />
+        {signatureProducts.map((fallbackProduct, index) => {
+          const details =
+            signatureDetails[fallbackProduct.slug] ||
+            defaultSignatureProductDetails[fallbackProduct.slug];
 
-            {index < signatureProducts.length - 1 ? (
-              <Spacer />
-            ) : null}
-          </div>
-        ))}
+          return (
+            <div key={fallbackProduct.slug}>
+              <SignatureProductManager
+                value={details}
+                existingImages={
+                  signatureImages[fallbackProduct.slug] || []
+                }
+                previewImages={
+                  signaturePreviews[fallbackProduct.slug] || []
+                }
+                onChange={(patch) =>
+                  setSignatureDetails((previous) => ({
+                    ...previous,
+                    [fallbackProduct.slug]: {
+                      ...(previous[fallbackProduct.slug] ||
+                        defaultSignatureProductDetails[
+                          fallbackProduct.slug
+                        ]),
+                      ...patch,
+                    },
+                  }))
+                }
+                onFileChange={(event) =>
+                  handleSignatureChange(
+                    fallbackProduct.slug,
+                    event,
+                  )
+                }
+                onRemoveExisting={(imageIndex) =>
+                  setSignatureImages((previous) => ({
+                    ...previous,
+                    [fallbackProduct.slug]: (
+                      previous[fallbackProduct.slug] || []
+                    ).filter(
+                      (_, itemIndex) =>
+                        itemIndex !== imageIndex,
+                    ),
+                  }))
+                }
+                onMoveExisting={(fromIndex, toIndex) =>
+                  setSignatureImages((previous) => ({
+                    ...previous,
+                    [fallbackProduct.slug]: moveItem(
+                      previous[fallbackProduct.slug] || [],
+                      fromIndex,
+                      toIndex,
+                    ),
+                  }))
+                }
+                onClearSelected={() => {
+                  setSignatureFiles((previous) => ({
+                    ...previous,
+                    [fallbackProduct.slug]: [],
+                  }));
+
+                  setSignaturePreviews((previous) => ({
+                    ...previous,
+                    [fallbackProduct.slug]: [],
+                  }));
+                }}
+                onSave={() =>
+                  saveSignatureProduct(fallbackProduct.slug)
+                }
+                saving={
+                  savingSignatureSlug ===
+                  fallbackProduct.slug
+                }
+              />
+
+              {index < signatureProducts.length - 1 ? (
+                <Spacer />
+              ) : null}
+            </div>
+          );
+        })}
 
         <Spacer />
 
@@ -1507,6 +1592,251 @@ function DropBannerBlock({
   );
 }
 
+function SignatureProductManager({
+  value,
+  existingImages,
+  previewImages,
+  onChange,
+  onFileChange,
+  onRemoveExisting,
+  onMoveExisting,
+  onClearSelected,
+  onSave,
+  saving,
+}: {
+  value: SignatureProductContent;
+  existingImages: string[];
+  previewImages: string[];
+  onChange: (
+    patch: Partial<SignatureProductContent>,
+  ) => void;
+  onFileChange: (
+    event: ChangeEvent<HTMLInputElement>,
+  ) => void;
+  onRemoveExisting: (index: number) => void;
+  onMoveExisting: (
+    fromIndex: number,
+    toIndex: number,
+  ) => void;
+  onClearSelected: () => void;
+  onSave: () => void;
+  saving: boolean;
+}) {
+  return (
+    <section className="adminSectionGrid">
+      <aside style={darkPanelStyle}>
+        <p style={signatureCardEyebrowStyle}>
+          Signature Product
+        </p>
+
+        <h2 style={blockTitleStyle}>{value.name}</h2>
+
+        <p style={blockTextStyle}>
+          This information appears on the Signature card and its
+          complete product page.
+        </p>
+
+        <button
+          type="button"
+          onClick={() =>
+            onChange({ visible: !value.visible })
+          }
+          style={{
+            ...ghostButtonStyle,
+            marginTop: 0,
+            background: value.visible
+              ? "rgba(37,211,102,0.12)"
+              : "transparent",
+          }}
+        >
+          {value.visible ? (
+            <Eye size={16} />
+          ) : (
+            <EyeOff size={16} />
+          )}
+          {value.visible ? "Product Visible" : "Product Hidden"}
+        </button>
+
+        <label style={uploadBoxStyle}>
+          <Upload size={30} strokeWidth={1.5} />
+
+          <span style={uploadTitleStyle}>
+            Add Signature Images
+          </span>
+
+          <span style={{ fontSize: "13px" }}>
+            {existingImages.length}/5 saved
+          </span>
+
+          <input
+            type="file"
+            multiple
+            accept="image/png,image/jpeg,image/jpg,image/webp"
+            onChange={onFileChange}
+            style={{ display: "none" }}
+          />
+        </label>
+
+        {previewImages.length > 0 ? (
+          <button
+            type="button"
+            onClick={onClearSelected}
+            style={ghostButtonStyle}
+          >
+            Clear Selected
+          </button>
+        ) : null}
+
+        <button
+          type="button"
+          onClick={onSave}
+          disabled={saving}
+          style={lightButtonStyle}
+        >
+          <Save size={16} />
+          {saving ? "Saving..." : "Save Signature Product"}
+        </button>
+      </aside>
+
+      <section style={previewPanelStyle}>
+        <div style={twoColStyle}>
+          <Field
+            label="Product Name"
+            value={value.name}
+            onChange={(name) => onChange({ name })}
+          />
+
+          <Field
+            label="Variant / Colour"
+            value={value.variant}
+            onChange={(variant) => onChange({ variant })}
+          />
+        </div>
+
+        <div style={twoColStyle}>
+          <Field
+            label="Category"
+            value={value.category}
+            onChange={(category) => onChange({ category })}
+          />
+
+          <NumberField
+            label="Display Order"
+            value={value.order}
+            min={0}
+            onChange={(order) => onChange({ order })}
+          />
+        </div>
+
+        <div style={threeColStyle}>
+          <NumberField
+            label="Selling Price"
+            value={value.price}
+            min={0}
+            onChange={(price) => onChange({ price })}
+          />
+
+          <NumberField
+            label="Original Price"
+            value={value.originalPrice}
+            min={0}
+            onChange={(originalPrice) =>
+              onChange({ originalPrice })
+            }
+          />
+
+          <NumberField
+            label="Stock"
+            value={value.stock}
+            min={0}
+            onChange={(stock) => onChange({ stock })}
+          />
+        </div>
+
+        <label style={labelStyle}>
+          Available Sizes — separated by commas
+        </label>
+
+        <input
+          value={value.sizes.join(", ")}
+          onChange={(event) =>
+            onChange({
+              sizes: event.target.value
+                .split(",")
+                .map((size) => size.trim()),
+            })
+          }
+          placeholder="S, M, L, XL"
+          style={inputStyle}
+        />
+
+        <label style={labelStyle}>Short Description</label>
+
+        <textarea
+          value={value.description}
+          onChange={(event) =>
+            onChange({ description: event.target.value })
+          }
+          style={textareaStyle}
+        />
+
+        <label style={labelStyle}>Product Details</label>
+
+        <textarea
+          value={value.productDetails}
+          onChange={(event) =>
+            onChange({
+              productDetails: event.target.value,
+            })
+          }
+          style={{
+            ...textareaStyle,
+            minHeight: "180px",
+          }}
+        />
+
+        <label style={labelStyle}>Signature Gallery</label>
+
+        <GalleryPreview
+          existingImages={existingImages}
+          previewImages={previewImages}
+          onRemoveExisting={onRemoveExisting}
+          onMoveExisting={onMoveExisting}
+          embedded
+        />
+      </section>
+    </section>
+  );
+}
+
+function NumberField({
+  label,
+  value,
+  min,
+  onChange,
+}: {
+  label: string;
+  value: number;
+  min?: number;
+  onChange: (value: number) => void;
+}) {
+  return (
+    <div>
+      <label style={labelStyle}>{label}</label>
+
+      <input
+        type="number"
+        min={min}
+        value={value}
+        onChange={(event) =>
+          onChange(Number(event.target.value) || 0)
+        }
+        style={inputStyle}
+      />
+    </div>
+  );
+}
+
 function ImageContentBlock({
   title,
   description,
@@ -1932,6 +2262,7 @@ function GalleryPreview({
   previewImages,
   onRemoveExisting,
   onMoveExisting,
+  embedded = false,
 }: {
   existingImages: string[];
   previewImages: string[];
@@ -1940,9 +2271,20 @@ function GalleryPreview({
     fromIndex: number,
     toIndex: number,
   ) => void;
+  embedded?: boolean;
 }) {
   return (
-    <section style={previewPanelStyle}>
+    <section
+      style={
+        embedded
+          ? {
+              padding: 0,
+              background: "transparent",
+              border: "none",
+            }
+          : previewPanelStyle
+      }
+    >
       {[...existingImages, ...previewImages].length === 0 ? (
         <EmptyBox text="No media saved" />
       ) : (
@@ -2384,6 +2726,31 @@ const smallControlButton: CSSProperties = {
   letterSpacing: "0.6px",
   textTransform: "uppercase",
   cursor: "pointer",
+};
+
+const threeColStyle: CSSProperties = {
+  display: "grid",
+  gridTemplateColumns:
+    "repeat(auto-fit, minmax(150px, 1fr))",
+  gap: "18px",
+};
+
+const textareaStyle: CSSProperties = {
+  ...inputStyle,
+  minHeight: "120px",
+  paddingTop: "14px",
+  paddingBottom: "14px",
+  resize: "vertical",
+  lineHeight: 1.6,
+};
+
+const signatureCardEyebrowStyle: CSSProperties = {
+  margin: "0 0 10px",
+  color: "rgba(246,242,235,0.52)",
+  fontSize: "10px",
+  fontWeight: 900,
+  letterSpacing: "1.2px",
+  textTransform: "uppercase",
 };
 
 const signatureHeadingStyle: CSSProperties = {

@@ -5,6 +5,7 @@ import {
   setDoc,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
+import { signatureProducts } from "@/data/signatureProducts";
 
 export type SocialItem = {
   id?: string;
@@ -17,6 +18,22 @@ export type SocialItem = {
 
   visible?: boolean;
   order?: number;
+};
+
+export type SignatureProductContent = {
+  id: string;
+  slug: string;
+  name: string;
+  variant: string;
+  category: string;
+  price: number;
+  originalPrice: number;
+  description: string;
+  productDetails: string;
+  sizes: string[];
+  stock: number;
+  visible: boolean;
+  order: number;
 };
 
 export type HomeSectionVisibility = {
@@ -48,9 +65,15 @@ export type HomeContent = {
   editorialImages: string[];
   iconicImages: string[];
 
-  // Separate galleries for the signature-product fallback cards.
-  // Each slug can store up to 5 images.
+  // Up to 5 images for each Signature product.
   signatureProductImages: Record<string, string[]>;
+
+  // Editable Signature product names, prices, descriptions,
+  // sizes, stock, visibility and display order.
+  signatureProductDetails: Record<
+    string,
+    SignatureProductContent
+  >;
 
   reelsItems: SocialItem[];
   instagramPosts: SocialItem[];
@@ -93,11 +116,37 @@ const defaultDropBanner: DropBannerContent = {
   buttonUrl: "/collections",
 };
 
+export const defaultSignatureProductDetails: Record<
+  string,
+  SignatureProductContent
+> = Object.fromEntries(
+  signatureProducts.map((product, index) => [
+    product.slug,
+    {
+      id: product.id,
+      slug: product.slug,
+      name: product.name,
+      variant: product.variant,
+      category: product.category,
+      price: product.price,
+      originalPrice: product.originalPrice,
+      description: product.description,
+      productDetails: product.productDetails,
+      sizes: product.sizes,
+      stock: product.stock,
+      visible: true,
+      order: index,
+    },
+  ]),
+);
+
 export const defaultHomeContent: HomeContent = {
   heroImages: [],
   editorialImages: [],
   iconicImages: [],
+
   signatureProductImages: {},
+  signatureProductDetails: defaultSignatureProductDetails,
 
   reelsItems: [],
   instagramPosts: [],
@@ -145,6 +194,133 @@ function cleanSignatureProductImages(
   );
 }
 
+function cleanStringArray(
+  value: unknown,
+  fallback: string[],
+): string[] {
+  if (!Array.isArray(value)) {
+    return fallback;
+  }
+
+  const cleaned = value
+    .filter(
+      (item): item is string =>
+        typeof item === "string" && item.trim().length > 0,
+    )
+    .map((item) => item.trim());
+
+  return cleaned.length > 0 ? cleaned : fallback;
+}
+
+function cleanFiniteNumber(
+  value: unknown,
+  fallback: number,
+  minimum = 0,
+): number {
+  const numericValue =
+    typeof value === "number"
+      ? value
+      : Number(String(value ?? "").replace(/[^0-9.-]/g, ""));
+
+  if (!Number.isFinite(numericValue)) {
+    return fallback;
+  }
+
+  return Math.max(minimum, numericValue);
+}
+
+function normaliseSignatureProductDetails(
+  value: unknown,
+): Record<string, SignatureProductContent> {
+  const saved =
+    value &&
+    typeof value === "object" &&
+    !Array.isArray(value)
+      ? (value as Record<string, unknown>)
+      : {};
+
+  return Object.fromEntries(
+    signatureProducts.map((fallbackProduct, index) => {
+      const savedValue = saved[fallbackProduct.slug];
+
+      const item =
+        savedValue &&
+        typeof savedValue === "object" &&
+        !Array.isArray(savedValue)
+          ? (savedValue as Partial<SignatureProductContent>)
+          : {};
+
+      const fallback =
+        defaultSignatureProductDetails[fallbackProduct.slug];
+
+      return [
+        fallbackProduct.slug,
+        {
+          id:
+            typeof item.id === "string" && item.id.trim()
+              ? item.id.trim()
+              : fallback.id,
+
+          slug: fallback.slug,
+
+          name:
+            typeof item.name === "string" && item.name.trim()
+              ? item.name.trim()
+              : fallback.name,
+
+          variant:
+            typeof item.variant === "string"
+              ? item.variant.trim()
+              : fallback.variant,
+
+          category:
+            typeof item.category === "string" &&
+            item.category.trim()
+              ? item.category.trim()
+              : fallback.category,
+
+          price: cleanFiniteNumber(
+            item.price,
+            fallback.price,
+          ),
+
+          originalPrice: cleanFiniteNumber(
+            item.originalPrice,
+            fallback.originalPrice,
+          ),
+
+          description:
+            typeof item.description === "string"
+              ? item.description.trim()
+              : fallback.description,
+
+          productDetails:
+            typeof item.productDetails === "string"
+              ? item.productDetails.trim()
+              : fallback.productDetails,
+
+          sizes: cleanStringArray(
+            item.sizes,
+            fallback.sizes,
+          ),
+
+          stock: cleanFiniteNumber(
+            item.stock,
+            fallback.stock,
+          ),
+
+          visible: item.visible !== false,
+
+          order: cleanFiniteNumber(
+            item.order,
+            index,
+          ),
+        },
+      ];
+    }),
+  );
+}
+
 function normaliseSocialItems(value: unknown): SocialItem[] {
   if (!Array.isArray(value)) {
     return [];
@@ -170,24 +346,31 @@ function normaliseSocialItems(value: unknown): SocialItem[] {
           typeof data.id === "string" && data.id.trim()
             ? data.id.trim()
             : `social-${index + 1}`,
+
         image,
+
         link:
           typeof data.link === "string" && data.link.trim()
             ? data.link.trim()
             : defaultHomeContent.instagramUrl,
+
         title:
           typeof data.title === "string"
             ? data.title.trim()
             : "",
+
         productUrl:
           typeof data.productUrl === "string"
             ? data.productUrl.trim()
             : "",
+
         productName:
           typeof data.productName === "string"
             ? data.productName.trim()
             : "",
+
         visible: data.visible !== false,
+
         order:
           typeof data.order === "number" &&
           Number.isFinite(data.order)
@@ -252,7 +435,8 @@ function normaliseHomeContent(
     : [];
 
   const reelsSource =
-    Array.isArray(data.reelsItems) && data.reelsItems.length > 0
+    Array.isArray(data.reelsItems) &&
+    data.reelsItems.length > 0
       ? data.reelsItems
       : legacyInstagramItems;
 
@@ -268,10 +452,16 @@ function normaliseHomeContent(
       data.signatureProductImages,
     ),
 
+    signatureProductDetails: normaliseSignatureProductDetails(
+      data.signatureProductDetails,
+    ),
+
     reelsItems: normaliseSocialItems(reelsSource),
+
     instagramPosts: normaliseSocialItems(
       data.instagramPosts,
     ),
+
     instagramItems: normaliseSocialItems(
       data.instagramItems,
     ),
@@ -324,11 +514,22 @@ export async function getPublicHomeContent(): Promise<HomeContent> {
 
   return {
     ...content,
+
     reelsItems: content.reelsItems.filter(
       (item) => item.visible !== false,
     ),
+
     instagramPosts: content.instagramPosts.filter(
       (item) => item.visible !== false,
+    ),
+
+    signatureProductDetails: Object.fromEntries(
+      Object.entries(content.signatureProductDetails)
+        .filter(([, product]) => product.visible !== false)
+        .sort(
+          ([, firstProduct], [, secondProduct]) =>
+            firstProduct.order - secondProduct.order,
+        ),
     ),
   };
 }
