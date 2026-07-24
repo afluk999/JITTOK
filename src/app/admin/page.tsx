@@ -1,7 +1,13 @@
 "use client";
 
-import { FormEvent, useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import type {
+  CSSProperties,
+  FormEvent,
+} from "react";
+import {
+  useEffect,
+  useState,
+} from "react";
 import {
   onAuthStateChanged,
   signInWithEmailAndPassword,
@@ -10,12 +16,11 @@ import { LockKeyhole } from "lucide-react";
 import { auth } from "@/lib/firebase";
 
 export default function AdminLoginPage() {
-  const router = useRouter();
-
   const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [checkingAuth, setCheckingAuth] = useState(true);
+  const [password, setPassword] =
+    useState("");
+  const [loading, setLoading] =
+    useState(false);
   const [error, setError] = useState("");
 
   useEffect(() => {
@@ -23,11 +28,10 @@ export default function AdminLoginPage() {
       auth,
       (user) => {
         if (user) {
-          router.replace("/admin/products");
-          return;
+          window.location.replace(
+            "/admin/products",
+          );
         }
-
-        setCheckingAuth(false);
       },
       (authError) => {
         console.error(
@@ -36,23 +40,25 @@ export default function AdminLoginPage() {
         );
 
         setError(
-          "Unable to check admin access. Please refresh and try again.",
+          "Firebase authentication could not be loaded. Check the live environment variables.",
         );
-
-        setCheckingAuth(false);
       },
     );
 
     return () => unsubscribe();
-  }, [router]);
+  }, []);
 
   async function handleLogin(
     event: FormEvent<HTMLFormElement>,
   ) {
     event.preventDefault();
 
-    if (!email.trim() || !password) {
-      setError("Enter your email and password.");
+    const cleanEmail = email.trim();
+
+    if (!cleanEmail || !password) {
+      setError(
+        "Enter your email and password.",
+      );
       return;
     }
 
@@ -62,39 +68,25 @@ export default function AdminLoginPage() {
 
       await signInWithEmailAndPassword(
         auth,
-        email.trim(),
+        cleanEmail,
         password,
       );
 
-      router.replace("/admin/products");
-    } catch (loginError) {
+      window.location.replace(
+        "/admin/products",
+      );
+    } catch (loginError: unknown) {
       console.error(
         "ADMIN LOGIN ERROR:",
         loginError,
       );
 
-      setError("Invalid email or password.");
+      setError(
+        "Invalid email or password.",
+      );
     } finally {
       setLoading(false);
     }
-  }
-
-  if (checkingAuth) {
-    return (
-      <main
-        style={{
-          minHeight: "100vh",
-          background: "#111111",
-          color: "#f6f2eb",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          fontFamily: '"Outfit", sans-serif',
-        }}
-      >
-        Checking admin access...
-      </main>
-    );
   }
 
   return (
@@ -107,7 +99,8 @@ export default function AdminLoginPage() {
         alignItems: "center",
         justifyContent: "center",
         padding: "24px",
-        fontFamily: '"Outfit", sans-serif',
+        fontFamily:
+          '"Outfit", sans-serif',
       }}
     >
       <div
@@ -186,10 +179,13 @@ export default function AdminLoginPage() {
               type="email"
               value={email}
               onChange={(event) =>
-                setEmail(event.target.value)
+                setEmail(
+                  event.target.value,
+                )
               }
               placeholder="admin@jittok.in"
               autoComplete="email"
+              required
               style={inputStyle}
             />
           </div>
@@ -203,10 +199,13 @@ export default function AdminLoginPage() {
               type="password"
               value={password}
               onChange={(event) =>
-                setPassword(event.target.value)
+                setPassword(
+                  event.target.value,
+                )
               }
               placeholder="Enter password"
               autoComplete="current-password"
+              required
               style={inputStyle}
             />
           </div>
@@ -215,7 +214,12 @@ export default function AdminLoginPage() {
             <p
               style={{
                 margin: 0,
-                color: "#ff8a8a",
+                padding: "12px 14px",
+                border:
+                  "1px solid rgba(255,138,138,0.28)",
+                background:
+                  "rgba(255,138,138,0.06)",
+                color: "#ff9b9b",
                 fontSize: "13px",
                 lineHeight: 1.5,
               }}
@@ -240,7 +244,9 @@ export default function AdminLoginPage() {
               fontWeight: 900,
               letterSpacing: "1.4px",
               textTransform: "uppercase",
-              opacity: loading ? 0.65 : 1,
+              opacity: loading
+                ? 0.65
+                : 1,
             }}
           >
             {loading
@@ -253,7 +259,7 @@ export default function AdminLoginPage() {
   );
 }
 
-const labelStyle: React.CSSProperties = {
+const labelStyle: CSSProperties = {
   display: "block",
   marginBottom: "9px",
   color: "rgba(246,242,235,0.62)",
@@ -263,16 +269,18 @@ const labelStyle: React.CSSProperties = {
   textTransform: "uppercase",
 };
 
-const inputStyle: React.CSSProperties = {
+const inputStyle: CSSProperties = {
   width: "100%",
   height: "56px",
   border:
     "1px solid rgba(246,242,235,0.18)",
   outline: "none",
-  background: "rgba(246,242,235,0.04)",
+  background:
+    "rgba(246,242,235,0.04)",
   color: "#f6f2eb",
   padding: "0 16px",
   fontSize: "14px",
-  fontFamily: '"Outfit", sans-serif',
+  fontFamily:
+    '"Outfit", sans-serif',
   boxSizing: "border-box",
 };
