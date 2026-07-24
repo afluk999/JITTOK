@@ -5,6 +5,21 @@ import { CartProvider } from "@/context/CartContext";
 import SiteLoader from "@/components/SiteLoader";
 import { RouteScrollManager } from "@/components/RouteScrollManager";
 import AnnouncementBar from "@/components/AnnouncementBar";
+import { Bebas_Neue, Outfit } from "next/font/google";
+
+const bebasNeue = Bebas_Neue({
+  subsets: ["latin"],
+  weight: "400",
+  variable: "--font-bebas-neue",
+  display: "swap",
+});
+
+const outfit = Outfit({
+  subsets: ["latin"],
+  weight: ["300", "400", "500", "600", "700", "800", "900"],
+  variable: "--font-outfit",
+  display: "swap",
+});
 
 const SITE_URL = "https://jittok.in";
 
@@ -109,7 +124,10 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en-IN">
+    <html
+      lang="en-IN"
+      className={`${bebasNeue.variable} ${outfit.variable}`}
+    >
       <head>
         <link
           rel="preload"
@@ -127,28 +145,12 @@ export default function RootLayout({
 
         <link
           rel="preconnect"
-          href="https://fonts.googleapis.com"
-        />
-
-        <link
-          rel="preconnect"
-          href="https://fonts.gstatic.com"
-          crossOrigin="anonymous"
-        />
-
-        <link
-          rel="preconnect"
           href="https://res.cloudinary.com"
         />
 
         <link
           rel="dns-prefetch"
           href="https://res.cloudinary.com"
-        />
-
-        <link
-          href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Outfit:wght@300;400;500;600;700;800;900&display=swap"
-          rel="stylesheet"
         />
       </head>
 
