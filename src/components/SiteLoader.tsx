@@ -124,28 +124,6 @@ export default function SiteLoader() {
       </div>
 
       <style jsx>{`
-        .jittokLoader {
-          position: fixed;
-          inset: 0;
-          z-index: 99999;
-          display: grid;
-          place-items: center;
-          overflow: hidden;
-          background: #050505;
-          opacity: 1;
-          visibility: visible;
-          pointer-events: all;
-          transition:
-            opacity ${EXIT_DURATION}ms ease,
-            visibility ${EXIT_DURATION}ms ease;
-        }
-
-        .jittokLoader.isLeaving {
-          opacity: 0;
-          visibility: hidden;
-          pointer-events: none;
-        }
-
         .logoStage {
           position: relative;
           width: min(52vw, 340px);
@@ -268,11 +246,6 @@ export default function SiteLoader() {
           .logoStage,
           .logoShine {
             animation: none !important;
-          }
-
-          .jittokLoader,
-          .logoStage {
-            transition-duration: 250ms !important;
           }
         }
       `}</style>
