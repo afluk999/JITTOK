@@ -124,37 +124,6 @@ export default function SiteLoader() {
       </div>
 
       <style jsx>{`
-        .logoStage {
-          position: relative;
-          width: min(52vw, 340px);
-          aspect-ratio: 412 / 295;
-          display: grid;
-          place-items: center;
-          animation:
-            logoOpen 900ms
-              cubic-bezier(0.22, 1, 0.36, 1)
-              both,
-            logoDance 3.4s ease-in-out 900ms
-              infinite alternate;
-          will-change: transform, opacity;
-        }
-
-        .loaderLogo,
-        .logoShine {
-          position: absolute;
-          inset: 0;
-          width: 100%;
-          height: 100%;
-        }
-
-        .loaderLogo {
-          display: block;
-          object-fit: contain;
-          object-position: center;
-          user-select: none;
-          -webkit-user-drag: none;
-        }
-
         .logoShine {
           background: linear-gradient(
             110deg,
@@ -176,6 +145,10 @@ export default function SiteLoader() {
           animation: shineSweep 3.2s
             ease-in-out infinite;
           pointer-events: none;
+          position: absolute;
+          inset: 0;
+          width: 100%;
+          height: 100%;
         }
 
         .isLeaving .logoStage {
@@ -233,12 +206,6 @@ export default function SiteLoader() {
           100% {
             background-position: -80% 0;
             opacity: 0;
-          }
-        }
-
-        @media (max-width: 600px) {
-          .logoStage {
-            width: min(68vw, 260px);
           }
         }
 
