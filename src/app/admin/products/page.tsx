@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { onAuthStateChanged, signOut } from "firebase/auth";
@@ -368,6 +368,14 @@ export default function AdminProductsPage() {
           </div>
 
           <div className="admin-header-actions">
+            <Link href="/admin/dashboard" style={outlineButtonStyle}>
+              Dashboard
+            </Link>
+
+            <Link href="/admin/orders" style={outlineButtonStyle}>
+              Orders
+            </Link>
+
             <Link href="/admin/products/new" style={blackButtonStyle}>
               <Plus size={16} />
               Add Product
@@ -631,17 +639,7 @@ export default function AdminProductsPage() {
                         </span>
                       ) : null}
 
-                      {product.isNewArrival ? (
-                        <SmallLabel>New Arrival</SmallLabel>
-                      ) : null}
-
-                      {product.isFeatured ? (
-                        <SmallLabel>Featured</SmallLabel>
-                      ) : null}
-
-                      {product.isIconic ? (
-                        <SmallLabel>Iconic</SmallLabel>
-                      ) : null}
+                  
                     </div>
 
                     <h2
@@ -825,7 +823,7 @@ function SummaryCard({
 function SmallLabel({
   children,
 }: {
-  children: React.ReactNode;
+  children: ReactNode;
 }) {
   return (
     <span
@@ -853,10 +851,7 @@ function StatusBadge({
 }: {
   status: ProductStatus;
 }) {
-  const styles: Record<
-    ProductStatus,
-    React.CSSProperties
-  > = {
+  const styles: Record<ProductStatus, CSSProperties> = {
     published: {
       background: "#dfe9dd",
       border: "1px solid #b8ceb4",
@@ -916,7 +911,7 @@ function formatCurrency(price: number) {
   return `₹${Number(price || 0).toLocaleString("en-IN")}.00`;
 }
 
-const blackButtonStyle: React.CSSProperties = {
+const blackButtonStyle: CSSProperties = {
   minHeight: "48px",
   padding: "0 20px",
   background: "#111",
@@ -934,7 +929,7 @@ const blackButtonStyle: React.CSSProperties = {
   cursor: "pointer",
 };
 
-const outlineButtonStyle: React.CSSProperties = {
+const outlineButtonStyle: CSSProperties = {
   minHeight: "48px",
   padding: "0 20px",
   background: "transparent",
@@ -951,7 +946,7 @@ const outlineButtonStyle: React.CSSProperties = {
   cursor: "pointer",
 };
 
-const iconButtonStyle: React.CSSProperties = {
+const iconButtonStyle: CSSProperties = {
   width: "44px",
   height: "44px",
   border: "1px solid #d4ccc1",
@@ -964,7 +959,7 @@ const iconButtonStyle: React.CSSProperties = {
   textDecoration: "none",
 };
 
-const filterInputStyle: React.CSSProperties = {
+const filterInputStyle: CSSProperties = {
   width: "100%",
   height: "52px",
   border: "1px solid #d8d0c4",
@@ -976,7 +971,7 @@ const filterInputStyle: React.CSSProperties = {
   color: "#111",
 };
 
-const emptyBoxStyle: React.CSSProperties = {
+const emptyBoxStyle: CSSProperties = {
   minHeight: "420px",
   background: "#f2eee7",
   border: "1px solid #e5ded4",

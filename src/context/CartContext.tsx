@@ -8,10 +8,13 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import type { Product } from "@/data/products";
+import {
+  type FirebaseProduct,
+  getProductSellingPrice,
+} from "@/lib/productService";
 
 export type CartItem = {
-  product: Product;
+  product: FirebaseProduct;
   size: string;
   quantity: number;
 };
@@ -22,10 +25,10 @@ type CartContextType = {
   subtotal: number;
   shipping: number;
   total: number;
-  addToCart: (product: Product, size: string, quantity?: number) => void;
-  increaseQuantity: (slug: string, size: string) => void;
-  decreaseQuantity: (slug: string, size: string) => void;
-  removeFromCart: (slug: string, size: string) => void;
+  addToCart: (product: FirebaseProduct, size: string, quantity?: number) => void;
+  increaseQuantity: (productId: string, size: string) => void;
+  decreaseQuantity: (productId: string, size: string) => void;
+  removeFromCart: (productId: string, size: string) => void;
   clearCart: () => void;
   getWhatsAppMessage: () => string;
 };
@@ -33,6 +36,12 @@ type CartContextType = {
 const CartContext = createContext<CartContextType | null>(null);
 
 const STORAGE_KEY = "jittok-cart";
+
+export function getProductId(product: FirebaseProduct): string {
+  // Firebase products use `id`, but fall back to slug just in case
+  // an item was saved before `id` was consistently present.
+  return product.id ?? product.slug;
+}
 
 export function CartProvider({ children }: { children: ReactNode }) {
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
@@ -53,18 +62,24 @@ export function CartProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (!mounted) return;
+
     localStorage.setItem(STORAGE_KEY, JSON.stringify(cartItems));
+
+    // Keeps the Navbar cart badge in sync across the app.
+    window.dispatchEvent(new Event("cart-updated"));
   }, [cartItems, mounted]);
 
-  function addToCart(product: Product, size: string, quantity = 1) {
+  function addToCart(product: FirebaseProduct, size: string, quantity = 1) {
+    const productId = getProductId(product);
+
     setCartItems((prev) => {
       const existingItem = prev.find(
-        (item) => item.product.slug === product.slug && item.size === size
+        (item) => getProductId(item.product) === productId && item.size === size
       );
 
       if (existingItem) {
         return prev.map((item) =>
-          item.product.slug === product.slug && item.size === size
+          getProductId(item.product) === productId && item.size === size
             ? { ...item, quantity: item.quantity + quantity }
             : item
         );
@@ -74,30 +89,30 @@ export function CartProvider({ children }: { children: ReactNode }) {
     });
   }
 
-  function increaseQuantity(slug: string, size: string) {
+  function increaseQuantity(productId: string, size: string) {
     setCartItems((prev) =>
       prev.map((item) =>
-        item.product.slug === slug && item.size === size
+        getProductId(item.product) === productId && item.size === size
           ? { ...item, quantity: item.quantity + 1 }
           : item
       )
     );
   }
 
-  function decreaseQuantity(slug: string, size: string) {
+  function decreaseQuantity(productId: string, size: string) {
     setCartItems((prev) =>
       prev.map((item) =>
-        item.product.slug === slug && item.size === size
+        getProductId(item.product) === productId && item.size === size
           ? { ...item, quantity: Math.max(1, item.quantity - 1) }
           : item
       )
     );
   }
 
-  function removeFromCart(slug: string, size: string) {
+  function removeFromCart(productId: string, size: string) {
     setCartItems((prev) =>
       prev.filter(
-        (item) => !(item.product.slug === slug && item.size === size)
+        (item) => !(getProductId(item.product) === productId && item.size === size)
       )
     );
   }
@@ -112,7 +127,8 @@ export function CartProvider({ children }: { children: ReactNode }) {
 
   const subtotal = useMemo(() => {
     return cartItems.reduce(
-      (total, item) => total + item.product.price * item.quantity,
+      (total, item) =>
+        total + getProductSellingPrice(item.product) * item.quantity,
       0
     );
   }, [cartItems]);
@@ -127,7 +143,8 @@ export function CartProvider({ children }: { children: ReactNode }) {
 
     const productLines = cartItems
       .map((item, index) => {
-        const itemTotal = item.product.price * item.quantity;
+        const unitPrice = getProductSellingPrice(item.product);
+        const itemTotal = unitPrice * item.quantity;
 
         return `${index + 1}. ${item.product.name}
 Variant: ${item.product.variant}

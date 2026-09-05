@@ -1,6 +1,13 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  type CSSProperties,
+  type TouchEvent,
+} from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import Navbar from "@/components/Navbar";
@@ -11,128 +18,54 @@ import {
   getProductOriginalPrice,
   getProductSellingPrice,
   type FirebaseProduct,
-  type ProductBadge,
-  type ProductImageSetting,
 } from "@/lib/productService";
 import { useCart } from "@/context/CartContext";
-import {
-  ArrowLeft,
-  ArrowRight,
-  Heart,
-  Minus,
-  PackageCheck,
-  Plus,
-  RefreshCw,
-  Truck,
-  WalletCards,
-  Zap,
-} from "lucide-react";
+import { Minus, Plus, X, ChevronLeft, ChevronRight, Expand } from "lucide-react";
 import { FaWhatsapp } from "react-icons/fa";
 
 const WHATSAPP_NUMBER = "919605300701";
 
-type ProductWithOffers = FirebaseProduct & {
-  originalDisplayPrice?: string;
-  prepaidDiscount?: number;
-  productDetails?: string;
+const COLLECTION_LABELS: Record<string, string> = {
+  ringer: "Ringer Collection",
+  "raglan-half": "Raglan Half Collection",
+  "raglan-full": "Raglan Full Collection",
+  lovely: "Lovely Collection",
+  terry: "Terry Collection",
+  signature: "Signature Collection",
 };
 
-type GalleryImage = {
-  url: string;
-  fit: "cover" | "contain";
-  positionX: number;
-  positionY: number;
-};
+const DEFAULT_SHIPPING_RETURNS =
+  "Free shipping on prepaid orders. Cash on delivery is available on eligible pincodes. Orders are dispatched within 24 hours. Size exchanges are accepted within 7 days of delivery, as long as the item is unworn and unwashed.";
 
-const badgeLabels: Record<Exclude<ProductBadge, "none">, string> = {
-  new: "New",
-  bestseller: "Bestseller",
-  limited: "Limited",
-  "sold-out": "Sold Out",
-};
+const DEFAULT_MATERIAL_CARE =
+  "Machine wash cold with similar colours. Do not bleach. Tumble dry low or hang dry. Iron on low heat if needed, avoiding any printed graphics.";
+
+const DEFAULT_SIZE_GUIDE =
+  "Sizes run true to standard streetwear fit. If you're between sizes, we recommend sizing up for a more relaxed, oversized look.";
 
 function formatPrice(value: number) {
   return `₹${Number(value || 0).toLocaleString("en-IN")}.00`;
 }
 
-function getGalleryImages(product: ProductWithOffers): GalleryImage[] {
-  const sortedSettings = [...(product.imageSettings ?? [])].sort(
-    (firstImage, secondImage) =>
-      (firstImage.order ?? 0) - (secondImage.order ?? 0),
-  );
-
-  if (sortedSettings.length > 0) {
-    return sortedSettings.slice(0, 5).map((image) => ({
-      url: image.url,
-      fit: image.fit ?? "cover",
-      positionX: image.positionX ?? 50,
-      positionY: image.positionY ?? 50,
-    }));
+function getCollectionLabel(product: FirebaseProduct) {
+  if (product.collection && COLLECTION_LABELS[product.collection]) {
+    return COLLECTION_LABELS[product.collection];
   }
 
-  return (product.images ?? []).slice(0, 5).map((url) => ({
-    url,
-    fit: "cover",
-    positionX: 50,
-    positionY: 50,
-  }));
+  if (product.collection) {
+    return `${product.collection.replace(/-/g, " ")} Collection`;
+  }
+
+  return product.category || "JITTOK";
 }
 
-function getProductBadge(product: ProductWithOffers) {
-  const isSoldOut =
-    product.status === "sold-out" || Number(product.stock || 0) <= 0;
+function getProductDetailLines(product: FirebaseProduct) {
+  if (!product.productDetails) return [];
 
-  if (isSoldOut) {
-    return {
-      label: "Sold Out",
-      style: {
-        background: "#821f19",
-        color: "#fff",
-      } as React.CSSProperties,
-    };
-  }
-
-  if (product.badge && product.badge !== "none") {
-    const badgeStyles: Record<
-      Exclude<ProductBadge, "none">,
-      React.CSSProperties
-    > = {
-      new: {
-        background: "#fff",
-        color: "#111",
-        border: "1px solid rgba(17,17,17,0.15)",
-      },
-      bestseller: {
-        background: "#111",
-        color: "#fff",
-      },
-      limited: {
-        background: "#f3e6ba",
-        color: "#111",
-      },
-      "sold-out": {
-        background: "#821f19",
-        color: "#fff",
-      },
-    };
-
-    return {
-      label: badgeLabels[product.badge],
-      style: badgeStyles[product.badge],
-    };
-  }
-
-  if (product.stock > 0 && product.stock <= 3) {
-    return {
-      label: `Only ${product.stock} Left`,
-      style: {
-        background: "#f6d86b",
-        color: "#111",
-      } as React.CSSProperties,
-    };
-  }
-
-  return null;
+  return product.productDetails
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean);
 }
 
 export default function ProductPage() {
@@ -142,16 +75,18 @@ export default function ProductPage() {
 
   const { addToCart } = useCart();
 
-  const [product, setProduct] = useState<ProductWithOffers | null>(null);
+  const [product, setProduct] = useState<FirebaseProduct | null>(null);
   const [loading, setLoading] = useState(true);
   const [isPhone, setIsPhone] = useState(false);
 
-  const [activeImage, setActiveImage] = useState(0);
   const [selectedSize, setSelectedSize] = useState("");
   const [quantity, setQuantity] = useState(1);
-  const [liked, setLiked] = useState(false);
   const [added, setAdded] = useState(false);
-  const [openInfo, setOpenInfo] = useState<string | null>(null);
+  const [openAccordion, setOpenAccordion] = useState<string | null>(null);
+
+  const [lightboxOpen, setLightboxOpen] = useState(false);
+  const [activeImageIndex, setActiveImageIndex] = useState(0);
+  const [touchStartX, setTouchStartX] = useState<number | null>(null);
 
   useEffect(() => {
     function checkPhone() {
@@ -160,7 +95,6 @@ export default function ProductPage() {
 
     checkPhone();
     window.addEventListener("resize", checkPhone);
-
     return () => window.removeEventListener("resize", checkPhone);
   }, []);
 
@@ -168,20 +102,11 @@ export default function ProductPage() {
     async function loadProduct() {
       try {
         setLoading(true);
-
-        const data = (await getProductBySlugFromFirebase(
-          slug,
-        )) as ProductWithOffers | null;
+        const data = await getProductBySlugFromFirebase(slug);
 
         setProduct(data);
-        setActiveImage(0);
         setQuantity(1);
-
-        if (data?.sizes?.[0]) {
-          setSelectedSize(data.sizes[0]);
-        } else {
-          setSelectedSize("");
-        }
+        setSelectedSize(data?.sizes?.[0] ?? "");
       } catch (error) {
         console.error("LOAD PRODUCT ERROR:", error);
       } finally {
@@ -192,26 +117,72 @@ export default function ProductPage() {
     loadProduct();
   }, [slug]);
 
-  const images = useMemo(
-    () => (product ? getGalleryImages(product) : []),
-    [product],
-  );
+  const images = useMemo(() => product?.images ?? [], [product]);
+
+  const openLightbox = useCallback((index: number) => {
+    setActiveImageIndex(index);
+    setLightboxOpen(true);
+  }, []);
+
+  const closeLightbox = useCallback(() => {
+    setLightboxOpen(false);
+  }, []);
+
+  const goToPrevImage = useCallback(() => {
+    setActiveImageIndex((previous) =>
+      images.length === 0 ? 0 : (previous - 1 + images.length) % images.length,
+    );
+  }, [images.length]);
+
+  const goToNextImage = useCallback(() => {
+    setActiveImageIndex((previous) =>
+      images.length === 0 ? 0 : (previous + 1) % images.length,
+    );
+  }, [images.length]);
+
+  // Lock body scroll while lightbox is open, and support keyboard nav.
+  useEffect(() => {
+    if (!lightboxOpen) return;
+
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") closeLightbox();
+      if (event.key === "ArrowLeft") goToPrevImage();
+      if (event.key === "ArrowRight") goToNextImage();
+    }
+
+    window.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [lightboxOpen, closeLightbox, goToPrevImage, goToNextImage]);
+
+  function handleTouchStart(event: TouchEvent) {
+    setTouchStartX(event.touches[0].clientX);
+  }
+
+  function handleTouchEnd(event: TouchEvent) {
+    if (touchStartX === null) return;
+
+    const deltaX = event.changedTouches[0].clientX - touchStartX;
+
+    if (deltaX > 50) goToPrevImage();
+    if (deltaX < -50) goToNextImage();
+
+    setTouchStartX(null);
+  }
 
   if (loading) {
     return (
       <>
         <Navbar />
-
-        <main
-          style={{
-            minHeight: "100vh",
-            background: "#f8f4ec",
-            paddingTop: isPhone ? "76px" : "90px",
-            fontFamily: '"Outfit", sans-serif',
-          }}
-        >
+        <main style={{ minHeight: "100vh", background: "#f8f4ec" }}>
           <JittokLoadingLogo
-            minHeight={isPhone ? "calc(100vh - 76px)" : "calc(100vh - 90px)"}
+            minHeight="100vh"
             background="#f8f4ec"
             logoWidth={isPhone ? 118 : 142}
             label="Loading product"
@@ -225,7 +196,6 @@ export default function ProductPage() {
     return (
       <>
         <Navbar />
-
         <main
           style={{
             minHeight: "100vh",
@@ -237,7 +207,6 @@ export default function ProductPage() {
           <h1>Product not found</h1>
           <Link href="/collections">Back to collections</Link>
         </main>
-
         <Footer />
       </>
     );
@@ -246,107 +215,47 @@ export default function ProductPage() {
   const size = selectedSize || product.sizes?.[0] || "Free Size";
   const sellingPrice = getProductSellingPrice(product);
   const originalPrice = getProductOriginalPrice(product);
-  const prepaidDiscount = Number(product.prepaidDiscount ?? 50);
-  const hasOriginalPrice =
-    originalPrice !== null && originalPrice > sellingPrice;
-
-  const originalDisplayPrice =
-    product.originalDisplayPrice ||
-    (hasOriginalPrice && originalPrice !== null
-      ? formatPrice(originalPrice)
-      : "");
-
-  const sellingDisplayPrice = formatPrice(sellingPrice);
-  const orderTotal = sellingPrice * quantity;
-  const orderTotalDisplayPrice = formatPrice(orderTotal);
-
-  const savingAmount =
-    hasOriginalPrice && originalPrice !== null
-      ? Math.max(originalPrice - sellingPrice, 0)
-      : 0;
+  const hasOriginalPrice = originalPrice !== null && originalPrice > sellingPrice;
+  const savingAmount = hasOriginalPrice ? originalPrice! - sellingPrice : 0;
 
   const isSoldOut =
     product.status === "sold-out" || Number(product.stock || 0) <= 0;
 
   const maximumQuantity = Math.max(Number(product.stock || 1), 1);
-  const productBadge = getProductBadge(product);
-  const selectedGalleryImage = images[activeImage] ?? images[0];
+  const detailLines = getProductDetailLines(product);
+  const collectionLabel = getCollectionLabel(product);
+  const collectionSlug = product.collection || "";
 
   function handleAddToCart() {
-    if (isSoldOut) {
-      alert("This product is currently sold out.");
-      return;
-    }
+    if (!product || isSoldOut) return;
 
-    addToCart(product as any, size, quantity);
+    addToCart(product, size, quantity);
     setAdded(true);
-    window.dispatchEvent(new Event("cart-updated"));
-
-    window.setTimeout(() => {
-      setAdded(false);
-    }, 1400);
+    window.setTimeout(() => setAdded(false), 1400);
   }
 
   function handleBuyNow() {
-    if (isSoldOut) {
-      alert("This product is currently sold out.");
-      return;
-    }
+    if (!product || isSoldOut) return;
 
-    addToCart(product as any, size, quantity);
-    window.dispatchEvent(new Event("cart-updated"));
+    addToCart(product, size, quantity);
     router.push("/cart");
   }
 
   function handleWhatsAppOrder() {
-    const currentProduct = product;
+    if (!product) return;
 
-    if (!currentProduct) {
-      alert("Product details are still loading. Please try again.");
-      return;
-    }
+    const productUrl = `${window.location.origin}/product/${product.slug}`;
+    const orderReference = `JT-${Date.now().toString(36).slice(-6).toUpperCase()}`;
 
-    if (!selectedSize && currentProduct.sizes?.length) {
-      alert("Please select a size before ordering.");
-      return;
-    }
-
-    if (
-      !isSoldOut &&
-      quantity > Number(currentProduct.stock || 0)
-    ) {
-      alert(
-        `Only ${currentProduct.stock} item(s) are currently available.`,
-      );
-      return;
-    }
-
-    const orderReference = `JT-${Date.now()
-      .toString(36)
-      .slice(-6)
-      .toUpperCase()}`;
-
-    const productUrl = `${window.location.origin}/product/${currentProduct.slug}`;
-    const requestTitle = isSoldOut
-      ? "JITTOK PRODUCT AVAILABILITY REQUEST"
-      : "NEW JITTOK ORDER REQUEST";
-
-    const whatsappMessage = `*${requestTitle}*
+    const message = `*NEW JITTOK ORDER REQUEST*
 
 *Order Reference:* ${orderReference}
-*Source:* JITTOK Website
-
-*Product:* ${currentProduct.name}
-*Variant:* ${currentProduct.variant || "Standard"}
+*Product:* ${product.name}
+*Variant:* ${product.variant || "Standard"}
 *Size:* ${size}
 *Quantity:* ${quantity}
-*Unit Price:* ${sellingDisplayPrice}
-*Order Total:* ${orderTotalDisplayPrice}
-*Stock Status:* ${
-      isSoldOut
-        ? "Currently sold out"
-        : `${currentProduct.stock} available`
-    }
+*Unit Price:* ${formatPrice(sellingPrice)}
+*Order Total:* ${formatPrice(sellingPrice * quantity)}
 
 *Product Link:*
 ${productUrl}
@@ -359,883 +268,834 @@ Phone Number:
 
 Please confirm availability, delivery charges, payment method, and the final order total.`;
 
-    const whatsappUrl = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(
-      whatsappMessage,
-    )}`;
-
-    console.info("JITTOK WHATSAPP ORDER PREPARED", {
-      orderReference,
-      product: currentProduct.name,
-      variant: currentProduct.variant,
-      size,
-      quantity,
-      unitPrice: sellingPrice,
-      total: orderTotal,
-      productUrl,
-      soldOut: isSoldOut,
-    });
-
-    window.open(whatsappUrl, "_blank", "noopener,noreferrer");
+    window.open(
+      `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(message)}`,
+      "_blank",
+      "noopener,noreferrer",
+    );
   }
+
+  const pageStyle: CSSProperties = {
+    minHeight: "100vh",
+    background: "#fff",
+    fontFamily: '"Outfit", sans-serif',
+    color: "#171717",
+    padding: isPhone ? "88px 14px 60px" : "118px 4vw 60px",
+  };
+
+  const layoutStyle: CSSProperties = {
+    display: isPhone ? "flex" : "grid",
+    flexDirection: isPhone ? "column" : undefined,
+    gridTemplateColumns: isPhone ? undefined : "minmax(0, 66%) minmax(0, 34%)",
+    gap: isPhone ? "26px" : "48px",
+    maxWidth: "1500px",
+    margin: "0 auto",
+  };
 
   return (
     <>
       <Navbar />
 
-      <main
-        style={{
-          minHeight: "100vh",
-          background: "#f8f4ec",
-          padding: isPhone ? "88px 12px 36px" : "118px 42px 52px",
-          fontFamily: '"Outfit", sans-serif',
-          color: "#111",
-        }}
-      >
-        <div style={{ maxWidth: "1360px", margin: "0 auto" }}>
-          {!isPhone ? (
-            <div
-              style={{
-                height: "54px",
-                display: "grid",
-                gridTemplateColumns: "1fr auto 1fr",
-                alignItems: "center",
-                borderBottom: "1px solid rgba(17,17,17,0.08)",
-                marginBottom: "22px",
-                color: "#8a857d",
-                fontSize: "11px",
-                fontWeight: 800,
-                letterSpacing: "1px",
-                textTransform: "uppercase",
-              }}
-            >
-              <span>01 / Interactive Showcase</span>
-              <span />
-
-              <Link
-                href="/collections"
-                style={{
-                  justifySelf: "end",
-                  color: "#111",
-                  textDecoration: "none",
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: "10px",
-                }}
-              >
-                View All <ArrowRight size={14} />
-              </Link>
-            </div>
-          ) : null}
-
-          <section
+      <main style={pageStyle}>
+        <div style={{ maxWidth: "1500px", margin: "0 auto 20px" }}>
+          <Link
+            href={collectionSlug ? `/collections/${collectionSlug}` : "/collections"}
             style={{
-              minHeight: isPhone ? "auto" : "650px",
-              display: "grid",
-              gridTemplateColumns: isPhone
-                ? "1fr"
-                : "200px minmax(0, 1fr) 420px",
-              background: "#f1ede6",
-              border: "1px solid rgba(17,17,17,0.06)",
-              borderRadius: isPhone ? "10px" : "18px",
-              overflow: "hidden",
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "8px",
+              color: "#77736c",
+              textDecoration: "none",
+              fontSize: "11px",
+              fontWeight: 800,
+              letterSpacing: "1px",
+              textTransform: "uppercase",
             }}
           >
-            <aside
-              style={{
-                padding: isPhone ? "12px" : "32px 22px",
-                borderRight: isPhone
-                  ? "none"
-                  : "1px solid rgba(17,17,17,0.06)",
-                borderBottom: isPhone
-                  ? "1px solid rgba(17,17,17,0.06)"
-                  : "none",
-                display: isPhone ? "flex" : "grid",
-                gap: isPhone ? "9px" : "13px",
-                alignContent: "start",
-                overflowX: isPhone ? "auto" : "visible",
-                order: isPhone ? 2 : 1,
-              }}
-            >
-              {images.length === 0 ? (
-                <ThumbnailPlaceholder index={0} active isPhone={isPhone} />
-              ) : (
-                images.map((image, index) => (
-                  <button
-                    key={`${image.url}-${index}`}
-                    type="button"
-                    onClick={() => setActiveImage(index)}
-                    style={{
-                      display: "grid",
-                      gridTemplateColumns: isPhone ? "1fr" : "28px 1fr",
-                      alignItems: "center",
-                      gap: "12px",
-                      border: "none",
-                      background: "transparent",
-                      padding: 0,
-                      cursor: "pointer",
-                      flex: isPhone ? "0 0 72px" : undefined,
-                    }}
-                  >
-                    {!isPhone ? (
-                      <span
-                        style={{
-                          color:
-                            activeImage === index ? "#111" : "#9d978f",
-                          fontSize: "12px",
-                          fontWeight: 800,
-                        }}
-                      >
-                        {String(index + 1).padStart(2, "0")}
-                      </span>
-                    ) : null}
+            <ChevronLeft size={14} />
+            Back to {collectionLabel.replace(" Collection", "")} Products
+          </Link>
+        </div>
 
-                    <div
-                      style={{
-                        width: isPhone ? "72px" : "auto",
-                        height: isPhone ? "88px" : "94px",
-                        background: "#e8e1d7",
-                        overflow: "hidden",
-                        borderRadius: "7px",
-                        border:
-                          activeImage === index
-                            ? "1px solid #111"
-                            : "1px solid rgba(17,17,17,0.06)",
-                      }}
-                    >
-                      <img
-                        src={image.url}
-                        alt={`${product.name} thumbnail ${index + 1}`}
-                        style={{
-                          width: "100%",
-                          height: "100%",
-                          objectFit: image.fit,
-                          objectPosition: `${image.positionX}% ${image.positionY}%`,
-                          display: "block",
-                          background: "#ebe7df",
-                        }}
-                      />
-                    </div>
-                  </button>
-                ))
-              )}
-            </aside>
-
-            <div
-              style={{
-                position: "relative",
-                minHeight: isPhone ? "460px" : undefined,
-                background: "#ebe7df",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                overflow: "hidden",
-                order: isPhone ? 1 : 2,
-              }}
-            >
-              {selectedGalleryImage ? (
-                <img
-                  src={selectedGalleryImage.url}
-                  alt={product.name}
-                  style={{
-                    width: "100%",
-                    height: "100%",
-                    minHeight: isPhone ? "460px" : "650px",
-                    objectFit: selectedGalleryImage.fit,
-                    objectPosition: `${selectedGalleryImage.positionX}% ${selectedGalleryImage.positionY}%`,
-                    display: "block",
-                    background: "#ebe7df",
-                  }}
-                />
-              ) : (
-                <ImagePlaceholder text="Main Product Image" />
-              )}
-
-              {productBadge ? (
-                <span
-                  style={{
-                    position: "absolute",
-                    top: isPhone ? "16px" : "24px",
-                    left: isPhone ? "16px" : "24px",
-                    zIndex: 5,
-                    minHeight: "30px",
-                    display: "inline-flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    padding: "0 11px",
-                    fontSize: "9px",
-                    fontWeight: 900,
-                    letterSpacing: "1px",
-                    textTransform: "uppercase",
-                    boxShadow: "0 5px 18px rgba(0,0,0,0.13)",
-                    ...productBadge.style,
-                  }}
-                >
-                  {productBadge.label}
-                </span>
-              ) : null}
-
+        <div style={layoutStyle}>
+          {/* MAIN IMAGE + THUMBNAIL RAIL */}
+          <div
+            style={{
+              display: "flex",
+              flexDirection: isPhone ? "column" : "row",
+              gap: isPhone ? "10px" : "14px",
+            }}
+          >
+            {images.length === 0 ? (
               <div
                 style={{
-                  position: "absolute",
-                  left: isPhone ? "16px" : "24px",
-                  bottom: isPhone ? "16px" : "24px",
-                  color:
-                    selectedGalleryImage?.fit === "contain"
-                      ? "#111"
-                      : "rgba(255,255,255,0.94)",
-                  fontSize: "11px",
-                  fontWeight: 800,
-                  letterSpacing: "1px",
-                  textTransform: "uppercase",
-                  textShadow:
-                    selectedGalleryImage?.fit === "contain"
-                      ? "none"
-                      : "0 4px 18px rgba(0,0,0,0.35)",
+                  flex: 1,
+                  aspectRatio: "4 / 5",
+                  background: "#ffff",
+                  borderRadius: "4px",
                 }}
-              >
-                {String(activeImage + 1).padStart(2, "0")}
-                <br />
-                {product.name}
-                <br />
-                <span style={{ opacity: 0.7 }}>{product.variant}</span>
-              </div>
-            </div>
+              />
+            ) : (
+              <>
+                {/* MAIN IMAGE */}
+                <button
+                  type="button"
+                  onClick={() => openLightbox(activeImageIndex)}
+                  aria-label={`View ${product.name} image ${activeImageIndex + 1} fullscreen`}
+                  style={{
+                    position: "relative",
+                    display: "block",
+                    flex: 1,
+                    minWidth: 0,
+                    aspectRatio: "4 / 5",
+                    border: "none",
+                    padding: 0,
+                    cursor: "pointer",
+                    overflow: "hidden",
+                    borderRadius: "4px",
+                    background: "#fff",
+                  }}
+                  className="jt-gallery-cell"
+                >
+                  <img
+                    src={images[activeImageIndex]}
+                    alt={`${product.name} view ${activeImageIndex + 1}`}
+                    style={{
+                      width: "100%",
+                      height: "100%",
+                      objectFit: "cover",
+                      display: "block",
+                    }}
+                  />
 
-            <aside
+                  <span
+                    style={{
+                      position: "absolute",
+                      left: "14px",
+                      bottom: "14px",
+                      color: "#fff",
+                      fontSize: "11px",
+                      fontWeight: 800,
+                      letterSpacing: "1px",
+                      textShadow: "0 2px 8px rgba(0,0,0,0.4)",
+                    }}
+                  >
+                    {String(activeImageIndex + 1).padStart(2, "0")} /{" "}
+                    {String(images.length).padStart(2, "0")}
+                  </span>
+
+                  <span className="jt-expand-icon">
+                    <Expand size={16} color="#fff" />
+                  </span>
+                </button>
+
+                {/* THUMBNAIL RAIL */}
+                {images.length > 1 ? (
+                  <div
+                    style={{
+                      display: "flex",
+                      flexDirection: isPhone ? "row" : "column",
+                      gap: isPhone ? "8px" : "10px",
+                      width: isPhone ? "100%" : "90px",
+                      flexShrink: 0,
+                      overflowX: isPhone ? "auto" : "visible",
+                    }}
+                  >
+                    {images.map((imageUrl, imageIndex) => (
+                      <button
+                        key={imageIndex}
+                        type="button"
+                        onClick={() => setActiveImageIndex(imageIndex)}
+                        aria-label={`Show image ${imageIndex + 1}`}
+                        style={{
+                          position: "relative",
+                          display: "block",
+                          width: isPhone ? "64px" : "100%",
+                          flexShrink: 0,
+                          aspectRatio: "4 / 5",
+                          border:
+                            imageIndex === activeImageIndex
+                              ? "2px solid #111"
+                              : "1px solid rgba(17,17,17,0.12)",
+                          padding: 0,
+                          cursor: "pointer",
+                          overflow: "hidden",
+                          borderRadius: "4px",
+                          background: "#ffff",
+                        }}
+                      >
+                        <img
+                          src={imageUrl}
+                          alt={`${product.name} thumbnail ${imageIndex + 1}`}
+                          style={{
+                            width: "100%",
+                            height: "100%",
+                            objectFit: "cover",
+                            display: "block",
+                            opacity: imageIndex === activeImageIndex ? 1 : 0.75,
+                          }}
+                        />
+                      </button>
+                    ))}
+                  </div>
+                ) : null}
+              </>
+            )}
+          </div>
+
+          {/* STICKY INFO PANEL */}
+          <aside
+            style={{
+              position: isPhone ? "static" : "sticky",
+              top: isPhone ? undefined : "110px",
+              alignSelf: "start",
+              background: "#ffff",
+              padding: isPhone ? "26px 20px" : "42px 38px",
+              border: "1px solid rgba(17,17,17,0.06)",
+              borderRadius: "6px",
+            }}
+          >
+            <p
               style={{
-                background: "#ffffff",
-                padding: isPhone ? "30px 20px 24px" : "58px 44px 42px",
-                display: "flex",
-                flexDirection: "column",
-                order: 3,
+                margin: "0 0 10px",
+                fontSize: "11px",
+                fontWeight: 800,
+                letterSpacing: "1.5px",
+                textTransform: "uppercase",
+                color: "#77736c",
               }}
             >
+              {collectionLabel}
+            </p>
+
+            <h1
+              style={{
+                margin: 0,
+                fontSize: isPhone ? "34px" : "42px",
+                fontWeight: 900,
+                letterSpacing: "-0.5px",
+                textTransform: "uppercase",
+                lineHeight: 1,
+              }}
+            >
+              {product.name}
+            </h1>
+
+            {product.variant ? (
               <p
                 style={{
-                  margin: "0 0 15px",
-                  fontSize: "11px",
-                  fontWeight: 900,
-                  letterSpacing: "1.2px",
-                  textTransform: "uppercase",
-                }}
-              >
-                {productBadge?.label ??
-                  (product.isNewArrival
-                    ? "New Arrival"
-                    : product.category)}
-              </p>
-
-              <h1
-                style={{
-                  margin: 0,
-                  fontFamily:
-                    '"Bebas Neue", Impact, "Arial Narrow", sans-serif',
-                  fontSize: isPhone
-                    ? "clamp(54px, 16vw, 74px)"
-                    : "clamp(56px, 5vw, 78px)",
-                  lineHeight: 0.86,
-                  fontWeight: 400,
-                  letterSpacing: "-0.5px",
-                  textTransform: "uppercase",
-                }}
-              >
-                {product.name}
-              </h1>
-
-              <p
-                style={{
-                  margin: "20px 0 21px",
-                  fontSize: "13px",
-                  fontWeight: 800,
-                  letterSpacing: "1px",
+                  margin: "12px 0 0",
+                  fontSize: "12px",
+                  fontWeight: 700,
+                  letterSpacing: "0.6px",
                   textTransform: "uppercase",
                   color: "#4d4943",
                 }}
               >
                 {product.variant}
               </p>
+            ) : null}
 
-              <div
-                style={{
-                  marginBottom: "12px",
-                  display: "flex",
-                  alignItems: "baseline",
-                  gap: "11px",
-                  flexWrap: "wrap",
-                }}
-              >
-                {hasOriginalPrice ? (
-                  <span
-                    style={{
-                      color: "#8a857d",
-                      fontSize: "17px",
-                      fontWeight: 700,
-                      textDecoration: "line-through",
-                      textDecorationThickness: "1.5px",
-                    }}
-                  >
-                    {originalDisplayPrice}
-                  </span>
-                ) : null}
-
+            <div
+              style={{
+                marginTop: "18px",
+                display: "flex",
+                alignItems: "center",
+                gap: "10px",
+                flexWrap: "wrap",
+              }}
+            >
+              {hasOriginalPrice ? (
                 <span
                   style={{
-                    fontSize: "27px",
-                    fontWeight: 900,
+                    color: "#8a857d",
+                    fontSize: "15px",
+                    fontWeight: 700,
+                    textDecoration: "line-through",
                   }}
                 >
-                  {sellingDisplayPrice}
+                  {formatPrice(originalPrice!)}
                 </span>
+              ) : null}
 
-                {savingAmount > 0 ? (
-                  <span
-                    style={{
-                      padding: "5px 8px",
-                      background: "#e8f5e9",
-                      color: "#237a35",
-                      fontSize: "10px",
-                      fontWeight: 900,
-                      letterSpacing: "0.7px",
-                      textTransform: "uppercase",
-                    }}
-                  >
-                    Save {formatPrice(savingAmount)}
-                  </span>
-                ) : null}
-              </div>
+              <span style={{ fontSize: "24px", fontWeight: 900 }}>
+                {formatPrice(sellingPrice)}
+              </span>
 
+              {savingAmount > 0 ? (
+                <span
+                  style={{
+                    padding: "4px 8px",
+                    background: "#e8f5e9",
+                    color: "#237a35",
+                    fontSize: "10px",
+                    fontWeight: 900,
+                    letterSpacing: "0.5px",
+                    textTransform: "uppercase",
+                  }}
+                >
+                  Save {formatPrice(savingAmount)}
+                </span>
+              ) : null}
+            </div>
+
+            {product.description ? (
               <p
                 style={{
-                  margin: "0 0 20px",
-                  color: isSoldOut ? "#821f19" : "#4d4943",
-                  fontSize: "11px",
-                  fontWeight: 900,
-                  letterSpacing: "0.9px",
-                  textTransform: "uppercase",
-                }}
-              >
-                {isSoldOut
-                  ? "Currently sold out"
-                  : product.stock <= 3
-                    ? `Only ${product.stock} left in stock`
-                    : `${product.stock} available`}
-              </p>
-
-              <p
-                style={{
-                  margin: "0 0 25px",
-                  maxWidth: "330px",
+                  margin: "18px 0 0",
+                  fontSize: "13.5px",
+                  lineHeight: 1.7,
                   color: "#4d4943",
-                  fontSize: "14px",
-                  lineHeight: 1.75,
                 }}
               >
                 {product.description}
               </p>
+            ) : null}
 
-
-              <InfoRow
-                title="Size"
-                open={openInfo === "size"}
-                onClick={() =>
-                  setOpenInfo(openInfo === "size" ? null : "size")
-                }
-              >
-                <div
+            {detailLines.length > 0 ? (
+              <div style={{ marginTop: "22px" }}>
+                <p
                   style={{
-                    display: "flex",
-                    gap: "9px",
-                    flexWrap: "wrap",
-                    paddingTop: "8px",
-                  }}
-                >
-                  {product.sizes?.map((productSize) => (
-                    <button
-                      key={productSize}
-                      type="button"
-                      disabled={isSoldOut}
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        setSelectedSize(productSize);
-                      }}
-                      style={{
-                        minWidth: "44px",
-                        height: "38px",
-                        border:
-                          size === productSize
-                            ? "1px solid #111"
-                            : "1px solid #d4ccc1",
-                        background:
-                          size === productSize ? "#111" : "transparent",
-                        color: size === productSize ? "#fff" : "#111",
-                        fontSize: "12px",
-                        fontWeight: 800,
-                        cursor: isSoldOut ? "not-allowed" : "pointer",
-                        opacity: isSoldOut ? 0.45 : 1,
-                      }}
-                    >
-                      {productSize}
-                    </button>
-                  ))}
-                </div>
-              </InfoRow>
-
-              <InfoRow
-                title="Shipping"
-                open={openInfo === "shipping"}
-                onClick={() =>
-                  setOpenInfo(
-                    openInfo === "shipping" ? null : "shipping",
-                  )
-                }
-              >
-                Free shipping on prepaid orders. COD is available. Orders are
-                normally dispatched within 24 hours.
-              </InfoRow>
-
-              <div
-                style={{
-                  marginTop: "24px",
-                  display: "grid",
-                  gridTemplateColumns: isPhone ? "116px 1fr" : "136px 1fr",
-                  gap: "10px",
-                }}
-              >
-                <div
-                  style={{
-                    height: "54px",
-                    border: "1px solid #d9d2c8",
-                    display: "grid",
-                    gridTemplateColumns: "38px 1fr 38px",
-                    alignItems: "center",
-                    opacity: isSoldOut ? 0.5 : 1,
-                  }}
-                >
-                  <button
-                    type="button"
-                    aria-label="Decrease quantity"
-                    disabled={isSoldOut}
-                    onClick={() =>
-                      setQuantity((previous) =>
-                        Math.max(1, previous - 1),
-                      )
-                    }
-                    style={quantityButtonStyle}
-                  >
-                    <Minus size={15} />
-                  </button>
-
-                  <span
-                    style={{
-                      textAlign: "center",
-                      fontSize: "15px",
-                      fontWeight: 800,
-                    }}
-                  >
-                    {quantity}
-                  </span>
-
-                  <button
-                    type="button"
-                    aria-label="Increase quantity"
-                    disabled={isSoldOut || quantity >= maximumQuantity}
-                    onClick={() =>
-                      setQuantity((previous) =>
-                        Math.min(maximumQuantity, previous + 1),
-                      )
-                    }
-                    style={quantityButtonStyle}
-                  >
-                    <Plus size={15} />
-                  </button>
-                </div>
-
-                <button
-                  type="button"
-                  onClick={handleAddToCart}
-                  disabled={isSoldOut}
-                  style={{
-                    height: "54px",
-                    border: "none",
-                    background: isSoldOut
-                      ? "#918b83"
-                      : added
-                        ? "#347a48"
-                        : "#111",
-                    color: "#fff",
-                    fontSize: "12px",
+                    margin: "0 0 10px",
+                    fontSize: "11px",
                     fontWeight: 900,
                     letterSpacing: "1px",
                     textTransform: "uppercase",
-                    cursor: isSoldOut ? "not-allowed" : "pointer",
+                    borderTop: "1px solid #e5dfd6",
+                    paddingTop: "18px",
                   }}
                 >
-                  {isSoldOut
-                    ? "Sold Out"
-                    : added
-                      ? "Added ✓"
-                      : "Add to Cart"}
+                  Product Details
+                </p>
+
+                <ul style={{ margin: 0, paddingLeft: "18px" }}>
+                  {detailLines.map((line, index) => (
+                    <li
+                      key={index}
+                      style={{
+                        fontSize: "12px",
+                        lineHeight: 1.8,
+                        color: "#4d4943",
+                        textTransform: "uppercase",
+                        letterSpacing: "0.2px",
+                      }}
+                    >
+                      {line}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
+
+            {/* SIZE SELECTOR */}
+            <div
+              style={{
+                marginTop: "24px",
+                paddingTop: "20px",
+                borderTop: "1px solid #e5dfd6",
+              }}
+            >
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  marginBottom: "10px",
+                }}
+              >
+                <span
+                  style={{
+                    fontSize: "11px",
+                    fontWeight: 900,
+                    letterSpacing: "1px",
+                    textTransform: "uppercase",
+                  }}
+                >
+                  Select Size
+                </span>
+
+                <button
+                  type="button"
+                  onClick={() => setOpenAccordion("size-guide")}
+                  style={{
+                    border: "none",
+                    background: "transparent",
+                    fontSize: "10px",
+                    fontWeight: 800,
+                    letterSpacing: "0.6px",
+                    textTransform: "uppercase",
+                    color: "#111",
+                    cursor: "pointer",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: "5px",
+                  }}
+                >
+                  Size Guide →
+                </button>
+              </div>
+
+              <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+                {(product.sizes ?? []).map((productSize) => (
+                  <button
+                    key={productSize}
+                    type="button"
+                    disabled={isSoldOut}
+                    onClick={() => setSelectedSize(productSize)}
+                    style={{
+                      minWidth: "46px",
+                      height: "42px",
+                      border:
+                        size === productSize
+                          ? "1px solid #111"
+                          : "1px solid #d4ccc1",
+                      background: size === productSize ? "#111" : "transparent",
+                      color: size === productSize ? "#fff" : "#111",
+                      fontSize: "12px",
+                      fontWeight: 800,
+                      cursor: isSoldOut ? "not-allowed" : "pointer",
+                      opacity: isSoldOut ? 0.45 : 1,
+                    }}
+                  >
+                    {productSize}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* QUANTITY + ADD TO CART */}
+            <div
+              style={{
+                marginTop: "20px",
+                display: "grid",
+                gridTemplateColumns: "120px 1fr",
+                gap: "10px",
+              }}
+            >
+              <div
+                style={{
+                  height: "50px",
+                  border: "1px solid #d9d2c8",
+                  display: "grid",
+                  gridTemplateColumns: "34px 1fr 34px",
+                  alignItems: "center",
+                  opacity: isSoldOut ? 0.5 : 1,
+                }}
+              >
+                <button
+                  type="button"
+                  disabled={isSoldOut}
+                  onClick={() => setQuantity((q) => Math.max(1, q - 1))}
+                  style={quantityButtonStyle}
+                  aria-label="Decrease quantity"
+                >
+                  <Minus size={14} />
+                </button>
+
+                <span style={{ textAlign: "center", fontWeight: 800 }}>
+                  {quantity}
+                </span>
+
+                <button
+                  type="button"
+                  disabled={isSoldOut || quantity >= maximumQuantity}
+                  onClick={() =>
+                    setQuantity((q) => Math.min(maximumQuantity, q + 1))
+                  }
+                  style={quantityButtonStyle}
+                  aria-label="Increase quantity"
+                >
+                  <Plus size={14} />
                 </button>
               </div>
 
               <button
                 type="button"
-                onClick={handleBuyNow}
+                onClick={handleAddToCart}
                 disabled={isSoldOut}
                 style={{
-                  width: "100%",
-                  height: "56px",
-                  marginTop: "10px",
+                  height: "50px",
                   border: "none",
-                  background: isSoldOut ? "#918b83" : "#0a0a0a",
+                  background: isSoldOut ? "#918b83" : added ? "#347a48" : "#111",
                   color: "#fff",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  gap: "10px",
-                  fontSize: "13px",
+                  fontSize: "12px",
                   fontWeight: 900,
-                  letterSpacing: "0.4px",
+                  letterSpacing: "1px",
+                  textTransform: "uppercase",
                   cursor: isSoldOut ? "not-allowed" : "pointer",
                 }}
               >
-                <Zap size={17} fill="currentColor" />
-                {isSoldOut ? "Currently Sold Out" : "Buy it now"}
+                {isSoldOut ? "Sold Out" : added ? "Added ✓" : "Add to Cart"}
               </button>
+            </div>
 
-              {!isSoldOut ? (
-                <div
-                  style={{
-                    padding: "18px 0",
-                    borderBottom: "1px solid #e5dfd6",
-                    color: "#3e4753",
-                    fontSize: "15px",
-                    fontWeight: 800,
-                  }}
-                >
-                  Save ₹{prepaidDiscount.toLocaleString("en-IN")} with Prepaid
-                </div>
-              ) : null}
-
-              <div
-                style={{
-                  display: "grid",
-                  gap: "16px",
-                  padding: "20px 0",
-                  borderBottom: "1px solid #e5dfd6",
-                }}
-              >
-                <BenefitRow
-                  icon={<Truck size={22} />}
-                  title="Free Shipping"
-                  subtitle="On prepaid orders"
-                />
-
-                <BenefitRow
-                  icon={<WalletCards size={22} />}
-                  title="COD Available"
-                />
-
-                <BenefitRow
-                  icon={<RefreshCw size={22} />}
-                  title="Easy Size Exchange"
-                />
-
-                <BenefitRow
-                  icon={<PackageCheck size={22} />}
-                  title="Dispatch within 24 Hours"
-                />
-              </div>
-
-              <div
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "1fr 56px",
-                  gap: "10px",
-                  marginTop: "18px",
-                }}
-              >
-                <button
-                  type="button"
-                  onClick={handleWhatsAppOrder}
-                  style={{
-                    height: "54px",
-                    border: "none",
-                    background: "#25D366",
-                    color: "#111",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    gap: "12px",
-                    fontSize: "12px",
-                    fontWeight: 900,
-                    letterSpacing: "1px",
-                    textTransform: "uppercase",
-                    cursor: "pointer",
-                  }}
-                >
-                  <FaWhatsapp size={18} />
-                  {isSoldOut
-                    ? "Ask on WhatsApp"
-                    : "Order on WhatsApp"}
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setLiked(!liked)}
-                  aria-label="Add to favourites"
-                  style={{
-                    height: "54px",
-                    border: "1px solid #d4ccc1",
-                    background: "transparent",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    cursor: "pointer",
-                  }}
-                >
-                  <Heart
-                    size={20}
-                    fill={liked ? "#111" : "none"}
-                    strokeWidth={1.6}
-                  />
-                </button>
-              </div>
-            </aside>
-          </section>
-
-          {!isPhone ? (
-            <div
+            <button
+              type="button"
+              onClick={handleBuyNow}
+              disabled={isSoldOut}
               style={{
-                height: "76px",
-                display: "grid",
-                gridTemplateColumns: "1fr auto 1fr",
-                alignItems: "center",
-                color: "#8a857d",
-                fontSize: "11px",
-                fontWeight: 800,
-                letterSpacing: "1px",
+                width: "100%",
+                height: "52px",
+                marginTop: "10px",
+                border: "none",
+                background: isSoldOut ? "#918b83" : "#8a1f1a",
+                color: "#fff",
+                fontSize: "13px",
+                fontWeight: 900,
+                letterSpacing: "0.6px",
                 textTransform: "uppercase",
+                cursor: isSoldOut ? "not-allowed" : "pointer",
               }}
             >
-              <Link
-                href="/collections"
-                style={{
-                  color: "#8a857d",
-                  textDecoration: "none",
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: "12px",
-                }}
-              >
-                <ArrowLeft size={14} />
-                Prev Product
-              </Link>
+              {isSoldOut ? "Currently Sold Out" : "Buy It Now"}
+            </button>
 
-              <span>
-                {String(activeImage + 1).padStart(2, "0")}{" "}
-                <span style={{ opacity: 0.4 }}>——</span>{" "}
-                {String(Math.max(images.length, 1)).padStart(2, "0")}
-              </span>
+            <button
+              type="button"
+              onClick={handleWhatsAppOrder}
+              style={{
+                width: "100%",
+                height: "48px",
+                marginTop: "10px",
+                border: "none",
+                background: "#25D366",
+                color: "#111",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: "10px",
+                fontSize: "12px",
+                fontWeight: 900,
+                letterSpacing: "0.6px",
+                textTransform: "uppercase",
+                cursor: "pointer",
+              }}
+            >
+              <FaWhatsapp size={16} />
+              Order on WhatsApp
+            </button>
 
-              <Link
-                href="/collections"
-                style={{
-                  justifySelf: "end",
-                  color: "#8a857d",
-                  textDecoration: "none",
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: "12px",
-                }}
-              >
-                Next Product
-                <ArrowRight size={14} />
-              </Link>
+            {/* BENEFITS */}
+            <div
+              style={{
+                marginTop: "22px",
+                paddingTop: "18px",
+                borderTop: "1px solid #e5dfd6",
+                display: "grid",
+                gridTemplateColumns: "1fr 1fr",
+                gap: "14px",
+                fontSize: "11.5px",
+                color: "#4d4943",
+              }}
+            >
+              <span>Free Shipping<br /><span style={{ color: "#8a857d" }}>On prepaid orders</span></span>
+              <span>COD Available</span>
+              <span>Easy Size Exchange</span>
+              <span>Dispatch within 24 Hours</span>
             </div>
-          ) : null}
+
+            {/* ACCORDIONS */}
+            <div style={{ marginTop: "20px" }}>
+              <Accordion
+                title="Shipping & Returns"
+                open={openAccordion === "shipping"}
+                onToggle={() =>
+                  setOpenAccordion(openAccordion === "shipping" ? null : "shipping")
+                }
+              >
+                {product.shippingReturns?.trim() || DEFAULT_SHIPPING_RETURNS}
+              </Accordion>
+
+              <Accordion
+                title="Material & Care"
+                open={openAccordion === "material"}
+                onToggle={() =>
+                  setOpenAccordion(openAccordion === "material" ? null : "material")
+                }
+              >
+                {product.materialCare?.trim() || DEFAULT_MATERIAL_CARE}
+              </Accordion>
+
+              <Accordion
+                title="Size Guide"
+                open={openAccordion === "size-guide"}
+                onToggle={() =>
+                  setOpenAccordion(
+                    openAccordion === "size-guide" ? null : "size-guide",
+                  )
+                }
+              >
+                {product.sizeGuideText?.trim() || DEFAULT_SIZE_GUIDE}
+              </Accordion>
+            </div>
+          </aside>
         </div>
       </main>
 
       <Footer />
+
+      {/* FULLSCREEN LIGHTBOX */}
+      {lightboxOpen && images.length > 0 ? (
+        <div
+          role="dialog"
+          aria-modal="true"
+          onClick={closeLightbox}
+          onTouchStart={handleTouchStart}
+          onTouchEnd={handleTouchEnd}
+          style={{
+            position: "fixed",
+            inset: 0,
+            zIndex: 100000,
+            background: "rgba(8,8,8,0.97)",
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: isPhone ? "20px 0" : "40px",
+          }}
+        >
+          <div
+            style={{
+              position: "absolute",
+              top: isPhone ? "16px" : "24px",
+              left: isPhone ? "16px" : "24px",
+              right: isPhone ? "16px" : "24px",
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              color: "#fff",
+              fontSize: "12px",
+              fontWeight: 700,
+              letterSpacing: "1px",
+            }}
+          >
+            <span>
+              {String(activeImageIndex + 1).padStart(2, "0")} /{" "}
+              {String(images.length).padStart(2, "0")}
+            </span>
+
+            <button
+              type="button"
+              onClick={(event) => {
+                event.stopPropagation();
+                closeLightbox();
+              }}
+              aria-label="Close fullscreen view"
+              style={{
+                border: "none",
+                background: "transparent",
+                color: "#fff",
+                cursor: "pointer",
+                display: "flex",
+              }}
+            >
+              <X size={26} />
+            </button>
+          </div>
+
+          <img
+            src={images[activeImageIndex]}
+            alt={`${product.name} fullscreen view ${activeImageIndex + 1}`}
+            onClick={(event) => event.stopPropagation()}
+            style={{
+              maxWidth: isPhone ? "94vw" : "78vw",
+              maxHeight: isPhone ? "70vh" : "76vh",
+              objectFit: "contain",
+            }}
+          />
+
+          {images.length > 1 ? (
+            <>
+              <button
+                type="button"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  goToPrevImage();
+                }}
+                aria-label="Previous image"
+                style={{
+                  position: "absolute",
+                  left: isPhone ? "10px" : "30px",
+                  top: "50%",
+                  transform: "translateY(-50%)",
+                  border: "none",
+                  background: "rgba(255,255,255,0.1)",
+                  color: "#fff",
+                  width: "44px",
+                  height: "44px",
+                  borderRadius: "50%",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  cursor: "pointer",
+                }}
+              >
+                <ChevronLeft size={22} />
+              </button>
+
+              <button
+                type="button"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  goToNextImage();
+                }}
+                aria-label="Next image"
+                style={{
+                  position: "absolute",
+                  right: isPhone ? "10px" : "30px",
+                  top: "50%",
+                  transform: "translateY(-50%)",
+                  border: "none",
+                  background: "rgba(255,255,255,0.1)",
+                  color: "#fff",
+                  width: "44px",
+                  height: "44px",
+                  borderRadius: "50%",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  cursor: "pointer",
+                }}
+              >
+                <ChevronRight size={22} />
+              </button>
+
+              <div
+                onClick={(event) => event.stopPropagation()}
+                style={{
+                  marginTop: "20px",
+                  display: "flex",
+                  gap: "8px",
+                  flexWrap: "wrap",
+                  justifyContent: "center",
+                  maxWidth: "90vw",
+                }}
+              >
+                {images.map((thumbUrl, index) => (
+                  <button
+                    key={index}
+                    type="button"
+                    onClick={() => setActiveImageIndex(index)}
+                    aria-label={`Go to image ${index + 1}`}
+                    style={{
+                      width: "48px",
+                      height: "60px",
+                      padding: 0,
+                      border:
+                        index === activeImageIndex
+                          ? "2px solid #fff"
+                          : "1px solid rgba(255,255,255,0.3)",
+                      opacity: index === activeImageIndex ? 1 : 0.55,
+                      cursor: "pointer",
+                      overflow: "hidden",
+                      background: "transparent",
+                    }}
+                  >
+                    <img
+                      src={thumbUrl}
+                      alt=""
+                      style={{
+                        width: "100%",
+                        height: "100%",
+                        objectFit: "cover",
+                        display: "block",
+                      }}
+                    />
+                  </button>
+                ))}
+              </div>
+            </>
+          ) : null}
+        </div>
+      ) : null}
+
+      <style>{`
+        .jt-gallery-cell .jt-expand-icon {
+          position: absolute;
+          top: 10px;
+          right: 10px;
+          width: 30px;
+          height: 30px;
+          border-radius: 50%;
+          background: rgba(0,0,0,0.35);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          opacity: 0;
+          transition: opacity 200ms ease;
+        }
+
+        .jt-gallery-cell:hover .jt-expand-icon {
+          opacity: 1;
+        }
+
+        .jt-gallery-cell {
+          transition: opacity 200ms ease;
+        }
+
+        .jt-gallery-cell:hover {
+          cursor: zoom-in;
+        }
+      `}</style>
     </>
   );
 }
 
-function BenefitRow({
-  icon,
-  title,
-  subtitle,
-}: {
-  icon: React.ReactNode;
-  title: string;
-  subtitle?: string;
-}) {
-  return (
-    <div
-      style={{
-        display: "grid",
-        gridTemplateColumns: "30px 1fr",
-        gap: "12px",
-        alignItems: "center",
-      }}
-    >
-      <span style={{ color: "#0b0b0b", display: "flex" }}>{icon}</span>
-
-      <div>
-        <p style={{ margin: 0, fontSize: "14px", fontWeight: 700 }}>
-          {title}
-        </p>
-
-        {subtitle ? (
-          <p
-            style={{
-              margin: "2px 0 0",
-              color: "#77808d",
-              fontSize: "13px",
-            }}
-          >
-            {subtitle}
-          </p>
-        ) : null}
-      </div>
-    </div>
-  );
-}
-
-function ThumbnailPlaceholder({
-  index,
-  active,
-  isPhone,
-}: {
-  index: number;
-  active?: boolean;
-  isPhone?: boolean;
-}) {
-  return (
-    <div
-      style={{
-        display: "grid",
-        gridTemplateColumns: isPhone ? "1fr" : "28px 1fr",
-        alignItems: "center",
-        gap: "12px",
-        width: isPhone ? "72px" : "auto",
-      }}
-    >
-      {!isPhone ? (
-        <span
-          style={{
-            color: active ? "#111" : "#9d978f",
-            fontSize: "12px",
-            fontWeight: 800,
-          }}
-        >
-          {String(index + 1).padStart(2, "0")}
-        </span>
-      ) : null}
-
-      <div
-        style={{
-          width: isPhone ? "72px" : "auto",
-          height: isPhone ? "88px" : "94px",
-          borderRadius: "7px",
-          border: active
-            ? "1px solid #111"
-            : "1px solid rgba(17,17,17,0.06)",
-          position: "relative",
-          overflow: "hidden",
-        }}
-      >
-        <ImagePlaceholder text="Image" />
-      </div>
-    </div>
-  );
-}
-
-function ImagePlaceholder({ text }: { text: string }) {
-  return (
-    <div
-      style={{
-        position: "absolute",
-        inset: 0,
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        color: "#918a80",
-        fontSize: "11px",
-        letterSpacing: "5px",
-        textTransform: "uppercase",
-        background:
-          "linear-gradient(180deg, #eee9e0 0%, #dcd4c8 100%)",
-      }}
-    >
-      {text}
-    </div>
-  );
-}
-
-function InfoRow({
+function Accordion({
   title,
   children,
   open,
-  onClick,
+  onToggle,
 }: {
   title: string;
-  children: React.ReactNode;
+  children: string;
   open: boolean;
-  onClick: () => void;
+  onToggle: () => void;
 }) {
   return (
-    <div
-      onClick={onClick}
-      style={{
-        borderTop: "1px solid #ddd5ca",
-        padding: "17px 0",
-        cursor: "pointer",
-      }}
-    >
-      <div
+    <div style={{ borderTop: "1px solid #e5dfd6" }}>
+      <button
+        type="button"
+        onClick={onToggle}
         style={{
+          width: "100%",
+          height: "52px",
+          border: "none",
+          background: "transparent",
           display: "flex",
-          justifyContent: "space-between",
-          gap: "20px",
           alignItems: "center",
+          justifyContent: "space-between",
+          cursor: "pointer",
+          fontSize: "12px",
+          fontWeight: 900,
+          letterSpacing: "0.8px",
+          textTransform: "uppercase",
+          color: "#111",
         }}
       >
-        <span
-          style={{
-            fontSize: "12px",
-            fontWeight: 900,
-            letterSpacing: "1px",
-            textTransform: "uppercase",
-          }}
-        >
-          {title}
-        </span>
-
-        {open ? <Minus size={16} /> : <Plus size={16} />}
-      </div>
+        {title}
+        {open ? <Minus size={15} /> : <Plus size={15} />}
+      </button>
 
       {open ? (
-        <div
+        <p
           style={{
-            marginTop: "14px",
-            color: "#020202",
-            fontSize: "13px",
-            lineHeight: 1.65,
-            whiteSpace: "pre-line",
+            margin: "0 0 18px",
+            fontSize: "12.5px",
+            lineHeight: 1.75,
+            color: "#4d4943",
           }}
         >
           {children}
-        </div>
+        </p>
       ) : null}
     </div>
   );
 }
 
-const quantityButtonStyle: React.CSSProperties = {
-  width: "38px",
-  height: "52px",
+const quantityButtonStyle: CSSProperties = {
+  width: "34px",
+  height: "48px",
   border: "none",
   background: "transparent",
   color: "#111",

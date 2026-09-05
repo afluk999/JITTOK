@@ -12,8 +12,8 @@ type JittokLoadingLogoProps = {
 
 export default function JittokLoadingLogo({
   minHeight = 260,
-  background = "#050505",
-  logoWidth = 138,
+  background = "#ffffff",
+  logoWidth = 450,
   compact = false,
   label = "Loading",
 }: JittokLoadingLogoProps) {
@@ -96,9 +96,9 @@ export default function JittokLoadingLogo({
           background: linear-gradient(
             110deg,
             transparent 35%,
-            rgba(255, 255, 255, 0.08) 43%,
+            rgb(244, 244, 244) 43%,
             rgba(255, 255, 255, 0.92) 50%,
-            rgba(255, 255, 255, 0.1) 57%,
+            rgb(251, 251, 251) 57%,
             transparent 65%
           );
           background-size: 260% 100%;

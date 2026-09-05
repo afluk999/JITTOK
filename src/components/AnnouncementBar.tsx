@@ -12,10 +12,15 @@ export default function AnnouncementBar() {
   return (
     <div
       style={{
+        position: "fixed",
+        top: 0,
+        left: 0,
+        right: 0,
+        zIndex: 1001,
         width: "100%",
         height: "34px",
         overflow: "hidden",
-        background: "#111111",
+        background: "#d12b2b",
         color: "#ffffff",
         display: "flex",
         alignItems: "center",

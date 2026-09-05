@@ -1,6 +1,14 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+  type ChangeEvent,
+  type CSSProperties,
+  type FormEvent,
+  type ReactNode,
+} from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { onAuthStateChanged } from "firebase/auth";
@@ -15,6 +23,11 @@ import {
   type ProductStatus,
 } from "@/lib/productService";
 import {
+  getHomeContent,
+  type CategoryDefinition,
+  type CollectionDefinition,
+} from "@/lib/contentService";
+import {
   ArrowLeft,
   ChevronLeft,
   ChevronRight,
@@ -25,7 +38,7 @@ import {
   Upload,
 } from "lucide-react";
 
-const categories = ["T-Shirts", "Hoodies", "Pants", "Accessories"];
+// categories now loaded dynamically from Firebase — see loadCollectionsList
 
 type NewArrivalRow = "both" | "1" | "2";
 
@@ -162,6 +175,10 @@ export default function NewProductPage() {
   const [sellingPrice, setSellingPrice] = useState("");
   const [originalPrice, setOriginalPrice] = useState("");
   const [description, setDescription] = useState("");
+  const [productDetails, setProductDetails] = useState("");
+  const [shippingReturns, setShippingReturns] = useState("");
+  const [materialCare, setMaterialCare] = useState("");
+  const [sizeGuideText, setSizeGuideText] = useState("");
   const [sizes, setSizes] = useState("S,M,L,XL");
   const [stock, setStock] = useState("10");
   const [status, setStatus] = useState<ProductStatus>("published");
@@ -175,20 +192,33 @@ export default function NewProductPage() {
   const [isFeatured, setIsFeatured] = useState(false);
   const [featuredOrder, setFeaturedOrder] = useState("");
 
+  const [isBestSeller, setIsBestSeller] = useState(false);
+  const [bestSellerOrder, setBestSellerOrder] = useState("");
+
   const [isIconic, setIsIconic] = useState(false);
   const [iconicOrder, setIconicOrder] = useState("");
   const [homepageOrder, setHomepageOrder] = useState("");
+
+  const [collectionTag, setCollectionTag] = useState("");
+  const [collectionOrder, setCollectionOrder] = useState("");
+  const [availableCollections, setAvailableCollections] = useState<
+    CollectionDefinition[]
+  >([]);
+  const [availableCategories, setAvailableCategories] = useState<
+    CategoryDefinition[]
+  >([]);
 
   const [imageItems, setImageItems] = useState<LocalImageItem[]>([]);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       if (!user) {
-        router.replace("/admin/login");
+        router.replace("/admin");
         return;
       }
 
       setCheckingAuth(false);
+      loadCollectionsList();
     });
 
     return () => unsubscribe();
@@ -202,6 +232,16 @@ export default function NewProductPage() {
       urls.clear();
     };
   }, []);
+
+  async function loadCollectionsList() {
+    try {
+      const content = await getHomeContent();
+      setAvailableCollections(content.collectionsList || []);
+      setAvailableCategories(content.categoriesList || []);
+    } catch (error) {
+      console.error("LOAD COLLECTIONS LIST ERROR:", error);
+    }
+  }
 
   function createLocalImageItem(
     file: File,
@@ -227,7 +267,7 @@ export default function NewProductPage() {
     };
   }
 
-  function handleImageChange(event: React.ChangeEvent<HTMLInputElement>) {
+  function handleImageChange(event: ChangeEvent<HTMLInputElement>) {
     const selectedFiles = Array.from(event.target.files || []);
     const remainingSlots = Math.max(0, 5 - imageItems.length);
 
@@ -271,7 +311,7 @@ export default function NewProductPage() {
 
   function replaceImage(
     imageId: string,
-    event: React.ChangeEvent<HTMLInputElement>,
+    event: ChangeEvent<HTMLInputElement>,
   ) {
     const replacementFile = event.target.files?.[0];
 
@@ -455,7 +495,7 @@ export default function NewProductPage() {
     return { imageUrls, imageSettings };
   }
 
-  async function handleSubmit(event: React.FormEvent) {
+  async function handleSubmit(event: FormEvent) {
     event.preventDefault();
 
     const parsedSellingPrice = Number(sellingPrice);
@@ -523,6 +563,10 @@ export default function NewProductPage() {
         originalPrice: parsedOriginalPrice,
 
         description: description.trim(),
+        productDetails: productDetails.trim() || undefined,
+        shippingReturns: shippingReturns.trim() || undefined,
+        materialCare: materialCare.trim() || undefined,
+        sizeGuideText: sizeGuideText.trim() || undefined,
         images: imageUrls,
         imageSettings,
 
@@ -535,20 +579,15 @@ export default function NewProductPage() {
         status: finalStatus,
         badge: finalBadge,
 
-        isNewArrival,
-        newArrivalRow: isNewArrival ? newArrivalRow : "both",
-        newArrivalOrder: isNewArrival
-          ? optionalNumber(newArrivalOrder)
+        isBestSeller,
+        bestSellerOrder: isBestSeller
+          ? optionalNumber(bestSellerOrder)
           : undefined,
 
-        isFeatured,
-        featuredOrder: isFeatured
-          ? optionalNumber(featuredOrder)
+        collection: collectionTag || undefined,
+        collectionOrder: collectionTag
+          ? optionalNumber(collectionOrder)
           : undefined,
-
-        isIconic,
-        iconicOrder: isIconic ? optionalNumber(iconicOrder) : undefined,
-        homepageOrder: optionalNumber(homepageOrder),
       });
 
       alert("Product added successfully!");
@@ -667,9 +706,9 @@ export default function NewProductPage() {
                   onChange={(event) => setCategory(event.target.value)}
                   style={inputStyle}
                 >
-                  {categories.map((item) => (
-                    <option key={item} value={item}>
-                      {item}
+                  {availableCategories.map((item) => (
+                    <option key={item.id} value={item.name}>
+                      {item.name}
                     </option>
                   ))}
                 </select>
@@ -729,6 +768,74 @@ export default function NewProductPage() {
                 style={{
                   ...inputStyle,
                   height: "140px",
+                  paddingTop: "14px",
+                  resize: "vertical",
+                }}
+              />
+            </div>
+
+            <div style={{ marginBottom: "18px" }}>
+              <label style={labelStyle}>
+                Product Details (one bullet point per line)
+              </label>
+
+              <textarea
+                value={productDetails}
+                onChange={(event) => setProductDetails(event.target.value)}
+                placeholder={
+                  "100% COMBED COTTON\nHEAVYWEIGHT 220-240 GSM PREMIUM FABRIC\nOVERSIZED FIT WITH DROP SHOULDER"
+                }
+                style={{
+                  ...inputStyle,
+                  height: "110px",
+                  paddingTop: "14px",
+                  resize: "vertical",
+                }}
+              />
+            </div>
+
+            <div style={{ marginBottom: "18px" }}>
+              <label style={labelStyle}>Shipping & Returns Text</label>
+
+              <textarea
+                value={shippingReturns}
+                onChange={(event) => setShippingReturns(event.target.value)}
+                placeholder="Leave blank to use the default shipping & returns text."
+                style={{
+                  ...inputStyle,
+                  height: "90px",
+                  paddingTop: "14px",
+                  resize: "vertical",
+                }}
+              />
+            </div>
+
+            <div style={{ marginBottom: "18px" }}>
+              <label style={labelStyle}>Material & Care Text</label>
+
+              <textarea
+                value={materialCare}
+                onChange={(event) => setMaterialCare(event.target.value)}
+                placeholder="Leave blank to use the default material & care text."
+                style={{
+                  ...inputStyle,
+                  height: "90px",
+                  paddingTop: "14px",
+                  resize: "vertical",
+                }}
+              />
+            </div>
+
+            <div style={{ marginBottom: "18px" }}>
+              <label style={labelStyle}>Size Guide Text</label>
+
+              <textarea
+                value={sizeGuideText}
+                onChange={(event) => setSizeGuideText(event.target.value)}
+                placeholder="Leave blank to use the default size guide text."
+                style={{
+                  ...inputStyle,
+                  height: "90px",
                   paddingTop: "14px",
                   resize: "vertical",
                 }}
@@ -796,64 +903,24 @@ export default function NewProductPage() {
                 marginBottom: "24px",
               }}
             >
-              <ToggleCard
-                checked={isNewArrival}
-                onChange={setIsNewArrival}
-                label="New Arrival"
-              />
+
 
               <ToggleCard
-                checked={isFeatured}
-                onChange={setIsFeatured}
-                label="Featured"
+                checked={isBestSeller}
+                onChange={setIsBestSeller}
+                label="Best Seller"
               />
 
-              <ToggleCard
-                checked={isIconic}
-                onChange={setIsIconic}
-                label="Iconic Product"
-              />
             </div>
 
-            {isNewArrival ? (
-              <div style={twoColStyle}>
-                <div>
-                  <label style={labelStyle}>New Arrival Display Row</label>
 
-                  <select
-                    value={newArrivalRow}
-                    onChange={(event) =>
-                      setNewArrivalRow(
-                        event.target.value as NewArrivalRow,
-                      )
-                    }
-                    style={inputStyle}
-                  >
-                    {arrivalRows.map((item) => (
-                      <option key={item.value} value={item.value}>
-                        {item.label}
-                      </option>
-                    ))}
-                  </select>
-                </div>
 
-                <Input
-                  label="New Arrival Order"
-                  value={newArrivalOrder}
-                  onChange={setNewArrivalOrder}
-                  placeholder="Optional"
-                  type="number"
-                  min="0"
-                />
-              </div>
-            ) : null}
-
-            {isFeatured ? (
+            {isBestSeller ? (
               <div style={{ marginBottom: "18px" }}>
                 <Input
-                  label="Featured Order"
-                  value={featuredOrder}
-                  onChange={setFeaturedOrder}
+                  label="Best Seller Order"
+                  value={bestSellerOrder}
+                  onChange={setBestSellerOrder}
                   placeholder="Optional"
                   type="number"
                   min="0"
@@ -861,18 +928,48 @@ export default function NewProductPage() {
               </div>
             ) : null}
 
-            {isIconic ? (
-              <div style={{ marginBottom: "22px" }}>
-                <Input
-                  label="Iconic Product Order"
-                  value={iconicOrder}
-                  onChange={setIconicOrder}
-                  placeholder="1, 2 or 3"
-                  type="number"
-                  min="1"
-                />
+
+            <div style={dividerStyle} />
+
+            <SectionTitle>Collection Page</SectionTitle>
+
+            <p style={{ ...helpTextStyle, marginTop: "-8px" }}>
+              Choose which collection page this product should appear on.
+              Leave as "None" if it doesn't belong to a collection page.
+            </p>
+
+            <div style={twoColStyle}>
+              <div>
+                <label style={labelStyle}>Collection</label>
+
+                <select
+                  value={collectionTag}
+                  onChange={(event) => setCollectionTag(event.target.value)}
+                  style={inputStyle}
+                >
+                  <option value="">None</option>
+                  {availableCollections.map((collection) => (
+                    <option key={collection.id} value={collection.slug}>
+                      {collection.name}
+                      {collection.status === "coming-soon"
+                        ? " (Coming Soon)"
+                        : ""}
+                    </option>
+                  ))}
+                </select>
               </div>
-            ) : null}
+
+              {collectionTag ? (
+                <Input
+                  label="Collection Display Order"
+                  value={collectionOrder}
+                  onChange={setCollectionOrder}
+                  placeholder="Optional"
+                  type="number"
+                  min="0"
+                />
+              ) : null}
+            </div>
 
             <button
               type="submit"
@@ -1234,7 +1331,7 @@ export default function NewProductPage() {
   );
 }
 
-function SectionTitle({ children }: { children: React.ReactNode }) {
+function SectionTitle({ children }: { children: ReactNode }) {
   return (
     <h2
       style={{
@@ -1407,7 +1504,7 @@ function IconButton({
   title: string;
   disabled?: boolean;
   onClick: () => void;
-  children: React.ReactNode;
+  children: ReactNode;
 }) {
   return (
     <button
@@ -1433,20 +1530,20 @@ function IconButton({
   );
 }
 
-const twoColStyle: React.CSSProperties = {
+const twoColStyle: CSSProperties = {
   display: "grid",
   gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
   gap: "18px",
   marginBottom: "18px",
 };
 
-const darkTwoColStyle: React.CSSProperties = {
+const darkTwoColStyle: CSSProperties = {
   display: "grid",
   gridTemplateColumns: "repeat(auto-fit, minmax(130px, 1fr))",
   gap: "12px",
 };
 
-const labelStyle: React.CSSProperties = {
+const labelStyle: CSSProperties = {
   display: "block",
   marginBottom: "10px",
   fontSize: "12px",
@@ -1455,7 +1552,7 @@ const labelStyle: React.CSSProperties = {
   textTransform: "uppercase",
 };
 
-const darkLabelStyle: React.CSSProperties = {
+const darkLabelStyle: CSSProperties = {
   display: "block",
   marginBottom: "8px",
   color: "rgba(246,242,235,0.72)",
@@ -1465,7 +1562,7 @@ const darkLabelStyle: React.CSSProperties = {
   textTransform: "uppercase",
 };
 
-const inputStyle: React.CSSProperties = {
+const inputStyle: CSSProperties = {
   width: "100%",
   height: "52px",
   border: "1px solid #d8d0c4",
@@ -1478,7 +1575,7 @@ const inputStyle: React.CSSProperties = {
   boxSizing: "border-box",
 };
 
-const darkInputStyle: React.CSSProperties = {
+const darkInputStyle: CSSProperties = {
   width: "100%",
   height: "42px",
   border: "1px solid rgba(246,242,235,0.18)",
@@ -1491,14 +1588,14 @@ const darkInputStyle: React.CSSProperties = {
   boxSizing: "border-box",
 };
 
-const helpTextStyle: React.CSSProperties = {
+const helpTextStyle: CSSProperties = {
   margin: "9px 0 18px",
   color: "#77736c",
   fontSize: "12px",
   lineHeight: 1.55,
 };
 
-const dividerStyle: React.CSSProperties = {
+const dividerStyle: CSSProperties = {
   height: "1px",
   background: "#ddd5ca",
   margin: "30px 0",

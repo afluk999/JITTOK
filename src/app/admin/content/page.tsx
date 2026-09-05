@@ -12,13 +12,18 @@ import { useRouter } from "next/navigation";
 import { onAuthStateChanged } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import {
+  defaultCategoriesList,
+  defaultCollectionsList,
   defaultSignatureProductDetails,
+  defaultStoryCircles,
   getHomeContent,
   updateHomeContent,
-  type DropBannerContent,
+  type CategoryDefinition,
+  type CollectionDefinition,
   type HomeSectionVisibility,
   type SignatureProductContent,
   type SocialItem,
+  type StoryCircleItem,
 } from "@/lib/contentService";
 import {
   ArrowDown,
@@ -36,26 +41,13 @@ import { signatureProducts } from "@/data/signatureProducts";
 
 const DEFAULT_SECTION_VISIBILITY: HomeSectionVisibility = {
   hero: true,
-  iconicProducts: true,
-  spiderDropBanner: true,
-  newArrivals: true,
   jittokLineup: true,
   editorial: true,
   reels: true,
   customerLove: true,
   brandStatement: true,
   trustStrip: true,
-};
-
-const DEFAULT_DROP_BANNER: DropBannerContent = {
-  enabled: true,
-  desktopImage: "",
-  mobileImage: "",
-  eyebrow: "JITTOK Limited Drop",
-  title: "Spider Drop",
-  description: "",
-  buttonLabel: "Shop the Drop",
-  buttonUrl: "/collections",
+  newArrivals: false
 };
 
 const SECTION_LABELS: Array<{
@@ -63,9 +55,6 @@ const SECTION_LABELS: Array<{
   label: string;
 }> = [
   { key: "hero", label: "Hero Moving Wall" },
-  { key: "iconicProducts", label: "Iconic Products" },
-  { key: "spiderDropBanner", label: "Spider Drop Banner" },
-  { key: "newArrivals", label: "New Arrivals" },
   { key: "jittokLineup", label: "JITTOK Lineup" },
   { key: "editorial", label: "Editorial" },
   { key: "reels", label: "Instagram Reels" },
@@ -122,6 +111,18 @@ function isVideoSource(source: string) {
   );
 }
 
+/*
+ * Revokes any blob preview URLs so re-selecting files repeatedly
+ * doesn't leak memory. Safe to call with an empty array.
+ */
+function revokePreviews(previews: string[]) {
+  previews.filter(Boolean).forEach((preview) => {
+    if (preview.startsWith("blob:")) {
+      URL.revokeObjectURL(preview);
+    }
+  });
+}
+
 export default function AdminContentPage() {
   const router = useRouter();
 
@@ -138,12 +139,8 @@ export default function AdminContentPage() {
       DEFAULT_SECTION_VISIBILITY,
     );
 
-  const [dropBanner, setDropBanner] =
-    useState<DropBannerContent>(DEFAULT_DROP_BANNER);
-
   const [savingSettings, setSavingSettings] = useState(false);
   const [savingVisibility, setSavingVisibility] = useState(false);
-  const [savingBanner, setSavingBanner] = useState(false);
 
   const [heroImages, setHeroImages] = useState<string[]>([]);
   const [heroFiles, setHeroFiles] = useState<File[]>([]);
@@ -185,6 +182,28 @@ export default function AdminContentPage() {
   const [postTitle, setPostTitle] = useState("");
   const [postLink, setPostLink] = useState("");
 
+  const [storyCircles, setStoryCircles] = useState<StoryCircleItem[]>(
+    defaultStoryCircles,
+  );
+  const [storyCircleFiles, setStoryCircleFiles] = useState<
+    Record<string, File[]>
+  >({});
+  const [storyCirclePreviews, setStoryCirclePreviews] = useState<
+    Record<string, string[]>
+  >({});
+  const [savingStoryCircleId, setSavingStoryCircleId] = useState("");
+  const [savingStoryOrder, setSavingStoryOrder] = useState(false);
+
+  const [collectionsList, setCollectionsList] = useState<
+    CollectionDefinition[]
+  >(defaultCollectionsList);
+  const [savingCollectionsList, setSavingCollectionsList] = useState(false);
+
+  const [categoriesList, setCategoriesList] = useState<CategoryDefinition[]>(
+    defaultCategoriesList,
+  );
+  const [savingCategoriesList, setSavingCategoriesList] = useState(false);
+
   const [savingHero, setSavingHero] = useState(false);
   const [savingEditorial, setSavingEditorial] = useState(false);
   const [savingIconic, setSavingIconic] = useState(false);
@@ -197,7 +216,7 @@ export default function AdminContentPage() {
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (!user) {
-        router.push("/admin");
+        router.replace("/admin");
         return;
       }
 
@@ -210,16 +229,14 @@ export default function AdminContentPage() {
 
   useEffect(() => {
     return () => {
-      [
+      revokePreviews([
         ...heroPreviews,
         ...editorialPreviews,
         ...iconicPreviews,
         ...Object.values(signaturePreviews).flat(),
         reelPreview,
         postPreview,
-      ]
-        .filter(Boolean)
-        .forEach((preview) => URL.revokeObjectURL(preview));
+      ]);
     };
   }, [
     editorialPreviews,
@@ -246,11 +263,6 @@ export default function AdminContentPage() {
         ...(content.sectionVisibility || {}),
       });
 
-      setDropBanner({
-        ...DEFAULT_DROP_BANNER,
-        ...(content.dropBanner || {}),
-      });
-
       setHeroImages(content.heroImages || []);
       setEditorialImages(content.editorialImages || []);
       setIconicImages(content.iconicImages || []);
@@ -261,6 +273,21 @@ export default function AdminContentPage() {
       );
       setReelsItems(content.reelsItems || []);
       setInstagramPosts(content.instagramPosts || []);
+      setStoryCircles(
+        content.storyCircles && content.storyCircles.length > 0
+          ? content.storyCircles
+          : defaultStoryCircles,
+      );
+      setCollectionsList(
+        content.collectionsList && content.collectionsList.length > 0
+          ? content.collectionsList
+          : defaultCollectionsList,
+      );
+      setCategoriesList(
+        content.categoriesList && content.categoriesList.length > 0
+          ? content.categoriesList
+          : defaultCategoriesList,
+      );
     } catch (error) {
       console.error("LOAD CONTENT ERROR:", error);
       alert("Failed to load content.");
@@ -269,49 +296,54 @@ export default function AdminContentPage() {
     }
   }
 
+  /*
+   * Uploads all files in parallel instead of one at a time.
+   * If any single upload fails, the whole batch rejects, matching
+   * the previous sequential behaviour (first error stops the save).
+   */
   async function uploadFiles(files: File[]) {
     if (files.length === 0) return [];
 
-    const uploadedUrls: string[] = [];
+    const uploadResults = await Promise.all(
+      files.map(async (file) => {
+        const formData = new FormData();
+        formData.append("file", file);
 
-    for (const file of files) {
-      const formData = new FormData();
-      formData.append("file", file);
+        const response = await fetch("/api/cloudinary-upload", {
+          method: "POST",
+          body: formData,
+        });
 
-      const response = await fetch("/api/cloudinary-upload", {
-        method: "POST",
-        body: formData,
-      });
+        const responseText = await response.text();
 
-      const responseText = await response.text();
+        let data: Record<string, any> = {};
 
-      let data: Record<string, any> = {};
+        try {
+          data = JSON.parse(responseText);
+        } catch {
+          data = { rawResponse: responseText };
+        }
 
-      try {
-        data = JSON.parse(responseText);
-      } catch {
-        data = { rawResponse: responseText };
-      }
+        if (!response.ok) {
+          console.error("CONTENT UPLOAD ERROR:", data);
 
-      if (!response.ok) {
-        console.error("CONTENT UPLOAD ERROR:", data);
+          throw new Error(
+            data?.error ||
+              data?.message ||
+              data?.rawResponse ||
+              "Upload failed.",
+          );
+        }
 
-        throw new Error(
-          data?.error ||
-            data?.message ||
-            data?.rawResponse ||
-            "Upload failed.",
-        );
-      }
+        if (!data.secure_url) {
+          throw new Error("Upload completed without returning a file URL.");
+        }
 
-      if (!data.secure_url) {
-        throw new Error("Upload completed without returning a file URL.");
-      }
+        return data.secure_url as string;
+      }),
+    );
 
-      uploadedUrls.push(data.secure_url);
-    }
-
-    return uploadedUrls;
+    return uploadResults;
   }
 
   async function saveSettings() {
@@ -351,23 +383,6 @@ export default function AdminContentPage() {
     }
   }
 
-  async function saveDropBanner() {
-    try {
-      setSavingBanner(true);
-
-      await updateHomeContent({
-        dropBanner,
-      });
-
-      alert("Drop banner settings saved successfully.");
-    } catch (error: any) {
-      console.error("SAVE BANNER ERROR:", error);
-      alert(error?.message || "Failed to save banner settings.");
-    } finally {
-      setSavingBanner(false);
-    }
-  }
-
   async function saveHero() {
     try {
       setSavingHero(true);
@@ -383,6 +398,7 @@ export default function AdminContentPage() {
       await updateHomeContent({ heroImages: finalImages });
 
       setHeroImages(finalImages);
+      revokePreviews(heroPreviews);
       setHeroFiles([]);
       setHeroPreviews([]);
 
@@ -415,6 +431,7 @@ export default function AdminContentPage() {
       });
 
       setEditorialImages(finalImages);
+      revokePreviews(editorialPreviews);
       setEditorialFiles([]);
       setEditorialPreviews([]);
 
@@ -444,6 +461,7 @@ export default function AdminContentPage() {
       });
 
       setIconicImages(finalImages);
+      revokePreviews(iconicPreviews);
       setIconicFiles([]);
       setIconicPreviews([]);
 
@@ -532,6 +550,8 @@ export default function AdminContentPage() {
 
       setSignatureImages(updatedSignatureImages);
       setSignatureDetails(updatedSignatureDetails);
+
+      revokePreviews(signaturePreviews[slug] || []);
 
       setSignatureFiles((previous) => ({
         ...previous,
@@ -690,9 +710,305 @@ export default function AdminContentPage() {
     }
   }
 
+  function createCircleId() {
+    if (
+      typeof crypto !== "undefined" &&
+      typeof crypto.randomUUID === "function"
+    ) {
+      return crypto.randomUUID();
+    }
+
+    return `circle-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  }
+
+  function addStoryCircle() {
+    const newCircle: StoryCircleItem = {
+      id: createCircleId(),
+      name: "New Circle",
+      slug: "",
+      images: [],
+      comingSoon: true,
+      order: storyCircles.length,
+    };
+
+    setStoryCircles((previous) => [...previous, newCircle]);
+  }
+
+  function updateStoryCircleField(
+    id: string,
+    patch: Partial<StoryCircleItem>,
+  ) {
+    setStoryCircles((previous) =>
+      previous.map((circle) =>
+        circle.id === id ? { ...circle, ...patch } : circle,
+      ),
+    );
+  }
+
+  function removeStoryCircle(id: string) {
+    const confirmed = window.confirm(
+      "Remove this circle from the homepage? This cannot be undone once saved.",
+    );
+
+    if (!confirmed) return;
+
+    revokePreviews(storyCirclePreviews[id] || []);
+
+    setStoryCircles((previous) =>
+      previous
+        .filter((circle) => circle.id !== id)
+        .map((circle, index) => ({ ...circle, order: index })),
+    );
+
+    setStoryCirclePreviews((previous) => {
+      const next = { ...previous };
+      delete next[id];
+      return next;
+    });
+
+    setStoryCircleFiles((previous) => {
+      const next = { ...previous };
+      delete next[id];
+      return next;
+    });
+  }
+
+  function moveStoryCircle(fromIndex: number, toIndex: number) {
+    setStoryCircles((previous) =>
+      moveItem(previous, fromIndex, toIndex).map((circle, index) => ({
+        ...circle,
+        order: index,
+      })),
+    );
+  }
+
+  function handleStoryCircleFileChange(
+    id: string,
+    event: ChangeEvent<HTMLInputElement>,
+  ) {
+    revokePreviews(storyCirclePreviews[id] || []);
+
+    const circle = storyCircles.find((item) => item.id === id);
+    const existingCount = circle?.images.length || 0;
+
+    const files = Array.from(event.target.files || []);
+    const selectedFiles = files.slice(0, Math.max(0, 4 - existingCount));
+
+    setStoryCircleFiles((previous) => ({
+      ...previous,
+      [id]: selectedFiles,
+    }));
+
+    setStoryCirclePreviews((previous) => ({
+      ...previous,
+      [id]: selectedFiles.map((file) => URL.createObjectURL(file)),
+    }));
+
+    event.target.value = "";
+  }
+
+  async function saveStoryCircle(id: string) {
+    try {
+      setSavingStoryCircleId(id);
+
+      const circle = storyCircles.find((item) => item.id === id);
+
+      if (!circle) {
+        throw new Error("Circle not found.");
+      }
+
+      if (!circle.name.trim()) {
+        alert("Please enter a name for this circle.");
+        return;
+      }
+
+      const selectedFiles = storyCircleFiles[id] || [];
+      const uploaded = await uploadFiles(selectedFiles);
+      const finalImages = [...circle.images, ...uploaded].slice(0, 4);
+
+      const finalSlug =
+        circle.slug.trim() ||
+        circle.name.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-");
+
+      const updatedCircles = storyCircles.map((item) =>
+        item.id === id
+          ? { ...item, images: finalImages, slug: finalSlug }
+          : item,
+      );
+
+      await updateHomeContent({ storyCircles: updatedCircles });
+
+      setStoryCircles(updatedCircles);
+      revokePreviews(storyCirclePreviews[id] || []);
+
+      setStoryCircleFiles((previous) => ({ ...previous, [id]: [] }));
+      setStoryCirclePreviews((previous) => ({ ...previous, [id]: [] }));
+
+      alert(`${circle.name} saved successfully.`);
+    } catch (error: any) {
+      console.error("SAVE STORY CIRCLE ERROR:", error);
+      alert(error?.message || "Failed to save this circle.");
+    } finally {
+      setSavingStoryCircleId("");
+    }
+  }
+
+  async function saveStoryCircleOrder() {
+    try {
+      setSavingStoryOrder(true);
+
+      await updateHomeContent({ storyCircles });
+
+      alert("Story circle order saved successfully.");
+    } catch (error: any) {
+      console.error("SAVE STORY ORDER ERROR:", error);
+      alert(error?.message || "Failed to save circle order.");
+    } finally {
+      setSavingStoryOrder(false);
+    }
+  }
+
+  function removeStoryCircleImage(circleId: string, imageIndex: number) {
+    setStoryCircles((previous) =>
+      previous.map((circle) =>
+        circle.id === circleId
+          ? {
+              ...circle,
+              images: circle.images.filter((_, index) => index !== imageIndex),
+            }
+          : circle,
+      ),
+    );
+  }
+
+  function addCollectionDefinition() {
+    const newCollection: CollectionDefinition = {
+      id: createCircleId(),
+      name: "New Collection",
+      slug: "",
+      status: "coming-soon",
+      order: collectionsList.length,
+    };
+
+    setCollectionsList((previous) => [...previous, newCollection]);
+  }
+
+  function updateCollectionDefinition(
+    id: string,
+    patch: Partial<CollectionDefinition>,
+  ) {
+    setCollectionsList((previous) =>
+      previous.map((collection) =>
+        collection.id === id ? { ...collection, ...patch } : collection,
+      ),
+    );
+  }
+
+  function removeCollectionDefinition(id: string) {
+    const confirmed = window.confirm(
+      "Remove this collection? Products already tagged with it will keep the tag, but it will no longer appear as a dropdown option or have a working page.",
+    );
+
+    if (!confirmed) return;
+
+    setCollectionsList((previous) =>
+      previous
+        .filter((collection) => collection.id !== id)
+        .map((collection, index) => ({ ...collection, order: index })),
+    );
+  }
+
+  function moveCollectionDefinition(fromIndex: number, toIndex: number) {
+    setCollectionsList((previous) =>
+      moveItem(previous, fromIndex, toIndex).map((collection, index) => ({
+        ...collection,
+        order: index,
+      })),
+    );
+  }
+
+  async function saveCollectionsList() {
+    try {
+      setSavingCollectionsList(true);
+
+      const cleanedList = collectionsList.map((collection) => ({
+        ...collection,
+        slug:
+          collection.slug.trim() ||
+          collection.name.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-"),
+      }));
+
+      await updateHomeContent({ collectionsList: cleanedList });
+
+      setCollectionsList(cleanedList);
+      alert("Collections list saved successfully.");
+    } catch (error: any) {
+      console.error("SAVE COLLECTIONS LIST ERROR:", error);
+      alert(error?.message || "Failed to save collections list.");
+    } finally {
+      setSavingCollectionsList(false);
+    }
+  }
+
+  function addCategoryDefinition() {
+    const newCategory: CategoryDefinition = {
+      id: createCircleId(),
+      name: "New Category",
+      order: categoriesList.length,
+    };
+
+    setCategoriesList((previous) => [...previous, newCategory]);
+  }
+
+  function updateCategoryDefinition(id: string, name: string) {
+    setCategoriesList((previous) =>
+      previous.map((category) =>
+        category.id === id ? { ...category, name } : category,
+      ),
+    );
+  }
+
+  function removeCategoryDefinition(id: string) {
+    const confirmed = window.confirm(
+      "Remove this category? Products already tagged with it will keep the tag as plain text.",
+    );
+
+    if (!confirmed) return;
+
+    setCategoriesList((previous) =>
+      previous
+        .filter((category) => category.id !== id)
+        .map((category, index) => ({ ...category, order: index })),
+    );
+  }
+
+  function moveCategoryDefinition(fromIndex: number, toIndex: number) {
+    setCategoriesList((previous) =>
+      moveItem(previous, fromIndex, toIndex).map((category, index) => ({
+        ...category,
+        order: index,
+      })),
+    );
+  }
+
+  async function saveCategoriesList() {
+    try {
+      setSavingCategoriesList(true);
+
+      await updateHomeContent({ categoriesList });
+
+      alert("Categories list saved successfully.");
+    } catch (error: any) {
+      console.error("SAVE CATEGORIES LIST ERROR:", error);
+      alert(error?.message || "Failed to save categories list.");
+    } finally {
+      setSavingCategoriesList(false);
+    }
+  }
+
   function clearReelDraft() {
     if (reelPreview) {
-      URL.revokeObjectURL(reelPreview);
+      revokePreviews([reelPreview]);
     }
 
     setReelFile(null);
@@ -705,7 +1021,7 @@ export default function AdminContentPage() {
 
   function clearPostDraft() {
     if (postPreview) {
-      URL.revokeObjectURL(postPreview);
+      revokePreviews([postPreview]);
     }
 
     setPostFile(null);
@@ -718,9 +1034,14 @@ export default function AdminContentPage() {
     event: ChangeEvent<HTMLInputElement>,
     existingCount: number,
     maxCount: number,
+    previousPreviews: string[],
     setFiles: (files: File[]) => void,
     setPreviews: (previews: string[]) => void,
   ) {
+    // Revoke any previews from a prior selection before replacing them,
+    // so repeatedly picking files doesn't leak blob URLs.
+    revokePreviews(previousPreviews);
+
     const files = Array.from(event.target.files || []);
     const selectedFiles = files.slice(
       0,
@@ -739,6 +1060,9 @@ export default function AdminContentPage() {
     slug: string,
     event: ChangeEvent<HTMLInputElement>,
   ) {
+    // Revoke this slug's previous previews before replacing them.
+    revokePreviews(signaturePreviews[slug] || []);
+
     const files = Array.from(event.target.files || []);
     const existingCount = signatureImages[slug]?.length || 0;
     const selectedFiles = files.slice(
@@ -763,12 +1087,18 @@ export default function AdminContentPage() {
 
   function handleSingleFileChange(
     event: ChangeEvent<HTMLInputElement>,
+    previousPreview: string,
     setFile: (file: File | null) => void,
     setPreview: (preview: string) => void,
   ) {
     const file = event.target.files?.[0];
 
     if (!file) return;
+
+    // Revoke the previously selected preview, if any, before replacing it.
+    if (previousPreview) {
+      revokePreviews([previousPreview]);
+    }
 
     setFile(file);
     setPreview(URL.createObjectURL(file));
@@ -810,9 +1140,15 @@ export default function AdminContentPage() {
             <h1 style={titleStyle}>Content Manager</h1>
           </div>
 
-          <Link href="/" target="_blank" style={outlineButtonStyle}>
-            View Site
-          </Link>
+          <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
+            <Link href="/admin/dashboard" style={outlineButtonStyle}>
+              Dashboard
+            </Link>
+
+            <Link href="/" target="_blank" style={outlineButtonStyle}>
+              View Site
+            </Link>
+          </div>
         </header>
 
         <SettingsBlock
@@ -844,17 +1180,287 @@ export default function AdminContentPage() {
 
         <Spacer />
 
-        <DropBannerBlock
-          value={dropBanner}
-          onChange={(field, value) =>
-            setDropBanner((previous) => ({
-              ...previous,
-              [field]: value,
-            }))
-          }
-          onSave={saveDropBanner}
-          saving={savingBanner}
-        />
+        <section style={signatureHeadingStyle}>
+          <p style={signatureEyebrowStyle}>Homepage Story Row</p>
+
+          <h2 style={signatureTitleStyle}>Story Circles Manager</h2>
+
+          <p style={signatureTextStyle}>
+            Add, remove, and reorder the story circles shown on the
+            homepage. Each circle can have up to 4 images that cycle
+            automatically. Mark a circle "Coming Soon" to show a
+            blurred preview and loading spinner instead of a working
+            link.
+          </p>
+
+          <button
+            type="button"
+            onClick={addStoryCircle}
+            style={{ ...ghostButtonStyle, marginTop: "20px" }}
+          >
+            <Plus size={16} />
+            Add New Circle
+          </button>
+
+          <button
+            type="button"
+            onClick={saveStoryCircleOrder}
+            disabled={savingStoryOrder}
+            style={{
+              ...ghostButtonStyle,
+              marginTop: "12px",
+              background: "rgba(37,211,102,0.12)",
+            }}
+          >
+            <Save size={16} />
+            {savingStoryOrder ? "Saving Order..." : "Save Circle Order"}
+          </button>
+        </section>
+
+        {storyCircles.map((circle, index) => (
+          <div key={circle.id}>
+            <StoryCircleManager
+              circle={circle}
+              index={index}
+              total={storyCircles.length}
+              previewImages={storyCirclePreviews[circle.id] || []}
+              onChange={(patch) =>
+                updateStoryCircleField(circle.id, patch)
+              }
+              onFileChange={(event) =>
+                handleStoryCircleFileChange(circle.id, event)
+              }
+              onRemoveExistingImage={(imageIndex) =>
+                removeStoryCircleImage(circle.id, imageIndex)
+              }
+              onMoveUp={() => moveStoryCircle(index, index - 1)}
+              onMoveDown={() => moveStoryCircle(index, index + 1)}
+              onRemoveCircle={() => removeStoryCircle(circle.id)}
+              onSave={() => saveStoryCircle(circle.id)}
+              saving={savingStoryCircleId === circle.id}
+            />
+
+            {index < storyCircles.length - 1 ? <Spacer /> : null}
+          </div>
+        ))}
+
+        <Spacer />
+
+        <section style={signatureHeadingStyle}>
+          <p style={signatureEyebrowStyle}>Product Form Dropdown</p>
+
+          <h2 style={signatureTitleStyle}>Manage Collections</h2>
+
+          <p style={signatureTextStyle}>
+            This list controls the "Collection" dropdown on the Add/Edit
+            Product pages, and the actual /collections/[slug] page for
+            each one. Mark a collection "Live" for a real product grid,
+            or "Coming Soon" for a placeholder page. Add a new one here
+            and it appears everywhere automatically — no code changes.
+          </p>
+
+          <button
+            type="button"
+            onClick={addCollectionDefinition}
+            style={{ ...ghostButtonStyle, marginTop: "20px" }}
+          >
+            <Plus size={16} />
+            Add New Collection
+          </button>
+
+          <button
+            type="button"
+            onClick={saveCollectionsList}
+            disabled={savingCollectionsList}
+            style={{
+              ...ghostButtonStyle,
+              marginTop: "12px",
+              background: "rgba(37,211,102,0.12)",
+            }}
+          >
+            <Save size={16} />
+            {savingCollectionsList ? "Saving..." : "Save Collections List"}
+          </button>
+        </section>
+
+        <section style={previewPanelStyle}>
+          <div style={{ display: "grid", gap: "10px" }}>
+            {collectionsList.map((collection, index) => (
+              <div
+                key={collection.id}
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "1fr 1fr auto auto auto auto",
+                  gap: "10px",
+                  alignItems: "center",
+                  background: "#ffffff",
+                  border: "1px solid #e5ded4",
+                  padding: "12px",
+                }}
+              >
+                <input
+                  value={collection.name}
+                  onChange={(event) =>
+                    updateCollectionDefinition(collection.id, {
+                      name: event.target.value,
+                    })
+                  }
+                  placeholder="Collection name"
+                  style={{ ...inputStyle, marginBottom: 0 }}
+                />
+
+                <input
+                  value={collection.slug}
+                  onChange={(event) =>
+                    updateCollectionDefinition(collection.id, {
+                      slug: event.target.value,
+                    })
+                  }
+                  placeholder="url-slug (auto if blank)"
+                  style={{ ...inputStyle, marginBottom: 0 }}
+                />
+
+                <button
+                  type="button"
+                  onClick={() =>
+                    updateCollectionDefinition(collection.id, {
+                      status:
+                        collection.status === "live"
+                          ? "coming-soon"
+                          : "live",
+                    })
+                  }
+                  style={{
+                    ...smallControlButton,
+                    background:
+                      collection.status === "live"
+                        ? "#dfe9dd"
+                        : "#eee5cc",
+                  }}
+                >
+                  {collection.status === "live" ? "Live" : "Coming Soon"}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => moveCollectionDefinition(index, index - 1)}
+                  disabled={index === 0}
+                  style={smallControlButton}
+                >
+                  <ArrowUp size={14} />
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => moveCollectionDefinition(index, index + 1)}
+                  disabled={index === collectionsList.length - 1}
+                  style={smallControlButton}
+                >
+                  <ArrowDown size={14} />
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => removeCollectionDefinition(collection.id)}
+                  style={smallControlButton}
+                >
+                  <X size={14} />
+                </button>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        <Spacer />
+
+        <section style={signatureHeadingStyle}>
+          <p style={signatureEyebrowStyle}>Product Form Dropdown</p>
+
+          <h2 style={signatureTitleStyle}>Manage Categories</h2>
+
+          <p style={signatureTextStyle}>
+            This list controls the "Category" dropdown on the Add/Edit
+            Product pages (T-Shirts, Hoodies, etc). Add a new one here
+            and it appears in the dropdown automatically.
+          </p>
+
+          <button
+            type="button"
+            onClick={addCategoryDefinition}
+            style={{ ...ghostButtonStyle, marginTop: "20px" }}
+          >
+            <Plus size={16} />
+            Add New Category
+          </button>
+
+          <button
+            type="button"
+            onClick={saveCategoriesList}
+            disabled={savingCategoriesList}
+            style={{
+              ...ghostButtonStyle,
+              marginTop: "12px",
+              background: "rgba(37,211,102,0.12)",
+            }}
+          >
+            <Save size={16} />
+            {savingCategoriesList ? "Saving..." : "Save Categories List"}
+          </button>
+        </section>
+
+        <section style={previewPanelStyle}>
+          <div style={{ display: "grid", gap: "10px" }}>
+            {categoriesList.map((category, index) => (
+              <div
+                key={category.id}
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "1fr auto auto auto",
+                  gap: "10px",
+                  alignItems: "center",
+                  background: "#ffffff",
+                  border: "1px solid #e5ded4",
+                  padding: "12px",
+                }}
+              >
+                <input
+                  value={category.name}
+                  onChange={(event) =>
+                    updateCategoryDefinition(category.id, event.target.value)
+                  }
+                  placeholder="Category name"
+                  style={{ ...inputStyle, marginBottom: 0 }}
+                />
+
+                <button
+                  type="button"
+                  onClick={() => moveCategoryDefinition(index, index - 1)}
+                  disabled={index === 0}
+                  style={smallControlButton}
+                >
+                  <ArrowUp size={14} />
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => moveCategoryDefinition(index, index + 1)}
+                  disabled={index === categoriesList.length - 1}
+                  style={smallControlButton}
+                >
+                  <ArrowDown size={14} />
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => removeCategoryDefinition(category.id)}
+                  style={smallControlButton}
+                >
+                  <X size={14} />
+                </button>
+              </div>
+            ))}
+          </div>
+        </section>
 
         <Spacer />
 
@@ -871,6 +1477,7 @@ export default function AdminContentPage() {
               event,
               heroImages.length,
               12,
+              heroPreviews,
               setHeroFiles,
               setHeroPreviews,
             )
@@ -886,6 +1493,7 @@ export default function AdminContentPage() {
             )
           }
           onClearSelected={() => {
+            revokePreviews(heroPreviews);
             setHeroFiles([]);
             setHeroPreviews([]);
           }}
@@ -909,6 +1517,7 @@ export default function AdminContentPage() {
               event,
               iconicImages.length,
               3,
+              iconicPreviews,
               setIconicFiles,
               setIconicPreviews,
             )
@@ -924,6 +1533,7 @@ export default function AdminContentPage() {
             )
           }
           onClearSelected={() => {
+            revokePreviews(iconicPreviews);
             setIconicFiles([]);
             setIconicPreviews([]);
           }}
@@ -946,8 +1556,7 @@ export default function AdminContentPage() {
           <p style={signatureTextStyle}>
             Edit each Signature product’s name, price, description,
             sizes, stock, display order and 1–5 image gallery. These
-            products remain separate from New Arrivals and Iconic
-            products.
+            products remain separate from Iconic products.
           </p>
         </section>
 
@@ -1006,6 +1615,10 @@ export default function AdminContentPage() {
                   }))
                 }
                 onClearSelected={() => {
+                  revokePreviews(
+                    signaturePreviews[fallbackProduct.slug] || [],
+                  );
+
                   setSignatureFiles((previous) => ({
                     ...previous,
                     [fallbackProduct.slug]: [],
@@ -1047,6 +1660,7 @@ export default function AdminContentPage() {
               event,
               editorialImages.length,
               6,
+              editorialPreviews,
               setEditorialFiles,
               setEditorialPreviews,
             )
@@ -1062,6 +1676,7 @@ export default function AdminContentPage() {
             )
           }
           onClearSelected={() => {
+            revokePreviews(editorialPreviews);
             setEditorialFiles([]);
             setEditorialPreviews([]);
           }}
@@ -1114,6 +1729,7 @@ export default function AdminContentPage() {
           onFileChange={(event) =>
             handleSingleFileChange(
               event,
+              reelPreview,
               setReelFile,
               setReelPreview,
             )
@@ -1181,6 +1797,7 @@ export default function AdminContentPage() {
           onFileChange={(event) =>
             handleSingleFileChange(
               event,
+              postPreview,
               setPostFile,
               setPostPreview,
             )
@@ -1474,124 +2091,6 @@ function VisibilityBlock({
   );
 }
 
-function DropBannerBlock({
-  value,
-  onChange,
-  onSave,
-  saving,
-}: {
-  value: DropBannerContent;
-  onChange: <K extends keyof DropBannerContent>(
-    field: K,
-    value: DropBannerContent[K],
-  ) => void;
-  onSave: () => void;
-  saving: boolean;
-}) {
-  return (
-    <section className="adminSectionGrid">
-      <aside style={darkPanelStyle}>
-        <h2 style={blockTitleStyle}>Drop Banner</h2>
-        <p style={blockTextStyle}>
-          Manage the Spider Drop banner content and its destination.
-        </p>
-
-        <button
-          type="button"
-          onClick={() =>
-            onChange("enabled", !value.enabled)
-          }
-          style={ghostButtonStyle}
-        >
-          {value.enabled ? (
-            <Eye size={16} />
-          ) : (
-            <EyeOff size={16} />
-          )}
-          {value.enabled ? "Banner Enabled" : "Banner Hidden"}
-        </button>
-
-        <button
-          type="button"
-          onClick={onSave}
-          disabled={saving}
-          style={lightButtonStyle}
-        >
-          <Save size={16} />
-          {saving ? "Saving..." : "Save Banner"}
-        </button>
-      </aside>
-
-      <section style={previewPanelStyle}>
-        <div style={twoColStyle}>
-          <Field
-            label="Eyebrow"
-            value={value.eyebrow}
-            onChange={(text) =>
-              onChange("eyebrow", text)
-            }
-          />
-
-          <Field
-            label="Title"
-            value={value.title}
-            onChange={(text) =>
-              onChange("title", text)
-            }
-          />
-        </div>
-
-        <label style={labelStyle}>Description</label>
-        <textarea
-          value={value.description}
-          onChange={(event) =>
-            onChange("description", event.target.value)
-          }
-          style={{
-            ...inputStyle,
-            minHeight: "90px",
-            paddingTop: "14px",
-          }}
-        />
-
-        <div style={twoColStyle}>
-          <Field
-            label="Button Label"
-            value={value.buttonLabel}
-            onChange={(text) =>
-              onChange("buttonLabel", text)
-            }
-          />
-
-          <Field
-            label="Button URL"
-            value={value.buttonUrl}
-            onChange={(text) =>
-              onChange("buttonUrl", text)
-            }
-          />
-        </div>
-
-        <Field
-          label="Desktop Image URL"
-          value={value.desktopImage}
-          onChange={(text) =>
-            onChange("desktopImage", text)
-          }
-        />
-
-        <Field
-          label="Mobile Image URL"
-          value={value.mobileImage}
-          onChange={(text) =>
-            onChange("mobileImage", text)
-          }
-        />
-      </section>
-    </section>
-  );
-}
-
 function SignatureProductManager({
   value,
   existingImages,
@@ -1802,6 +2301,157 @@ function SignatureProductManager({
           previewImages={previewImages}
           onRemoveExisting={onRemoveExisting}
           onMoveExisting={onMoveExisting}
+          embedded
+        />
+      </section>
+    </section>
+  );
+}
+
+function StoryCircleManager({
+  circle,
+  index,
+  total,
+  previewImages,
+  onChange,
+  onFileChange,
+  onRemoveExistingImage,
+  onMoveUp,
+  onMoveDown,
+  onRemoveCircle,
+  onSave,
+  saving,
+}: {
+  circle: StoryCircleItem;
+  index: number;
+  total: number;
+  previewImages: string[];
+  onChange: (patch: Partial<StoryCircleItem>) => void;
+  onFileChange: (event: ChangeEvent<HTMLInputElement>) => void;
+  onRemoveExistingImage: (imageIndex: number) => void;
+  onMoveUp: () => void;
+  onMoveDown: () => void;
+  onRemoveCircle: () => void;
+  onSave: () => void;
+  saving: boolean;
+}) {
+  return (
+    <section className="adminSectionGrid">
+      <aside style={darkPanelStyle}>
+        <p style={signatureCardEyebrowStyle}>
+          Circle {index + 1} of {total}
+        </p>
+
+        <h2 style={blockTitleStyle}>{circle.name || "Untitled"}</h2>
+
+        <div
+          style={{
+            display: "flex",
+            gap: "8px",
+            flexWrap: "wrap",
+            marginBottom: "18px",
+          }}
+        >
+          <button
+            type="button"
+            onClick={onMoveUp}
+            disabled={index === 0}
+            style={smallControlButton}
+          >
+            <ArrowUp size={14} />
+            Move Up
+          </button>
+
+          <button
+            type="button"
+            onClick={onMoveDown}
+            disabled={index === total - 1}
+            style={smallControlButton}
+          >
+            <ArrowDown size={14} />
+            Move Down
+          </button>
+
+          <button
+            type="button"
+            onClick={onRemoveCircle}
+            style={{
+              ...smallControlButton,
+              background: "rgba(200,80,70,0.15)",
+              color: "#f6f2eb",
+            }}
+          >
+            <X size={14} />
+            Remove Circle
+          </button>
+        </div>
+
+        <button
+          type="button"
+          onClick={() => onChange({ comingSoon: !circle.comingSoon })}
+          style={{
+            ...ghostButtonStyle,
+            marginTop: 0,
+            background: circle.comingSoon
+              ? "rgba(255,193,7,0.15)"
+              : "rgba(37,211,102,0.12)",
+          }}
+        >
+          {circle.comingSoon ? <EyeOff size={16} /> : <Eye size={16} />}
+          {circle.comingSoon ? "Coming Soon (Locked)" : "Live (Clickable)"}
+        </button>
+
+        <label style={uploadBoxStyle}>
+          <Upload size={30} strokeWidth={1.5} />
+
+          <span style={uploadTitleStyle}>Add Circle Images</span>
+
+          <span style={{ fontSize: "13px" }}>
+            {circle.images.length}/4 saved
+          </span>
+
+          <input
+            type="file"
+            multiple
+            accept="image/png,image/jpeg,image/jpg,image/webp"
+            onChange={onFileChange}
+            style={{ display: "none" }}
+          />
+        </label>
+
+        <button
+          type="button"
+          onClick={onSave}
+          disabled={saving}
+          style={lightButtonStyle}
+        >
+          <Save size={16} />
+          {saving ? "Saving..." : "Save Circle"}
+        </button>
+      </aside>
+
+      <section style={previewPanelStyle}>
+        <div style={twoColStyle}>
+          <Field
+            label="Circle Name"
+            value={circle.name}
+            onChange={(name) => onChange({ name })}
+          />
+
+          <Field
+            label="Collection Slug (optional — auto-generated if blank)"
+            value={circle.slug}
+            onChange={(slug) => onChange({ slug })}
+          />
+        </div>
+
+        <label style={labelStyle}>Circle Images</label>
+
+        <GalleryPreview
+          existingImages={circle.images}
+          previewImages={previewImages}
+          onRemoveExisting={onRemoveExistingImage}
+          onMoveExisting={() => {}}
           embedded
         />
       </section>

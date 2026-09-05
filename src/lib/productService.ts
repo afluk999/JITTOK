@@ -86,16 +86,34 @@ export type FirebaseProduct = {
   status?: ProductStatus;
   badge?: ProductBadge;
 
-  isNewArrival: boolean;
-  isFeatured: boolean;
-  isIconic?: boolean;
+  /*
+   * Homepage row toggles — a product can appear on either or both
+   * of these sections, independent of Featured/New Arrival/Collection.
+   */
+  isBestSeller?: boolean;
 
-  newArrivalRow?: "both" | "1" | "2";
+  /*
+   * Which collection page this product belongs to
+   * (e.g. "ringer", "raglan-half", "raglan-full", "lovely").
+   * Leave undefined for products not shown on a collection page.
+   */
+  collection?: string;
+  collectionOrder?: number;
+
+  /*
+   * Admin-editable text blocks shown on the product page.
+   * productDetails: one bullet point per line.
+   * The other three power the collapsible accordions.
+   * All optional — the product page falls back to sensible
+   * default text when these are left blank.
+   */
+  productDetails?: string;
+  shippingReturns?: string;
+  materialCare?: string;
+  sizeGuideText?: string;
 
   homepageOrder?: number;
-  newArrivalOrder?: number;
-  featuredOrder?: number;
-  iconicOrder?: number;
+  bestSellerOrder?: number;
 
   createdAt?: unknown;
   updatedAt?: unknown;
@@ -209,12 +227,13 @@ export async function getProducts() {
 }
 
 /*
- * Gets public New Arrival products.
+ * Gets public products belonging to a specific collection page
+ * (e.g. "ringer", "raglan-half", "raglan-full", "lovely").
  */
-export async function getNewArrivalProducts() {
+export async function getProductsByCollection(collectionSlug: string) {
   const productsQuery = query(
     productsCollection,
-    where("isNewArrival", "==", true),
+    where("collection", "==", collectionSlug),
     orderBy("createdAt", "desc"),
   );
 
@@ -230,18 +249,18 @@ export async function getNewArrivalProducts() {
     .filter(isPublicProduct)
     .sort(
       (firstProduct, secondProduct) =>
-        (firstProduct.newArrivalOrder ?? 999) -
-        (secondProduct.newArrivalOrder ?? 999),
+        (firstProduct.collectionOrder ?? 999) -
+        (secondProduct.collectionOrder ?? 999),
     );
 }
 
 /*
- * Gets public Featured products.
+ * Gets public Best Seller products for the homepage row.
  */
-export async function getFeaturedProducts() {
+export async function getBestSellerProducts() {
   const productsQuery = query(
     productsCollection,
-    where("isFeatured", "==", true),
+    where("isBestSeller", "==", true),
     orderBy("createdAt", "desc"),
   );
 
@@ -257,35 +276,8 @@ export async function getFeaturedProducts() {
     .filter(isPublicProduct)
     .sort(
       (firstProduct, secondProduct) =>
-        (firstProduct.featuredOrder ?? 999) -
-        (secondProduct.featuredOrder ?? 999),
-    );
-}
-
-/*
- * Gets public Iconic products.
- */
-export async function getIconicProducts() {
-  const productsQuery = query(
-    productsCollection,
-    where("isIconic", "==", true),
-    orderBy("createdAt", "desc"),
-  );
-
-  const snapshot = await getDocs(productsQuery);
-
-  return snapshot.docs
-    .map((item) =>
-      normaliseProduct({
-        id: item.id,
-        ...item.data(),
-      } as FirebaseProduct),
-    )
-    .filter(isPublicProduct)
-    .sort(
-      (firstProduct, secondProduct) =>
-        (firstProduct.iconicOrder ?? 999) -
-        (secondProduct.iconicOrder ?? 999),
+        (firstProduct.bestSellerOrder ?? 999) -
+        (secondProduct.bestSellerOrder ?? 999),
     );
 }
 
@@ -355,7 +347,7 @@ export async function createProduct(
     product.status ?? "published";
 
   /*
-   * Removes featuredOrder, iconicOrder and other optional
+   * Removes bestSellerOrder, collectionOrder and other optional
    * values when they are undefined.
    */
   const cleanProduct = removeUndefinedFields(

@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
-import { useCart } from "@/context/CartContext";
+import { useCart, getProductId } from "@/context/CartContext";
 import { getHomeContent } from "@/lib/contentService";
 import { getProductSellingPrice } from "@/lib/productService";
 import { Minus, Plus, Trash2, ShoppingBag, ArrowLeft } from "lucide-react";
@@ -61,7 +61,7 @@ export default function CartPage() {
     whatsappNumber.replace(/\D/g, "") || "919605300701";
 
   const calculatedSubtotal = cartItems.reduce((sum, item) => {
-    const unitPrice = getProductSellingPrice(item.product as any);
+    const unitPrice = getProductSellingPrice(item.product);
     return sum + unitPrice * item.quantity;
   }, 0);
 
@@ -73,16 +73,14 @@ export default function CartPage() {
       return;
     }
 
-    const unavailableItem = cartItems.find(
-      (item) => {
-        const product = item.product as any;
+    const unavailableItem = cartItems.find((item) => {
+      const product = item.product;
 
-        return (
-          product.status === "sold-out" ||
-          Number(product.stock || 0) <= 0
-        );
-      },
-    );
+      return (
+        product.status === "sold-out" ||
+        Number(product.stock || 0) <= 0
+      );
+    });
 
     if (unavailableItem) {
       alert(
@@ -91,20 +89,18 @@ export default function CartPage() {
       return;
     }
 
-    const overStockItem = cartItems.find(
-      (item) => {
-        const product = item.product as any;
+    const overStockItem = cartItems.find((item) => {
+      const product = item.product;
 
-        return (
-          Number(product.stock || 0) > 0 &&
-          item.quantity > Number(product.stock)
-        );
-      },
-    );
+      return (
+        Number(product.stock || 0) > 0 &&
+        item.quantity > Number(product.stock)
+      );
+    });
 
     if (overStockItem) {
       alert(
-        `Only ${(overStockItem.product as any).stock} item(s) of ${overStockItem.product.name} are available.`,
+        `Only ${overStockItem.product.stock} item(s) of ${overStockItem.product.name} are available.`,
       );
       return;
     }
@@ -116,7 +112,7 @@ export default function CartPage() {
 
     const itemLines = cartItems
       .map((item, index) => {
-        const unitPrice = getProductSellingPrice(item.product as any);
+        const unitPrice = getProductSellingPrice(item.product);
         const lineTotal = unitPrice * item.quantity;
         const productUrl = `${window.location.origin}/product/${item.product.slug}`;
 
@@ -166,7 +162,7 @@ Please confirm product availability, delivery details, payment method, and the f
         variant: item.product.variant,
         size: item.size,
         quantity: item.quantity,
-        unitPrice: getProductSellingPrice(item.product as any),
+        unitPrice: getProductSellingPrice(item.product),
       })),
       subtotal: calculatedSubtotal,
       shipping,
@@ -341,10 +337,14 @@ Please confirm product availability, delivery details, payment method, and the f
               <div style={{ display: "grid", gap: "14px" }}>
                 {cartItems.map((item) => {
                   const image = item.product.images?.[0];
+                  const productId = getProductId(item.product);
+                  const stockLimit = Number(item.product.stock || 0);
+                  const atStockLimit =
+                    stockLimit > 0 && item.quantity >= stockLimit;
 
                   return (
                     <article
-                      key={`${item.product.slug}-${item.size}`}
+                      key={`${productId}-${item.size}`}
                       style={{
                         background: "#f2eee7",
                         border: "1px solid #e5ded4",
@@ -415,7 +415,7 @@ Please confirm product availability, delivery details, payment method, and the f
                         >
                           ₹
                           {(
-                            getProductSellingPrice(item.product as any) *
+                            getProductSellingPrice(item.product) *
                             item.quantity
                           ).toLocaleString("en-IN")}
                           .00
@@ -430,7 +430,7 @@ Please confirm product availability, delivery details, payment method, and the f
                         >
                           <button
                             onClick={() =>
-                              decreaseQuantity(item.product.slug, item.size)
+                              decreaseQuantity(productId, item.size)
                             }
                             style={qtyButtonStyle}
                           >
@@ -449,28 +449,16 @@ Please confirm product availability, delivery details, payment method, and the f
 
                           <button
                             type="button"
-                            disabled={
-                              Number((item.product as any).stock || 0) > 0 &&
-                              item.quantity >=
-                                Number((item.product as any).stock)
-                            }
+                            disabled={atStockLimit}
                             onClick={() =>
-                              increaseQuantity(item.product.slug, item.size)
+                              increaseQuantity(productId, item.size)
                             }
                             style={{
                               ...qtyButtonStyle,
-                              cursor:
-                                Number((item.product as any).stock || 0) > 0 &&
-                                item.quantity >=
-                                  Number((item.product as any).stock)
-                                  ? "not-allowed"
-                                  : "pointer",
-                              opacity:
-                                Number((item.product as any).stock || 0) > 0 &&
-                                item.quantity >=
-                                  Number((item.product as any).stock)
-                                  ? 0.45
-                                  : 1,
+                              cursor: atStockLimit
+                                ? "not-allowed"
+                                : "pointer",
+                              opacity: atStockLimit ? 0.45 : 1,
                             }}
                           >
                             <Plus size={14} />
@@ -478,7 +466,7 @@ Please confirm product availability, delivery details, payment method, and the f
 
                           <button
                             onClick={() =>
-                              removeFromCart(item.product.slug, item.size)
+                              removeFromCart(productId, item.size)
                             }
                             style={{
                               ...qtyButtonStyle,

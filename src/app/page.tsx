@@ -1,30 +1,21 @@
-﻿import Navbar from "@/components/Navbar";
-import HeroWall from "@/components/HeroWall";
-import IconicProductsCurve from "@/components/IconicProductsCurve";
-import NewArrivals from "@/components/NewArrivals";
-import SpiderDropBanner from "@/components/SpiderDropBanner";
-import { JittokLineup } from "@/components/JittokLineup";
-import Editorial from "@/components/Editorial";
+﻿import HeroWall from "@/components/HeroWall";
+import BestSellers from "@/components/Bestsellers";
+import AccessoriesSection from "@/components/Accessoriesection";
 import ReelsSection from "@/components/ReelsSection";
 import CustomerLoveSection from "@/components/CustomerLoveSection";
 import BrandStatement from "@/components/BrandStatement";
 import TrustStrip from "@/components/TrustStrip";
 import Footer from "@/components/Footer";
+import Story from "@/components/story";
 
 export default function Home() {
   return (
     <>
-      <Navbar />
       <HeroWall />
-      <IconicProductsCurve />
-      <SpiderDropBanner />
-      <NewArrivals />
+      <Story />
+      <BestSellers />
+      <AccessoriesSection />
 
-      <div className="desktop-only-lineup">
-        <JittokLineup />
-      </div>
-
-    
       <ReelsSection />
       <CustomerLoveSection />
       <BrandStatement />

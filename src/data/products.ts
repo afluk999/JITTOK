@@ -1,9 +1,18 @@
+export type CollectionSlug =
+  | "ringer"
+  | "raglan-half"
+  | "raglan-full"
+  | "lovely"
+  | "terry"
+  | "signature";
+
 export type Product = {
   id: number;
   slug: string;
   name: string;
   variant: string;
   category: string;
+  collection?: CollectionSlug;
   price: number;
   displayPrice: string;
   description: string;
@@ -21,6 +30,7 @@ export const products: Product[] = [
     name: "Oversized Tee",
     variant: "Ivory",
     category: "T-Shirts",
+    collection: "ringer",
     price: 1299,
     displayPrice: "₹1,299.00",
     description:
@@ -37,12 +47,14 @@ export const products: Product[] = [
     isNewArrival: true,
     isFeatured: true,
   },
+
   {
     id: 2,
     slug: "graphic-tee-charcoal",
     name: "Graphic Tee",
     variant: "Charcoal",
     category: "T-Shirts",
+    collection: "raglan-half",
     price: 1399,
     displayPrice: "₹1,399.00",
     description:
@@ -59,12 +71,14 @@ export const products: Product[] = [
     isNewArrival: true,
     isFeatured: false,
   },
+
   {
     id: 3,
     slug: "signature-hoodie-black",
     name: "Signature Hoodie",
     variant: "Black",
     category: "Hoodies",
+    collection: "signature",
     price: 2499,
     displayPrice: "₹2,499.00",
     description:
@@ -81,12 +95,14 @@ export const products: Product[] = [
     isNewArrival: true,
     isFeatured: true,
   },
+
   {
     id: 4,
     slug: "wide-sweatpants-grey",
     name: "Wide Sweatpants",
     variant: "Grey",
     category: "Pants",
+    collection: "terry",
     price: 1899,
     displayPrice: "₹1,899.00",
     description:
@@ -103,12 +119,14 @@ export const products: Product[] = [
     isNewArrival: true,
     isFeatured: true,
   },
+
   {
     id: 5,
     slug: "pocket-tee-taupe",
     name: "Pocket Tee",
     variant: "Taupe",
     category: "T-Shirts",
+    collection: "lovely",
     price: 1299,
     displayPrice: "₹1,299.00",
     description:
@@ -125,12 +143,14 @@ export const products: Product[] = [
     isNewArrival: true,
     isFeatured: false,
   },
+
   {
     id: 6,
     slug: "minimal-logo-tee-black",
     name: "Minimal Logo Tee",
     variant: "Black",
     category: "T-Shirts",
+    collection: "raglan-full",
     price: 1199,
     displayPrice: "₹1,199.00",
     description:
@@ -147,12 +167,14 @@ export const products: Product[] = [
     isNewArrival: true,
     isFeatured: false,
   },
+
   {
     id: 7,
     slug: "cargo-pants-black",
     name: "Cargo Pants",
     variant: "Black",
     category: "Pants",
+    collection: "terry",
     price: 2299,
     displayPrice: "₹2,299.00",
     description:
@@ -169,12 +191,14 @@ export const products: Product[] = [
     isNewArrival: true,
     isFeatured: false,
   },
+
   {
     id: 8,
     slug: "core-hoodie-sandstone",
     name: "Core Hoodie",
     variant: "Sandstone",
     category: "Hoodies",
+    collection: "signature",
     price: 2499,
     displayPrice: "₹2,499.00",
     description:
@@ -191,12 +215,14 @@ export const products: Product[] = [
     isNewArrival: true,
     isFeatured: false,
   },
+
   {
     id: 9,
     slug: "logo-cap-black",
     name: "Logo Cap",
     variant: "Black",
     category: "Accessories",
+    collection: "ringer",
     price: 899,
     displayPrice: "₹899.00",
     description:
@@ -213,12 +239,14 @@ export const products: Product[] = [
     isNewArrival: true,
     isFeatured: false,
   },
+
   {
     id: 10,
     slug: "premium-tee-bone",
     name: "Premium Tee",
     variant: "Bone",
     category: "T-Shirts",
+    collection: "raglan-half",
     price: 1299,
     displayPrice: "₹1,299.00",
     description:
@@ -241,4 +269,47 @@ export function getProductBySlug(slug: string) {
   return products.find((product) => product.slug === slug);
 }
 
-export const categories = ["All", "T-Shirts", "Hoodies", "Pants", "Accessories"];
+export function getProductsByCollection(collection: CollectionSlug) {
+  return products.filter((product) => product.collection === collection);
+}
+
+export const collections = [
+  {
+    slug: "ringer",
+    name: "RINGER",
+    status: "available",
+  },
+  {
+    slug: "raglan-half",
+    name: "RAGLAN HALF",
+    status: "available",
+  },
+  {
+    slug: "raglan-full",
+    name: "RAGLAN FULL",
+    status: "available",
+  },
+  {
+    slug: "lovely",
+    name: "LOVELY",
+    status: "coming-soon",
+  },
+  {
+    slug: "terry",
+    name: "TERRY",
+    status: "coming-soon",
+  },
+  {
+    slug: "signature",
+    name: "SIGNATURE",
+    status: "coming-soon",
+  },
+] as const;
+
+export const categories = [
+  "All",
+  "T-Shirts",
+  "Hoodies",
+  "Pants",
+  "Accessories",
+];

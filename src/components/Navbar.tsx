@@ -1,33 +1,28 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, type CSSProperties } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Menu, Search, ShoppingBag, X } from "lucide-react";
-import AnnouncementBar from "@/components/AnnouncementBar";
 
 export default function Navbar() {
   const pathname = usePathname();
 
   const [menuOpen, setMenuOpen] = useState(false);
+  const [navbarOpen, setNavbarOpen] = useState(true);
   const [cartCount, setCartCount] = useState(0);
   const [isPhone, setIsPhone] = useState(false);
 
   const navLinks = [
     { label: "Home", href: "/" },
-    
-    { label: "Contact", href: "/contact" },
+    { label: "Collection", href: "/collections" },
+    { label: "Store", href: "/store" },
+   
   ];
 
   useEffect(() => {
     function checkPhone() {
-      const phoneUserAgent =
-        /Android|iPhone|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
-          navigator.userAgent
-        );
-
-      const smallScreen = window.innerWidth <= 768;
-      setIsPhone(phoneUserAgent && smallScreen);
+      setIsPhone(window.innerWidth <= 768);
     }
 
     checkPhone();
@@ -83,109 +78,183 @@ export default function Navbar() {
 
   return (
     <>
-      <header
+      <div
         style={{
-          width: "100%",
-          height: isPhone ? "64px" : "76px",
-          background: "#ffffff",
-          backdropFilter: "blur(18px)",
-          WebkitBackdropFilter: "blur(18px)",
-          borderBottom: "1px solid rgba(17,17,17,0.08)",
-          display: "grid",
-          gridTemplateColumns: isPhone ? "38px 1fr 76px" : "1fr auto 1fr",
-          alignItems: "center",
-          padding: isPhone ? "0 12px" : "0 42px",
-          position: "sticky",
-          top: 0,
+          position: "fixed",
+          top: "30px",
+          left: 0,
+          right: 0,
           zIndex: 1000,
-          fontFamily: '"Outfit", sans-serif',
+          padding: isPhone ? "10px 10px 0" : "14px 20px 0",
+          background: "transparent",
+          boxSizing: "border-box",
+          transform: navbarOpen ? "translateY(0)" : "translateY(-140%)",
+          opacity: navbarOpen ? 1 : 0,
+          pointerEvents: navbarOpen ? "auto" : "none",
+          transition: "transform 320ms ease, opacity 280ms ease",
         }}
       >
+        <header
+          style={{
+            width: "100%",
+            maxWidth: "1000px",
+            margin: "0 auto",
+            height: isPhone ? "60px" : "55px",
+            background: "rgba(255,255,255,0.32)",
+            backdropFilter: "blur(28px) saturate(180%)",
+            WebkitBackdropFilter: "blur(28px) saturate(180%)",
+            border: "1px solid rgba(255,255,255,0.65)",
+            borderRadius: "999px",
+            boxShadow:
+              "0 10px 40px rgba(17,17,17,0.16), inset 0 1px 1px rgba(255,255,255,0.75), inset 0 -1px 1px rgba(17,17,17,0.04)",
+            display: "grid",
+            gridTemplateColumns: isPhone
+              ? "1fr auto 1fr"
+              : "auto 1fr auto",
+            alignItems: "center",
+            padding: isPhone ? "0 18px" : "0 34px",
+            boxSizing: "border-box",
+            fontFamily: '"Outfit", sans-serif',
+          }}
+        >
+        {/* LEFT SIDE */}
         {isPhone ? (
-          <button
-            type="button"
-            onClick={() => setMenuOpen(true)}
-            aria-label="Open menu"
-            style={mobileIconButtonStyle}
+          <div />
+        ) : (
+          <Link
+            href="/"
+            aria-label="JITTOK Home"
+            style={{
+              color: "#111",
+              textDecoration: "none",
+              display: "inline-flex",
+              alignItems: "center",
+              justifySelf: "start",
+              marginLeft: "-80px",
+              lineHeight: 1,
+            }}
           >
-            <Menu size={21} strokeWidth={1.8} />
-          </button>
+            <img
+              src="/jittok-logo.png"
+              alt="JITTOK"
+              style={{
+                width: "150px",
+                height: "50px",
+                objectFit: "contain",
+                display: "block",
+                transform: "scale(2.2)",
+                transformOrigin: "left center",
+              }}
+            />
+          </Link>
+        )}
+
+        {/* CENTER: nav links on desktop, logo on mobile */}
+        {isPhone ? (
+          <Link
+            href="/"
+            aria-label="JITTOK Home"
+            style={{
+              color: "#111",
+              textDecoration: "none",
+              textAlign: "center",
+              display: "inline-flex",
+              flexDirection: "column",
+              alignItems: "center",
+              justifyContent: "center",
+              lineHeight: 1,
+              justifySelf: "center",
+            }}
+          >
+            <img
+              src="/jittok-logo.png"
+              alt="JITTOK"
+              style={{
+                width: "170px",
+                height: "56px",
+                objectFit: "contain",
+                display: "block",
+                transform: "scale(2.12)",
+                transformOrigin: "center",
+              }}
+            />
+          </Link>
         ) : (
           <nav
+            aria-label="Main navigation"
             style={{
               display: "flex",
               alignItems: "center",
+              justifyContent: "center",
               gap: "28px",
+              justifySelf: "center",
             }}
           >
-            {navLinks.map((link) => (
-              <Link
-                key={link.href}
-                href={link.href}
-                style={{
-                  color: "#111",
-                  textDecoration: "none",
-                  fontSize: "11.5px",
-                  fontWeight: 900,
-                  letterSpacing: "1.1px",
-                  textTransform: "uppercase",
-                  borderBottom:
-                    pathname === link.href
+            {navLinks.map((link) => {
+              const isActive =
+                link.href === "/"
+                  ? pathname === "/"
+                  : pathname === link.href ||
+                    pathname.startsWith(`${link.href}/`);
+
+              return (
+                <Link
+                  key={link.href}
+                  href={link.href}
+                  style={{
+                    color: "#111",
+                    textDecoration: "none",
+                    fontSize: "11.5px",
+                    fontWeight: 900,
+                    letterSpacing: "1.1px",
+                    textTransform: "uppercase",
+                    borderBottom: isActive
                       ? "1px solid #111"
                       : "1px solid transparent",
-                  paddingBottom: "7px",
-                }}
-              >
-                {link.label}
-              </Link>
-            ))}
+                    paddingBottom: "7px",
+                  }}
+                >
+                  {link.label}
+                </Link>
+              );
+            })}
           </nav>
         )}
 
-        <Link
-          href="/"
-          aria-label="JITTOK Home"
-          style={{
-            color: "#111",
-            textDecoration: "none",
-            textAlign: "center",
-            display: "inline-flex",
-            flexDirection: "column",
-            alignItems: "center",
-            justifyContent: "center",
-            lineHeight: 1,
-            justifySelf: "center",
-          }}
-        >
-        <img
-  src="/jittok-logo.png"
-  alt="JITTOK"
-  style={{
-    width: isPhone ? "170px" : "240px",
-    height: isPhone ? "56px" : "68px",
-    objectFit: "contain",
-    display: "block",
-    transform: "scale(2.12)",
-    transformOrigin: "center",
-  }}
-/>
-
-        </Link>
-
+        {/* RIGHT SIDE */}
         <div
           style={{
             display: "flex",
             alignItems: "center",
             justifyContent: "flex-end",
-            gap: isPhone ? "2px" : "14px",
+            justifySelf: "end",
+            gap: isPhone ? "6px" : "14px",
           }}
         >
-          <Link href="/search" aria-label="Search" style={iconLinkStyle}>
-            <Search size={isPhone ? 19 : 20} strokeWidth={1.8} />
-          </Link>
+          {isPhone ? null : (
+            <Link
+              href="/search"
+              aria-label="Search products"
+              style={iconLinkStyle}
+            >
+              <Search size={20} strokeWidth={1.8} />
+            </Link>
+          )}
 
-          <Link href="/cart" aria-label="Cart" style={iconLinkStyle}>
-            <ShoppingBag size={isPhone ? 19 : 20} strokeWidth={1.8} />
+          {/* CART */}
+          <Link
+            href="/cart"
+            aria-label={
+              cartCount > 0
+                ? `Cart with ${cartCount} items`
+                : "Cart"
+            }
+            style={iconLinkStyle}
+          >
+            <ShoppingBag
+              size={isPhone ? 19 : 20}
+              strokeWidth={1.8}
+            />
 
             {cartCount > 0 ? (
               <span
@@ -211,9 +280,77 @@ export default function Navbar() {
               </span>
             ) : null}
           </Link>
-        </div>
-      </header>
 
+          {/* HAMBURGER (mobile only) */}
+          {isPhone ? (
+            <button
+              type="button"
+              onClick={() => setMenuOpen(true)}
+              aria-label="Open menu"
+              style={mobileIconButtonStyle}
+            >
+              <Menu size={21} strokeWidth={1.8} />
+            </button>
+          ) : null}
+
+          {/* CLOSE NAVBAR */}
+          <button
+            type="button"
+            onClick={() => setNavbarOpen(false)}
+            aria-label="Hide navigation bar"
+            style={{
+              width: isPhone ? "22px" : "24px",
+              height: isPhone ? "22px" : "24px",
+              borderRadius: "50%",
+              border: "1px solid rgba(17,17,17,0.15)",
+              background: "transparent",
+              color: "#111",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              cursor: "pointer",
+              flexShrink: 0,
+              opacity: 0.6,
+            }}
+          >
+            <X size={isPhone ? 12 : 13} strokeWidth={2} />
+          </button>
+        </div>
+        </header>
+      </div>
+
+      {/* REOPEN NAVBAR */}
+      {!navbarOpen ? (
+        <button
+          type="button"
+          onClick={() => setNavbarOpen(true)}
+          aria-label="Show navigation bar"
+          style={{
+            position: "fixed",
+            top: "44px",
+            left: "50%",
+            transform: "translateX(-50%)",
+            zIndex: 1000,
+            width: "34px",
+            height: "34px",
+            borderRadius: "50%",
+            border: "1px solid rgba(17,17,17,0.15)",
+            background: "rgba(255,255,255,0.85)",
+            backdropFilter: "blur(10px)",
+            WebkitBackdropFilter: "blur(10px)",
+            color: "#111",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            cursor: "pointer",
+            boxShadow: "0 4px 16px rgba(17,17,17,0.14)",
+          }}
+        >
+          <Menu size={16} strokeWidth={2} />
+        </button>
+      ) : null}
+
+      {/* MOBILE MENU */}
       {isPhone && menuOpen ? (
         <div
           onClick={() => setMenuOpen(false)}
@@ -238,13 +375,15 @@ export default function Navbar() {
               boxShadow: "24px 0 60px rgba(0,0,0,0.18)",
             }}
           >
+            {/* MOBILE MENU HEADER */}
             <div
               style={{
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "space-between",
                 paddingBottom: "22px",
-                borderBottom: "1px solid rgba(17,17,17,0.1)",
+                borderBottom:
+                  "1px solid rgba(17,17,17,0.1)",
               }}
             >
               <img
@@ -265,7 +404,8 @@ export default function Navbar() {
                 style={{
                   width: "40px",
                   height: "40px",
-                  border: "1px solid rgba(17,17,17,0.12)",
+                  border:
+                    "1px solid rgba(17,17,17,0.12)",
                   background: "transparent",
                   color: "#111",
                   display: "flex",
@@ -278,34 +418,50 @@ export default function Navbar() {
               </button>
             </div>
 
+            {/* MOBILE NAVIGATION */}
             <nav
+              aria-label="Mobile navigation"
               style={{
                 display: "grid",
                 padding: "24px 0",
               }}
             >
-              {navLinks.map((link) => (
-                <Link
-                  key={link.href}
-                  href={link.href}
-                  style={{
-                    color: pathname === link.href ? "#77736c" : "#111",
-                    textDecoration: "none",
-                    padding: "18px 0",
-                    borderBottom: "1px solid rgba(17,17,17,0.08)",
-                    fontFamily: '"Bebas Neue", Impact, sans-serif',
-                    fontSize: "46px",
-                    lineHeight: 0.9,
-                    fontWeight: 400,
-                    letterSpacing: "1px",
-                    textTransform: "uppercase",
-                  }}
-                >
-                  {link.label}
-                </Link>
-              ))}
+              {navLinks.map((link) => {
+                const isActive =
+                  link.href === "/"
+                    ? pathname === "/"
+                    : pathname === link.href ||
+                      pathname.startsWith(`${link.href}/`);
+
+                return (
+                  <Link
+                    key={link.href}
+                    href={link.href}
+                    onClick={() => setMenuOpen(false)}
+                    style={{
+                      color: isActive
+                        ? "#77736c"
+                        : "#111",
+                      textDecoration: "none",
+                      padding: "18px 0",
+                      borderBottom:
+                        "1px solid rgba(17,17,17,0.08)",
+                      fontFamily:
+                        '"Bebas Neue", Impact, sans-serif',
+                      fontSize: "46px",
+                      lineHeight: 0.9,
+                      fontWeight: 400,
+                      letterSpacing: "1px",
+                      textTransform: "uppercase",
+                    }}
+                  >
+                    {link.label}
+                  </Link>
+                );
+              })}
             </nav>
 
+            {/* MOBILE CART */}
             <div
               style={{
                 marginTop: "auto",
@@ -315,6 +471,7 @@ export default function Navbar() {
             >
               <Link
                 href="/cart"
+                onClick={() => setMenuOpen(false)}
                 style={{
                   height: "52px",
                   background: "#111",
@@ -331,7 +488,10 @@ export default function Navbar() {
                 }}
               >
                 <ShoppingBag size={17} />
-                View Cart {cartCount > 0 ? `(${cartCount})` : ""}
+                View Cart
+                {cartCount > 0
+                  ? ` (${cartCount})`
+                  : ""}
               </Link>
 
               <p
@@ -342,8 +502,8 @@ export default function Navbar() {
                   lineHeight: 1.7,
                 }}
               >
-                Premium everyday essentials for comfort, movement, and timeless
-                streetwear style.
+                Premium everyday essentials for comfort,
+                movement, and timeless streetwear style.
               </p>
             </div>
           </aside>
@@ -353,7 +513,7 @@ export default function Navbar() {
   );
 }
 
-const iconLinkStyle: React.CSSProperties = {
+const iconLinkStyle: CSSProperties = {
   width: "36px",
   height: "36px",
   border: "none",
@@ -367,7 +527,7 @@ const iconLinkStyle: React.CSSProperties = {
   textDecoration: "none",
 };
 
-const mobileIconButtonStyle: React.CSSProperties = {
+const mobileIconButtonStyle: CSSProperties = {
   width: "36px",
   height: "36px",
   border: "none",

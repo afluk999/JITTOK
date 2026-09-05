@@ -133,7 +133,7 @@ export default function SiteLoader() {
             rgba(255, 255, 255, 0.1) 57%,
             transparent 65%
           );
-          background-size: 260% 100%;
+          background-size: 300% 200%;
           background-position: 180% 0;
           -webkit-mask-repeat: no-repeat;
           mask-repeat: no-repeat;

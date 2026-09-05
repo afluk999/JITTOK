@@ -5,6 +5,7 @@ import { CartProvider } from "@/context/CartContext";
 import SiteLoader from "@/components/SiteLoader";
 import { RouteScrollManager } from "@/components/RouteScrollManager";
 import AnnouncementBar from "@/components/AnnouncementBar";
+import Navbar from "@/components/Navbar";
 import { Bebas_Neue, Outfit } from "next/font/google";
 
 const bebasNeue = Bebas_Neue({
@@ -29,8 +30,7 @@ export const metadata: Metadata = {
   applicationName: "JITTOK",
 
   title: {
-    default:
-      "JITTOK Store | Oversized T-Shirts & Streetwear India",
+    default: "JITTOK Store | Oversized T-Shirts & Streetwear India",
     template: "%s | JITTOK Store",
   },
 
@@ -59,8 +59,7 @@ export const metadata: Metadata = {
     type: "website",
     locale: "en_IN",
     siteName: "JITTOK",
-    title:
-      "JITTOK Store | Oversized T-Shirts & Streetwear India",
+    title: "JITTOK Store | Oversized T-Shirts & Streetwear India",
     description:
       "Premium oversized T-shirts, box-fit tees, graphic streetwear and limited JITTOK fashion drops across India.",
     images: [
@@ -75,8 +74,7 @@ export const metadata: Metadata = {
 
   twitter: {
     card: "summary_large_image",
-    title:
-      "JITTOK Store | Oversized T-Shirts & Streetwear India",
+    title: "JITTOK Store | Oversized T-Shirts & Streetwear India",
     description:
       "Premium oversized T-shirts, graphic streetwear and limited JITTOK fashion drops across India.",
     images: ["/jittok-og-image.jpg"],
@@ -94,6 +92,7 @@ export const metadata: Metadata = {
         sizes: "512x512",
       },
     ],
+
     apple: [
       {
         url: "/apple-icon.png",
@@ -114,7 +113,7 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   maximumScale: 5,
-  themeColor: "#050505",
+  themeColor: "#ffff",
   colorScheme: "light",
 };
 
@@ -136,12 +135,7 @@ export default function RootLayout({
           type="image/png"
         />
 
-        <link
-          rel="preload"
-          href="/hero/hero-1.webp"
-          as="image"
-          type="image/webp"
-        />
+
 
         <link
           rel="preconnect"
@@ -159,6 +153,10 @@ export default function RootLayout({
           <SiteLoader />
           <RouteScrollManager />
           <AnnouncementBar />
+
+          {/* GLOBAL NAVBAR */}
+          <Navbar />
+
           {children}
         </CartProvider>
 

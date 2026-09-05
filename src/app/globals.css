@@ -19,7 +19,7 @@ body {
   display: grid;
   place-items: center;
   overflow: hidden;
-  background: #050505;
+  background: #FFFF;
   opacity: 1;
   visibility: visible;
   pointer-events: all;
@@ -35,7 +35,7 @@ body {
 }
 .logoStage {
   position: relative;
-  width: min(52vw, 340px);
+  width: min(80vw, 340px);
   aspect-ratio: 412 / 295;
   display: grid;
   place-items: center;

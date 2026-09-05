@@ -36,10 +36,44 @@ export type SignatureProductContent = {
   order: number;
 };
 
+export type StoryCircleItem = {
+  id: string;
+  name: string;
+  slug: string;
+
+  // Up to 4 images that cycle automatically on the homepage.
+  images: string[];
+
+  // "Coming soon" circles show a blurred image + loading spinner
+  // and open a popup instead of linking to a collection page.
+  comingSoon: boolean;
+
+  order: number;
+};
+
+export type CollectionDefinition = {
+  id: string;
+  name: string;
+  slug: string;
+
+  // "live" = real product page with a grid. "coming-soon" = a
+  // placeholder page. This single list drives both the admin
+  // product form's Collection dropdown AND the actual
+  // /collections/[slug] page — add a collection here once,
+  // it shows up in both places automatically.
+  status: "live" | "coming-soon";
+
+  order: number;
+};
+
+export type CategoryDefinition = {
+  id: string;
+  name: string;
+  order: number;
+};
+
 export type HomeSectionVisibility = {
   hero: boolean;
-  iconicProducts: boolean;
-  spiderDropBanner: boolean;
   newArrivals: boolean;
   jittokLineup: boolean;
   editorial: boolean;
@@ -47,17 +81,6 @@ export type HomeSectionVisibility = {
   customerLove: boolean;
   brandStatement: boolean;
   trustStrip: boolean;
-};
-
-export type DropBannerContent = {
-  enabled: boolean;
-  desktopImage: string;
-  mobileImage: string;
-  eyebrow: string;
-  title: string;
-  description: string;
-  buttonLabel: string;
-  buttonUrl: string;
 };
 
 export type HomeContent = {
@@ -78,6 +101,17 @@ export type HomeContent = {
   reelsItems: SocialItem[];
   instagramPosts: SocialItem[];
 
+  // Homepage story-circle row (Ringer, Raglan Half, etc).
+  storyCircles: StoryCircleItem[];
+
+  // Single source of truth for which collections exist, their
+  // display name, and whether they're live or coming soon.
+  collectionsList: CollectionDefinition[];
+
+  // Product category options (T-Shirts, Hoodies, etc), managed
+  // from admin instead of hardcoded in the product form.
+  categoriesList: CategoryDefinition[];
+
   // Kept for compatibility with older saved homepage data.
   instagramItems?: SocialItem[];
 
@@ -87,15 +121,11 @@ export type HomeContent = {
   instagramUrl: string;
 
   sectionVisibility: HomeSectionVisibility;
-  dropBanner: DropBannerContent;
-
   updatedAt?: unknown;
 };
 
 const defaultSectionVisibility: HomeSectionVisibility = {
   hero: true,
-  iconicProducts: true,
-  spiderDropBanner: true,
   newArrivals: true,
   jittokLineup: true,
   editorial: true,
@@ -103,17 +133,6 @@ const defaultSectionVisibility: HomeSectionVisibility = {
   customerLove: true,
   brandStatement: true,
   trustStrip: true,
-};
-
-const defaultDropBanner: DropBannerContent = {
-  enabled: true,
-  desktopImage: "",
-  mobileImage: "",
-  eyebrow: "JITTOK Limited Drop",
-  title: "Spider Drop",
-  description: "",
-  buttonLabel: "Shop the Drop",
-  buttonUrl: "/collections",
 };
 
 export const defaultSignatureProductDetails: Record<
@@ -140,6 +159,88 @@ export const defaultSignatureProductDetails: Record<
   ]),
 );
 
+export const defaultStoryCircles: StoryCircleItem[] = [
+  {
+    id: "ringer",
+    name: "RINGER",
+    slug: "ringer",
+    images: [
+      "/story/ringer-1.jpg",
+      "/story/ringer-2.jpg",
+      "/story/ringer-3.jpg",
+      "/story/ringer-4.jpg",
+    ],
+    comingSoon: false,
+    order: 0,
+  },
+  {
+    id: "raglan-half",
+    name: "RAGLAN HALF",
+    slug: "raglan-half",
+    images: [
+      "/story/raglan-half-1.jpg",
+      "/story/raglan-half-2.jpg",
+      "/story/raglan-half-3.jpg",
+      "/story/raglan-half-4.jpg",
+    ],
+    comingSoon: false,
+    order: 1,
+  },
+  {
+    id: "raglan-full",
+    name: "RAGLAN FULL",
+    slug: "raglan-full",
+    images: [
+      "/story/raglan-full-1.jpg",
+      "/story/raglan-full-2.jpg",
+      "/story/raglan-full-3.jpg",
+      "/story/raglan-full-4.jpg",
+    ],
+    comingSoon: false,
+    order: 2,
+  },
+  {
+    id: "lovely",
+    name: "LOVELY",
+    slug: "lovely",
+    images: ["/story/lovely-1.jpg"],
+    comingSoon: true,
+    order: 3,
+  },
+  {
+    id: "terry",
+    name: "TERRY",
+    slug: "terry",
+    images: ["/story/terry-1.jpg"],
+    comingSoon: true,
+    order: 4,
+  },
+  {
+    id: "pollo",
+    name: "POLLO",
+    slug: "pollo",
+    images: ["/story/pollo-1.jpg"],
+    comingSoon: true,
+    order: 5,
+  },
+];
+
+export const defaultCollectionsList: CollectionDefinition[] = [
+  { id: "ringer", name: "Ringer", slug: "ringer", status: "live", order: 0 },
+  { id: "raglan-half", name: "Raglan Half", slug: "raglan-half", status: "live", order: 1 },
+  { id: "raglan-full", name: "Raglan Full", slug: "raglan-full", status: "live", order: 2 },
+  { id: "lovely", name: "Lovely", slug: "lovely", status: "live", order: 3 },
+  { id: "terry", name: "Terry", slug: "terry", status: "coming-soon", order: 4 },
+  { id: "pollo", name: "Pollo", slug: "pollo", status: "coming-soon", order: 5 },
+];
+
+export const defaultCategoriesList: CategoryDefinition[] = [
+  { id: "t-shirts", name: "T-Shirts", order: 0 },
+  { id: "hoodies", name: "Hoodies", order: 1 },
+  { id: "pants", name: "Pants", order: 2 },
+  { id: "accessories", name: "Accessories", order: 3 },
+];
+
 export const defaultHomeContent: HomeContent = {
   heroImages: [],
   editorialImages: [],
@@ -151,6 +252,9 @@ export const defaultHomeContent: HomeContent = {
   reelsItems: [],
   instagramPosts: [],
   instagramItems: [],
+  storyCircles: defaultStoryCircles,
+  collectionsList: defaultCollectionsList,
+  categoriesList: defaultCategoriesList,
 
   brandStatement:
     "JITTOK creates everyday essentials with clean design, comfort, and confidence.",
@@ -159,7 +263,6 @@ export const defaultHomeContent: HomeContent = {
   instagramUrl: "https://www.instagram.com/jittok.in/",
 
   sectionVisibility: defaultSectionVisibility,
-  dropBanner: defaultDropBanner,
 };
 
 const homeContentRef = doc(db, "siteContent", "home");
@@ -385,6 +488,149 @@ function normaliseSocialItems(value: unknown): SocialItem[] {
     );
 }
 
+function normaliseStoryCircles(value: unknown): StoryCircleItem[] {
+  if (!Array.isArray(value) || value.length === 0) {
+    return defaultStoryCircles;
+  }
+
+  return value
+    .map((item, index): StoryCircleItem | null => {
+      if (!item || typeof item !== "object") {
+        return null;
+      }
+
+      const data = item as Partial<StoryCircleItem>;
+
+      const name =
+        typeof data.name === "string" ? data.name.trim() : "";
+
+      if (!name) {
+        return null;
+      }
+
+      const slug =
+        typeof data.slug === "string" && data.slug.trim()
+          ? data.slug.trim()
+          : name.toLowerCase().replace(/[^a-z0-9]+/g, "-");
+
+      return {
+        id:
+          typeof data.id === "string" && data.id.trim()
+            ? data.id.trim()
+            : slug,
+
+        name,
+        slug,
+
+        images: cleanImageArray(data.images).slice(0, 4),
+
+        comingSoon: data.comingSoon === true,
+
+        order:
+          typeof data.order === "number" &&
+          Number.isFinite(data.order)
+            ? data.order
+            : index,
+      };
+    })
+    .filter((item): item is StoryCircleItem => item !== null)
+    .sort(
+      (firstItem, secondItem) => firstItem.order - secondItem.order,
+    );
+}
+
+function normaliseCollectionsList(
+  value: unknown,
+): CollectionDefinition[] {
+  if (!Array.isArray(value) || value.length === 0) {
+    return defaultCollectionsList;
+  }
+
+  return value
+    .map((item, index): CollectionDefinition | null => {
+      if (!item || typeof item !== "object") {
+        return null;
+      }
+
+      const data = item as Partial<CollectionDefinition>;
+
+      const name =
+        typeof data.name === "string" ? data.name.trim() : "";
+
+      if (!name) {
+        return null;
+      }
+
+      const slug =
+        typeof data.slug === "string" && data.slug.trim()
+          ? data.slug.trim()
+          : name.toLowerCase().replace(/[^a-z0-9]+/g, "-");
+
+      return {
+        id:
+          typeof data.id === "string" && data.id.trim()
+            ? data.id.trim()
+            : slug,
+
+        name,
+        slug,
+
+        status: data.status === "coming-soon" ? "coming-soon" : "live",
+
+        order:
+          typeof data.order === "number" &&
+          Number.isFinite(data.order)
+            ? data.order
+            : index,
+      };
+    })
+    .filter((item): item is CollectionDefinition => item !== null)
+    .sort(
+      (firstItem, secondItem) => firstItem.order - secondItem.order,
+    );
+}
+
+function normaliseCategoriesList(value: unknown): CategoryDefinition[] {
+  if (!Array.isArray(value) || value.length === 0) {
+    return defaultCategoriesList;
+  }
+
+  return value
+    .map((item, index): CategoryDefinition | null => {
+      if (!item || typeof item !== "object") {
+        return null;
+      }
+
+      const data = item as Partial<CategoryDefinition>;
+
+      const name =
+        typeof data.name === "string" ? data.name.trim() : "";
+
+      if (!name) {
+        return null;
+      }
+
+      return {
+        id:
+          typeof data.id === "string" && data.id.trim()
+            ? data.id.trim()
+            : name.toLowerCase().replace(/[^a-z0-9]+/g, "-"),
+
+        name,
+
+        order:
+          typeof data.order === "number" &&
+          Number.isFinite(data.order)
+            ? data.order
+            : index,
+      };
+    })
+    .filter((item): item is CategoryDefinition => item !== null)
+    .sort(
+      (firstItem, secondItem) => firstItem.order - secondItem.order,
+    );
+}
+
 function cleanPhoneNumber(value: unknown): string {
   if (typeof value !== "string") {
     return defaultHomeContent.whatsappNumber;
@@ -466,6 +712,10 @@ function normaliseHomeContent(
       data.instagramItems,
     ),
 
+    storyCircles: normaliseStoryCircles(data.storyCircles),
+    collectionsList: normaliseCollectionsList(data.collectionsList),
+    categoriesList: normaliseCategoriesList(data.categoriesList),
+
     brandStatement: cleanText(
       data.brandStatement,
       defaultHomeContent.brandStatement,
@@ -490,10 +740,6 @@ function normaliseHomeContent(
       ...(data.sectionVisibility ?? {}),
     },
 
-    dropBanner: {
-      ...defaultDropBanner,
-      ...(data.dropBanner ?? {}),
-    },
   };
 }
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, type CSSProperties, type ReactNode } from "react";
 import Link from "next/link";
 import { ArrowRight, Mail, Phone } from "lucide-react";
 import { FaInstagram } from "react-icons/fa";
@@ -129,8 +129,6 @@ export default function Footer() {
             <div>
               <h3 style={headingStyle}>Shop</h3>
               <FooterLink href="/collections">All Products</FooterLink>
-              <FooterLink href="/#new-arrivals">New Arrivals</FooterLink>
-              <FooterLink href="/#iconic-products">Iconic Products</FooterLink>
               <FooterLink href="/cart">Cart</FooterLink>
             </div>
 
@@ -211,7 +209,7 @@ export default function Footer() {
               <FaInstagram size={15} /> {instagramUsername || "Instagram"}
             </ContactLink>
 
-            <ContactLink href="jittokoofficial@gmail.com">
+            <ContactLink href="mailto:jittokoofficial@gmail.com">
               <Mail size={15} /> jittokoofficial@gmail.com
             </ContactLink>
 
@@ -264,7 +262,7 @@ export default function Footer() {
           }}
         >
           <p style={{ margin: 0 }}>
-            Â© {new Date().getFullYear()} JITTOK. All rights reserved.
+            © {new Date().getFullYear()} JITTOK. All rights reserved.
           </p>
 
           <div
@@ -293,7 +291,7 @@ function FooterLink({
   children,
 }: {
   href: string;
-  children: React.ReactNode;
+  children: ReactNode;
 }) {
   return (
     <Link
@@ -316,7 +314,7 @@ function ContactLink({
   children,
 }: {
   href: string;
-  children: React.ReactNode;
+  children: ReactNode;
 }) {
   return (
     <a
@@ -338,7 +336,7 @@ function ContactLink({
   );
 }
 
-const headingStyle: React.CSSProperties = {
+const headingStyle: CSSProperties = {
   margin: "0 0 22px",
   color: "#111111",
   fontSize: "12px",
@@ -347,7 +345,7 @@ const headingStyle: React.CSSProperties = {
   textTransform: "uppercase",
 };
 
-const bottomLinkStyle: React.CSSProperties = {
+const bottomLinkStyle: CSSProperties = {
   color: "rgba(17,17,17,0.52)",
   textDecoration: "none",
 };
