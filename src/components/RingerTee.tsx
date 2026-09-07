@@ -136,7 +136,7 @@ function RingerTeeCard({
               margin: "6px 0 0",
               fontSize: isPhone ? "12px" : "14px",
               fontWeight: 500,
-              color: "#4a4a4a",
+              color: "#bea7a7",
             }}
           >
             {formatPrice(price)}
@@ -165,7 +165,7 @@ function RingerTeeCard({
             fontSize: isPhone ? "16px" : "19px",
             fontWeight: 300,
             lineHeight: 1,
-            color: added ? "#237a35" : "#111111",
+            color: added ? "#237a35" : "#e8dede",
             cursor: isSoldOut ? "not-allowed" : "pointer",
             opacity: isSoldOut ? 0.4 : 1,
           }}
@@ -343,7 +343,7 @@ export default function RingerTee() {
     height: isPhone ? "34px" : "40px",
     padding: isPhone ? "0 14px" : "0 20px",
     borderRadius: "999px",
-    background: "#111111",
+    background: "#f5e7e7",
     color: "#ffffff",
     display: "inline-flex",
     alignItems: "center",

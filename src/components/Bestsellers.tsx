@@ -5,6 +5,7 @@ import { useEffect, useState, type CSSProperties, type MouseEvent } from "react"
 import { useCart } from "@/context/CartContext";
 import {
   getBestSellerProducts,
+  getProductOriginalPrice,
   getProductSellingPrice,
   type FirebaseProduct,
 } from "@/lib/productService";
@@ -30,6 +31,8 @@ function BestSellerCard({
   const frontImage = product.images?.[0];
   const backImage = product.images?.[1] || frontImage;
   const price = getProductSellingPrice(product);
+  const originalPrice = getProductOriginalPrice(product);
+  const hasDiscount = originalPrice !== null && originalPrice > price;
   const availableSizes =
     product.sizes && product.sizes.length > 0
       ? product.sizes
@@ -131,16 +134,38 @@ function BestSellerCard({
             {product.name}
           </p>
 
-          <p
+          <div
             style={{
-              margin: "4px 0 0",
-              fontSize: isPhone ? "11px" : "13px",
-              fontWeight: 600,
-              color: "#4a4a4a",
+              display: "flex",
+              alignItems: "baseline",
+              gap: "6px",
+              marginTop: "4px",
+              flexWrap: "wrap",
             }}
           >
-            {formatPrice(price)}
-          </p>
+            <span
+              style={{
+                fontSize: isPhone ? "11px" : "13px",
+                fontWeight: 600,
+                color: "#4a4a4a",
+              }}
+            >
+              {formatPrice(price)}
+            </span>
+
+            {hasDiscount ? (
+              <span
+                style={{
+                  fontSize: isPhone ? "10px" : "12px",
+                  fontWeight: 500,
+                  color: "#a19c94",
+                  textDecoration: "line-through",
+                }}
+              >
+                {formatPrice(originalPrice!)}
+              </span>
+            ) : null}
+          </div>
         </div>
 
         <button

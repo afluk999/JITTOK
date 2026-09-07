@@ -14,14 +14,12 @@ import { auth } from "@/lib/firebase";
 import {
   defaultCategoriesList,
   defaultCollectionsList,
-  defaultSignatureProductDetails,
   defaultStoryCircles,
   getHomeContent,
   updateHomeContent,
   type CategoryDefinition,
   type CollectionDefinition,
   type HomeSectionVisibility,
-  type SignatureProductContent,
   type SocialItem,
   type StoryCircleItem,
 } from "@/lib/contentService";
@@ -36,8 +34,6 @@ import {
   Upload,
   X,
 } from "lucide-react";
-import { FaInstagram } from "react-icons/fa";
-import { signatureProducts } from "@/data/signatureProducts";
 
 const DEFAULT_SECTION_VISIBILITY: HomeSectionVisibility = {
   hero: true,
@@ -47,7 +43,6 @@ const DEFAULT_SECTION_VISIBILITY: HomeSectionVisibility = {
   customerLove: true,
   brandStatement: true,
   trustStrip: true,
-  newArrivals: false
 };
 
 const SECTION_LABELS: Array<{
@@ -142,31 +137,10 @@ export default function AdminContentPage() {
   const [savingSettings, setSavingSettings] = useState(false);
   const [savingVisibility, setSavingVisibility] = useState(false);
 
-  const [heroImages, setHeroImages] = useState<string[]>([]);
-  const [heroFiles, setHeroFiles] = useState<File[]>([]);
-  const [heroPreviews, setHeroPreviews] = useState<string[]>([]);
-
-  const [editorialImages, setEditorialImages] = useState<string[]>([]);
-  const [editorialFiles, setEditorialFiles] = useState<File[]>([]);
-  const [editorialPreviews, setEditorialPreviews] = useState<string[]>([]);
-
-  const [iconicImages, setIconicImages] = useState<string[]>([]);
-  const [iconicFiles, setIconicFiles] = useState<File[]>([]);
-  const [iconicPreviews, setIconicPreviews] = useState<string[]>([]);
-
-  const [signatureImages, setSignatureImages] = useState<
-    Record<string, string[]>
-  >({});
-  const [signatureFiles, setSignatureFiles] = useState<
-    Record<string, File[]>
-  >({});
-  const [signaturePreviews, setSignaturePreviews] = useState<
-    Record<string, string[]>
-  >({});
-
-  const [signatureDetails, setSignatureDetails] = useState<
-    Record<string, SignatureProductContent>
-  >(defaultSignatureProductDetails);
+  const [bannerImage, setBannerImage] = useState("");
+  const [bannerFile, setBannerFile] = useState<File | null>(null);
+  const [bannerPreview, setBannerPreview] = useState("");
+  const [savingBanner, setSavingBanner] = useState(false);
 
   const [reelsItems, setReelsItems] = useState<SocialItem[]>([]);
   const [reelFile, setReelFile] = useState<File | null>(null);
@@ -175,12 +149,6 @@ export default function AdminContentPage() {
   const [reelLink, setReelLink] = useState("");
   const [reelProductName, setReelProductName] = useState("");
   const [reelProductUrl, setReelProductUrl] = useState("");
-
-  const [instagramPosts, setInstagramPosts] = useState<SocialItem[]>([]);
-  const [postFile, setPostFile] = useState<File | null>(null);
-  const [postPreview, setPostPreview] = useState("");
-  const [postTitle, setPostTitle] = useState("");
-  const [postLink, setPostLink] = useState("");
 
   const [storyCircles, setStoryCircles] = useState<StoryCircleItem[]>(
     defaultStoryCircles,
@@ -204,14 +172,8 @@ export default function AdminContentPage() {
   );
   const [savingCategoriesList, setSavingCategoriesList] = useState(false);
 
-  const [savingHero, setSavingHero] = useState(false);
-  const [savingEditorial, setSavingEditorial] = useState(false);
-  const [savingIconic, setSavingIconic] = useState(false);
-  const [savingSignatureSlug, setSavingSignatureSlug] = useState("");
   const [savingReel, setSavingReel] = useState(false);
   const [savingReelList, setSavingReelList] = useState(false);
-  const [savingPost, setSavingPost] = useState(false);
-  const [savingPostList, setSavingPostList] = useState(false);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
@@ -229,23 +191,9 @@ export default function AdminContentPage() {
 
   useEffect(() => {
     return () => {
-      revokePreviews([
-        ...heroPreviews,
-        ...editorialPreviews,
-        ...iconicPreviews,
-        ...Object.values(signaturePreviews).flat(),
-        reelPreview,
-        postPreview,
-      ]);
+      revokePreviews([reelPreview]);
     };
-  }, [
-    editorialPreviews,
-    heroPreviews,
-    iconicPreviews,
-    postPreview,
-    reelPreview,
-    signaturePreviews,
-  ]);
+  }, [reelPreview]);
 
   async function loadContent() {
     try {
@@ -263,16 +211,8 @@ export default function AdminContentPage() {
         ...(content.sectionVisibility || {}),
       });
 
-      setHeroImages(content.heroImages || []);
-      setEditorialImages(content.editorialImages || []);
-      setIconicImages(content.iconicImages || []);
-      setSignatureImages(content.signatureProductImages || {});
-      setSignatureDetails(
-        content.signatureProductDetails ||
-          defaultSignatureProductDetails,
-      );
+      setBannerImage(content.landscapeBannerImage || "");
       setReelsItems(content.reelsItems || []);
-      setInstagramPosts(content.instagramPosts || []);
       setStoryCircles(
         content.storyCircles && content.storyCircles.length > 0
           ? content.storyCircles
@@ -383,192 +323,39 @@ export default function AdminContentPage() {
     }
   }
 
-  async function saveHero() {
+  async function saveBanner() {
     try {
-      setSavingHero(true);
+      setSavingBanner(true);
 
-      const uploaded = await uploadFiles(heroFiles);
-      const finalImages = [...heroImages, ...uploaded].slice(0, 12);
+      let finalImage = bannerImage;
 
-      if (finalImages.length < 3) {
-        alert("Please keep at least 3 hero images.");
+      if (bannerFile) {
+        const uploaded = await uploadFiles([bannerFile]);
+        finalImage = uploaded[0];
+      }
+
+      if (!finalImage) {
+        alert("Please add a banner image before saving.");
         return;
       }
 
-      await updateHomeContent({ heroImages: finalImages });
+      await updateHomeContent({ landscapeBannerImage: finalImage });
 
-      setHeroImages(finalImages);
-      revokePreviews(heroPreviews);
-      setHeroFiles([]);
-      setHeroPreviews([]);
+      setBannerImage(finalImage);
 
-      alert("Hero images saved successfully.");
+      if (bannerPreview) {
+        revokePreviews([bannerPreview]);
+      }
+
+      setBannerFile(null);
+      setBannerPreview("");
+
+      alert("Landscape banner saved successfully.");
     } catch (error: any) {
-      console.error("SAVE HERO ERROR:", error);
-      alert(error?.message || "Failed to save hero images.");
+      console.error("SAVE BANNER ERROR:", error);
+      alert(error?.message || "Failed to save the landscape banner.");
     } finally {
-      setSavingHero(false);
-    }
-  }
-
-  async function saveEditorial() {
-    try {
-      setSavingEditorial(true);
-
-      const uploaded = await uploadFiles(editorialFiles);
-      const finalImages = [
-        ...editorialImages,
-        ...uploaded,
-      ].slice(0, 6);
-
-      if (finalImages.length < 1) {
-        alert("Please keep at least 1 editorial image.");
-        return;
-      }
-
-      await updateHomeContent({
-        editorialImages: finalImages,
-      });
-
-      setEditorialImages(finalImages);
-      revokePreviews(editorialPreviews);
-      setEditorialFiles([]);
-      setEditorialPreviews([]);
-
-      alert("Editorial images saved successfully.");
-    } catch (error: any) {
-      console.error("SAVE EDITORIAL ERROR:", error);
-      alert(error?.message || "Failed to save editorial images.");
-    } finally {
-      setSavingEditorial(false);
-    }
-  }
-
-  async function saveIconicImages() {
-    try {
-      setSavingIconic(true);
-
-      const uploaded = await uploadFiles(iconicFiles);
-      const finalImages = [...iconicImages, ...uploaded].slice(0, 3);
-
-      if (finalImages.length !== 3) {
-        alert("Please keep exactly 3 fallback iconic images.");
-        return;
-      }
-
-      await updateHomeContent({
-        iconicImages: finalImages,
-      });
-
-      setIconicImages(finalImages);
-      revokePreviews(iconicPreviews);
-      setIconicFiles([]);
-      setIconicPreviews([]);
-
-      alert("Fallback iconic images saved successfully.");
-    } catch (error: any) {
-      console.error("SAVE ICONIC IMAGES ERROR:", error);
-      alert(error?.message || "Failed to save iconic images.");
-    } finally {
-      setSavingIconic(false);
-    }
-  }
-
-  async function saveSignatureProduct(slug: string) {
-    try {
-      setSavingSignatureSlug(slug);
-
-      const details = signatureDetails[slug];
-
-      if (!details) {
-        throw new Error("Signature product details are missing.");
-      }
-
-      if (!details.name.trim()) {
-        alert("Please enter the Signature product name.");
-        return;
-      }
-
-      if (details.price <= 0) {
-        alert("Please enter a valid selling price.");
-        return;
-      }
-
-      const currentImages = signatureImages[slug] || [];
-      const selectedFiles = signatureFiles[slug] || [];
-      const uploaded = await uploadFiles(selectedFiles);
-      const finalImages = [
-        ...currentImages,
-        ...uploaded,
-      ].slice(0, 5);
-
-      if (finalImages.length < 1) {
-        alert("Please keep at least 1 image for this Signature product.");
-        return;
-      }
-
-      const cleanedSizes = details.sizes
-        .map((size) => size.trim())
-        .filter(Boolean);
-
-      const cleanedDetails: SignatureProductContent = {
-        ...details,
-        slug,
-        name: details.name.trim(),
-        variant: details.variant.trim(),
-        category: details.category.trim() || "Signature",
-        price: Math.max(0, Number(details.price) || 0),
-        originalPrice: Math.max(
-          0,
-          Number(details.originalPrice) || 0,
-        ),
-        stock: Math.max(0, Number(details.stock) || 0),
-        order: Math.max(0, Number(details.order) || 0),
-        sizes:
-          cleanedSizes.length > 0
-            ? cleanedSizes
-            : ["S", "M", "L", "XL"],
-        description: details.description.trim(),
-        productDetails: details.productDetails.trim(),
-        visible: details.visible !== false,
-      };
-
-      const updatedSignatureImages = {
-        ...signatureImages,
-        [slug]: finalImages,
-      };
-
-      const updatedSignatureDetails = {
-        ...signatureDetails,
-        [slug]: cleanedDetails,
-      };
-
-      await updateHomeContent({
-        signatureProductImages: updatedSignatureImages,
-        signatureProductDetails: updatedSignatureDetails,
-      });
-
-      setSignatureImages(updatedSignatureImages);
-      setSignatureDetails(updatedSignatureDetails);
-
-      revokePreviews(signaturePreviews[slug] || []);
-
-      setSignatureFiles((previous) => ({
-        ...previous,
-        [slug]: [],
-      }));
-
-      setSignaturePreviews((previous) => ({
-        ...previous,
-        [slug]: [],
-      }));
-
-      alert(`${cleanedDetails.name} saved successfully.`);
-    } catch (error: any) {
-      console.error("SAVE SIGNATURE PRODUCT ERROR:", error);
-      alert(error?.message || "Failed to save Signature product.");
-    } finally {
-      setSavingSignatureSlug("");
+      setSavingBanner(false);
     }
   }
 
@@ -642,73 +429,6 @@ export default function AdminContentPage() {
     }
   }
 
-  async function addPostItem() {
-    try {
-      if (!postFile) {
-        alert("Please upload an Instagram post image.");
-        return;
-      }
-
-      if (!postLink.trim()) {
-        alert("Please paste the Instagram post link.");
-        return;
-      }
-
-      if (instagramPosts.length >= 6) {
-        alert("Maximum 6 Instagram posts are allowed.");
-        return;
-      }
-
-      setSavingPost(true);
-
-      const uploaded = await uploadFiles([postFile]);
-
-      const finalItems = withUpdatedOrder([
-        ...instagramPosts,
-        {
-          id: createSocialId(),
-          image: uploaded[0],
-          link: postLink.trim(),
-          title: postTitle.trim(),
-          visible: true,
-        },
-      ]);
-
-      await updateHomeContent({
-        instagramPosts: finalItems,
-      });
-
-      setInstagramPosts(finalItems);
-      clearPostDraft();
-
-      alert("Instagram post added successfully.");
-    } catch (error: any) {
-      console.error("ADD POST ERROR:", error);
-      alert(error?.message || "Failed to add Instagram post.");
-    } finally {
-      setSavingPost(false);
-    }
-  }
-
-  async function savePostItems() {
-    try {
-      setSavingPostList(true);
-
-      const finalItems = withUpdatedOrder(instagramPosts);
-
-      await updateHomeContent({
-        instagramPosts: finalItems,
-      });
-
-      setInstagramPosts(finalItems);
-      alert("Instagram post changes saved successfully.");
-    } catch (error: any) {
-      console.error("SAVE POSTS ERROR:", error);
-      alert(error?.message || "Failed to save Instagram posts.");
-    } finally {
-      setSavingPostList(false);
-    }
-  }
 
   function createCircleId() {
     if (
@@ -1019,72 +739,6 @@ export default function AdminContentPage() {
     setReelProductUrl("");
   }
 
-  function clearPostDraft() {
-    if (postPreview) {
-      revokePreviews([postPreview]);
-    }
-
-    setPostFile(null);
-    setPostPreview("");
-    setPostTitle("");
-    setPostLink("");
-  }
-
-  function handleMultipleFileChange(
-    event: ChangeEvent<HTMLInputElement>,
-    existingCount: number,
-    maxCount: number,
-    previousPreviews: string[],
-    setFiles: (files: File[]) => void,
-    setPreviews: (previews: string[]) => void,
-  ) {
-    // Revoke any previews from a prior selection before replacing them,
-    // so repeatedly picking files doesn't leak blob URLs.
-    revokePreviews(previousPreviews);
-
-    const files = Array.from(event.target.files || []);
-    const selectedFiles = files.slice(
-      0,
-      Math.max(0, maxCount - existingCount),
-    );
-
-    setFiles(selectedFiles);
-    setPreviews(
-      selectedFiles.map((file) => URL.createObjectURL(file)),
-    );
-
-    event.target.value = "";
-  }
-
-  function handleSignatureChange(
-    slug: string,
-    event: ChangeEvent<HTMLInputElement>,
-  ) {
-    // Revoke this slug's previous previews before replacing them.
-    revokePreviews(signaturePreviews[slug] || []);
-
-    const files = Array.from(event.target.files || []);
-    const existingCount = signatureImages[slug]?.length || 0;
-    const selectedFiles = files.slice(
-      0,
-      Math.max(0, 5 - existingCount),
-    );
-
-    setSignatureFiles((previous) => ({
-      ...previous,
-      [slug]: selectedFiles,
-    }));
-
-    setSignaturePreviews((previous) => ({
-      ...previous,
-      [slug]: selectedFiles.map((file) =>
-        URL.createObjectURL(file),
-      ),
-    }));
-
-    event.target.value = "";
-  }
-
   function handleSingleFileChange(
     event: ChangeEvent<HTMLInputElement>,
     previousPreview: string,
@@ -1109,13 +763,6 @@ export default function AdminContentPage() {
     () =>
       reelsItems.filter((item) => item.visible !== false).length,
     [reelsItems],
-  );
-
-  const visiblePostCount = useMemo(
-    () =>
-      instagramPosts.filter((item) => item.visible !== false)
-        .length,
-    [instagramPosts],
   );
 
   if (checkingAuth || loading) {
@@ -1464,229 +1111,6 @@ export default function AdminContentPage() {
 
         <Spacer />
 
-        <ImageContentBlock
-          title="Hero Moving Wall"
-          description="Upload 3 to 12 images. Their order here controls their order on the homepage."
-          existingImages={heroImages}
-          previewImages={heroPreviews}
-          maxCount={12}
-          uploadLabel="Add Hero Images"
-          inputAccept="image/png,image/jpeg,image/jpg,image/webp"
-          onFileChange={(event) =>
-            handleMultipleFileChange(
-              event,
-              heroImages.length,
-              12,
-              heroPreviews,
-              setHeroFiles,
-              setHeroPreviews,
-            )
-          }
-          onRemoveExisting={(index) =>
-            setHeroImages((previous) =>
-              previous.filter((_, itemIndex) => itemIndex !== index),
-            )
-          }
-          onMoveExisting={(fromIndex, toIndex) =>
-            setHeroImages((previous) =>
-              moveItem(previous, fromIndex, toIndex),
-            )
-          }
-          onClearSelected={() => {
-            revokePreviews(heroPreviews);
-            setHeroFiles([]);
-            setHeroPreviews([]);
-          }}
-          onSave={saveHero}
-          saving={savingHero}
-          saveText="Save Hero"
-        />
-
-        <Spacer />
-
-        <ImageContentBlock
-          title="Fallback Iconic Images"
-          description="These 3 images are used only when no Firebase products are marked as Iconic."
-          existingImages={iconicImages}
-          previewImages={iconicPreviews}
-          maxCount={3}
-          uploadLabel="Add Iconic Images"
-          inputAccept="image/png,image/jpeg,image/jpg,image/webp"
-          onFileChange={(event) =>
-            handleMultipleFileChange(
-              event,
-              iconicImages.length,
-              3,
-              iconicPreviews,
-              setIconicFiles,
-              setIconicPreviews,
-            )
-          }
-          onRemoveExisting={(index) =>
-            setIconicImages((previous) =>
-              previous.filter((_, itemIndex) => itemIndex !== index),
-            )
-          }
-          onMoveExisting={(fromIndex, toIndex) =>
-            setIconicImages((previous) =>
-              moveItem(previous, fromIndex, toIndex),
-            )
-          }
-          onClearSelected={() => {
-            revokePreviews(iconicPreviews);
-            setIconicFiles([]);
-            setIconicPreviews([]);
-          }}
-          onSave={saveIconicImages}
-          saving={savingIconic}
-          saveText="Save Iconic Images"
-        />
-
-        <Spacer />
-
-        <section style={signatureHeadingStyle}>
-          <p style={signatureEyebrowStyle}>
-            Signature collection
-          </p>
-
-          <h2 style={signatureTitleStyle}>
-            Signature Product Manager
-          </h2>
-
-          <p style={signatureTextStyle}>
-            Edit each Signature product’s name, price, description,
-            sizes, stock, display order and 1–5 image gallery. These
-            products remain separate from Iconic products.
-          </p>
-        </section>
-
-        {signatureProducts.map((fallbackProduct, index) => {
-          const details =
-            signatureDetails[fallbackProduct.slug] ||
-            defaultSignatureProductDetails[fallbackProduct.slug];
-
-          return (
-            <div key={fallbackProduct.slug}>
-              <SignatureProductManager
-                value={details}
-                existingImages={
-                  signatureImages[fallbackProduct.slug] || []
-                }
-                previewImages={
-                  signaturePreviews[fallbackProduct.slug] || []
-                }
-                onChange={(patch) =>
-                  setSignatureDetails((previous) => ({
-                    ...previous,
-                    [fallbackProduct.slug]: {
-                      ...(previous[fallbackProduct.slug] ||
-                        defaultSignatureProductDetails[
-                          fallbackProduct.slug
-                        ]),
-                      ...patch,
-                    },
-                  }))
-                }
-                onFileChange={(event) =>
-                  handleSignatureChange(
-                    fallbackProduct.slug,
-                    event,
-                  )
-                }
-                onRemoveExisting={(imageIndex) =>
-                  setSignatureImages((previous) => ({
-                    ...previous,
-                    [fallbackProduct.slug]: (
-                      previous[fallbackProduct.slug] || []
-                    ).filter(
-                      (_, itemIndex) =>
-                        itemIndex !== imageIndex,
-                    ),
-                  }))
-                }
-                onMoveExisting={(fromIndex, toIndex) =>
-                  setSignatureImages((previous) => ({
-                    ...previous,
-                    [fallbackProduct.slug]: moveItem(
-                      previous[fallbackProduct.slug] || [],
-                      fromIndex,
-                      toIndex,
-                    ),
-                  }))
-                }
-                onClearSelected={() => {
-                  revokePreviews(
-                    signaturePreviews[fallbackProduct.slug] || [],
-                  );
-
-                  setSignatureFiles((previous) => ({
-                    ...previous,
-                    [fallbackProduct.slug]: [],
-                  }));
-
-                  setSignaturePreviews((previous) => ({
-                    ...previous,
-                    [fallbackProduct.slug]: [],
-                  }));
-                }}
-                onSave={() =>
-                  saveSignatureProduct(fallbackProduct.slug)
-                }
-                saving={
-                  savingSignatureSlug ===
-                  fallbackProduct.slug
-                }
-              />
-
-              {index < signatureProducts.length - 1 ? (
-                <Spacer />
-              ) : null}
-            </div>
-          );
-        })}
-
-        <Spacer />
-
-        <ImageContentBlock
-          title="Editorial Images"
-          description="Upload 1 to 6 images for the editorial campaign section."
-          existingImages={editorialImages}
-          previewImages={editorialPreviews}
-          maxCount={6}
-          uploadLabel="Add Editorial Images"
-          inputAccept="image/png,image/jpeg,image/jpg,image/webp"
-          onFileChange={(event) =>
-            handleMultipleFileChange(
-              event,
-              editorialImages.length,
-              6,
-              editorialPreviews,
-              setEditorialFiles,
-              setEditorialPreviews,
-            )
-          }
-          onRemoveExisting={(index) =>
-            setEditorialImages((previous) =>
-              previous.filter((_, itemIndex) => itemIndex !== index),
-            )
-          }
-          onMoveExisting={(fromIndex, toIndex) =>
-            setEditorialImages((previous) =>
-              moveItem(previous, fromIndex, toIndex),
-            )
-          }
-          onClearSelected={() => {
-            revokePreviews(editorialPreviews);
-            setEditorialFiles([]);
-            setEditorialPreviews([]);
-          }}
-          onSave={saveEditorial}
-          saving={savingEditorial}
-          saveText="Save Editorial"
-        />
-
-        <Spacer />
-
         <SocialManager
           title="Instagram Reels"
           description="Upload a Reel video or image. Add its Instagram link, title and optional linked product."
@@ -1764,74 +1188,6 @@ export default function AdminContentPage() {
           onSaveAll={saveReelItems}
           savingAdd={savingReel}
           savingAll={savingReelList}
-        />
-
-        <Spacer />
-
-        <SocialManager
-          title="Instagram Posts"
-          description="Upload Instagram post images and control their order and visibility."
-          uploadLabel="Upload Post Image"
-          inputAccept="image/png,image/jpeg,image/jpg,image/webp"
-          items={instagramPosts}
-          visibleCount={visiblePostCount}
-          maxCount={6}
-          aspectRatio="1 / 1"
-          preview={postPreview}
-          previewFile={postFile}
-          draftFields={[
-            {
-              label: "Post Title",
-              value: postTitle,
-              placeholder: "Optional",
-              onChange: setPostTitle,
-            },
-            {
-              label: "Instagram Post Link",
-              value: postLink,
-              placeholder:
-                "https://www.instagram.com/p/...",
-              onChange: setPostLink,
-            },
-          ]}
-          onFileChange={(event) =>
-            handleSingleFileChange(
-              event,
-              postPreview,
-              setPostFile,
-              setPostPreview,
-            )
-          }
-          onAdd={addPostItem}
-          onClearDraft={clearPostDraft}
-          onChangeItem={(index, patch) =>
-            setInstagramPosts((previous) =>
-              previous.map((item, itemIndex) =>
-                itemIndex === index
-                  ? { ...item, ...patch }
-                  : item,
-              ),
-            )
-          }
-          onMoveItem={(fromIndex, toIndex) =>
-            setInstagramPosts((previous) =>
-              withUpdatedOrder(
-                moveItem(previous, fromIndex, toIndex),
-              ),
-            )
-          }
-          onRemoveItem={(index) =>
-            setInstagramPosts((previous) =>
-              withUpdatedOrder(
-                previous.filter(
-                  (_, itemIndex) => itemIndex !== index,
-                ),
-              ),
-            )
-          }
-          onSaveAll={savePostItems}
-          savingAdd={savingPost}
-          savingAll={savingPostList}
         />
       </div>
 
@@ -2087,489 +1443,6 @@ function VisibilityBlock({
           })}
         </div>
       </section>
-    </section>
-  );
-}
-
-function SignatureProductManager({
-  value,
-  existingImages,
-  previewImages,
-  onChange,
-  onFileChange,
-  onRemoveExisting,
-  onMoveExisting,
-  onClearSelected,
-  onSave,
-  saving,
-}: {
-  value: SignatureProductContent;
-  existingImages: string[];
-  previewImages: string[];
-  onChange: (
-    patch: Partial<SignatureProductContent>,
-  ) => void;
-  onFileChange: (
-    event: ChangeEvent<HTMLInputElement>,
-  ) => void;
-  onRemoveExisting: (index: number) => void;
-  onMoveExisting: (
-    fromIndex: number,
-    toIndex: number,
-  ) => void;
-  onClearSelected: () => void;
-  onSave: () => void;
-  saving: boolean;
-}) {
-  return (
-    <section className="adminSectionGrid">
-      <aside style={darkPanelStyle}>
-        <p style={signatureCardEyebrowStyle}>
-          Signature Product
-        </p>
-
-        <h2 style={blockTitleStyle}>{value.name}</h2>
-
-        <p style={blockTextStyle}>
-          This information appears on the Signature card and its
-          complete product page.
-        </p>
-
-        <button
-          type="button"
-          onClick={() =>
-            onChange({ visible: !value.visible })
-          }
-          style={{
-            ...ghostButtonStyle,
-            marginTop: 0,
-            background: value.visible
-              ? "rgba(37,211,102,0.12)"
-              : "transparent",
-          }}
-        >
-          {value.visible ? (
-            <Eye size={16} />
-          ) : (
-            <EyeOff size={16} />
-          )}
-          {value.visible ? "Product Visible" : "Product Hidden"}
-        </button>
-
-        <label style={uploadBoxStyle}>
-          <Upload size={30} strokeWidth={1.5} />
-
-          <span style={uploadTitleStyle}>
-            Add Signature Images
-          </span>
-
-          <span style={{ fontSize: "13px" }}>
-            {existingImages.length}/5 saved
-          </span>
-
-          <input
-            type="file"
-            multiple
-            accept="image/png,image/jpeg,image/jpg,image/webp"
-            onChange={onFileChange}
-            style={{ display: "none" }}
-          />
-        </label>
-
-        {previewImages.length > 0 ? (
-          <button
-            type="button"
-            onClick={onClearSelected}
-            style={ghostButtonStyle}
-          >
-            Clear Selected
-          </button>
-        ) : null}
-
-        <button
-          type="button"
-          onClick={onSave}
-          disabled={saving}
-          style={lightButtonStyle}
-        >
-          <Save size={16} />
-          {saving ? "Saving..." : "Save Signature Product"}
-        </button>
-      </aside>
-
-      <section style={previewPanelStyle}>
-        <div style={twoColStyle}>
-          <Field
-            label="Product Name"
-            value={value.name}
-            onChange={(name) => onChange({ name })}
-          />
-
-          <Field
-            label="Variant / Colour"
-            value={value.variant}
-            onChange={(variant) => onChange({ variant })}
-          />
-        </div>
-
-        <div style={twoColStyle}>
-          <Field
-            label="Category"
-            value={value.category}
-            onChange={(category) => onChange({ category })}
-          />
-
-          <NumberField
-            label="Display Order"
-            value={value.order}
-            min={0}
-            onChange={(order) => onChange({ order })}
-          />
-        </div>
-
-        <div style={threeColStyle}>
-          <NumberField
-            label="Selling Price"
-            value={value.price}
-            min={0}
-            onChange={(price) => onChange({ price })}
-          />
-
-          <NumberField
-            label="Original Price"
-            value={value.originalPrice}
-            min={0}
-            onChange={(originalPrice) =>
-              onChange({ originalPrice })
-            }
-          />
-
-          <NumberField
-            label="Stock"
-            value={value.stock}
-            min={0}
-            onChange={(stock) => onChange({ stock })}
-          />
-        </div>
-
-        <label style={labelStyle}>
-          Available Sizes — separated by commas
-        </label>
-
-        <input
-          value={value.sizes.join(", ")}
-          onChange={(event) =>
-            onChange({
-              sizes: event.target.value
-                .split(",")
-                .map((size) => size.trim()),
-            })
-          }
-          placeholder="S, M, L, XL"
-          style={inputStyle}
-        />
-
-        <label style={labelStyle}>Short Description</label>
-
-        <textarea
-          value={value.description}
-          onChange={(event) =>
-            onChange({ description: event.target.value })
-          }
-          style={textareaStyle}
-        />
-
-        <label style={labelStyle}>Product Details</label>
-
-        <textarea
-          value={value.productDetails}
-          onChange={(event) =>
-            onChange({
-              productDetails: event.target.value,
-            })
-          }
-          style={{
-            ...textareaStyle,
-            minHeight: "180px",
-          }}
-        />
-
-        <label style={labelStyle}>Signature Gallery</label>
-
-        <GalleryPreview
-          existingImages={existingImages}
-          previewImages={previewImages}
-          onRemoveExisting={onRemoveExisting}
-          onMoveExisting={onMoveExisting}
-          embedded
-        />
-      </section>
-    </section>
-  );
-}
-
-function StoryCircleManager({
-  circle,
-  index,
-  total,
-  previewImages,
-  onChange,
-  onFileChange,
-  onRemoveExistingImage,
-  onMoveUp,
-  onMoveDown,
-  onRemoveCircle,
-  onSave,
-  saving,
-}: {
-  circle: StoryCircleItem;
-  index: number;
-  total: number;
-  previewImages: string[];
-  onChange: (patch: Partial<StoryCircleItem>) => void;
-  onFileChange: (event: ChangeEvent<HTMLInputElement>) => void;
-  onRemoveExistingImage: (imageIndex: number) => void;
-  onMoveUp: () => void;
-  onMoveDown: () => void;
-  onRemoveCircle: () => void;
-  onSave: () => void;
-  saving: boolean;
-}) {
-  return (
-    <section className="adminSectionGrid">
-      <aside style={darkPanelStyle}>
-        <p style={signatureCardEyebrowStyle}>
-          Circle {index + 1} of {total}
-        </p>
-
-        <h2 style={blockTitleStyle}>{circle.name || "Untitled"}</h2>
-
-        <div
-          style={{
-            display: "flex",
-            gap: "8px",
-            flexWrap: "wrap",
-            marginBottom: "18px",
-          }}
-        >
-          <button
-            type="button"
-            onClick={onMoveUp}
-            disabled={index === 0}
-            style={smallControlButton}
-          >
-            <ArrowUp size={14} />
-            Move Up
-          </button>
-
-          <button
-            type="button"
-            onClick={onMoveDown}
-            disabled={index === total - 1}
-            style={smallControlButton}
-          >
-            <ArrowDown size={14} />
-            Move Down
-          </button>
-
-          <button
-            type="button"
-            onClick={onRemoveCircle}
-            style={{
-              ...smallControlButton,
-              background: "rgba(200,80,70,0.15)",
-              color: "#f6f2eb",
-            }}
-          >
-            <X size={14} />
-            Remove Circle
-          </button>
-        </div>
-
-        <button
-          type="button"
-          onClick={() => onChange({ comingSoon: !circle.comingSoon })}
-          style={{
-            ...ghostButtonStyle,
-            marginTop: 0,
-            background: circle.comingSoon
-              ? "rgba(255,193,7,0.15)"
-              : "rgba(37,211,102,0.12)",
-          }}
-        >
-          {circle.comingSoon ? <EyeOff size={16} /> : <Eye size={16} />}
-          {circle.comingSoon ? "Coming Soon (Locked)" : "Live (Clickable)"}
-        </button>
-
-        <label style={uploadBoxStyle}>
-          <Upload size={30} strokeWidth={1.5} />
-
-          <span style={uploadTitleStyle}>Add Circle Images</span>
-
-          <span style={{ fontSize: "13px" }}>
-            {circle.images.length}/4 saved
-          </span>
-
-          <input
-            type="file"
-            multiple
-            accept="image/png,image/jpeg,image/jpg,image/webp"
-            onChange={onFileChange}
-            style={{ display: "none" }}
-          />
-        </label>
-
-        <button
-          type="button"
-          onClick={onSave}
-          disabled={saving}
-          style={lightButtonStyle}
-        >
-          <Save size={16} />
-          {saving ? "Saving..." : "Save Circle"}
-        </button>
-      </aside>
-
-      <section style={previewPanelStyle}>
-        <div style={twoColStyle}>
-          <Field
-            label="Circle Name"
-            value={circle.name}
-            onChange={(name) => onChange({ name })}
-          />
-
-          <Field
-            label="Collection Slug (optional — auto-generated if blank)"
-            value={circle.slug}
-            onChange={(slug) => onChange({ slug })}
-          />
-        </div>
-
-        <label style={labelStyle}>Circle Images</label>
-
-        <GalleryPreview
-          existingImages={circle.images}
-          previewImages={previewImages}
-          onRemoveExisting={onRemoveExistingImage}
-          onMoveExisting={() => {}}
-          embedded
-        />
-      </section>
-    </section>
-  );
-}
-
-function NumberField({
-  label,
-  value,
-  min,
-  onChange,
-}: {
-  label: string;
-  value: number;
-  min?: number;
-  onChange: (value: number) => void;
-}) {
-  return (
-    <div>
-      <label style={labelStyle}>{label}</label>
-
-      <input
-        type="number"
-        min={min}
-        value={value}
-        onChange={(event) =>
-          onChange(Number(event.target.value) || 0)
-        }
-        style={inputStyle}
-      />
-    </div>
-  );
-}
-
-function ImageContentBlock({
-  title,
-  description,
-  existingImages,
-  previewImages,
-  maxCount,
-  uploadLabel,
-  inputAccept,
-  onFileChange,
-  onRemoveExisting,
-  onMoveExisting,
-  onClearSelected,
-  onSave,
-  saving,
-  saveText,
-}: {
-  title: string;
-  description: string;
-  existingImages: string[];
-  previewImages: string[];
-  maxCount: number;
-  uploadLabel: string;
-  inputAccept: string;
-  onFileChange: (event: ChangeEvent<HTMLInputElement>) => void;
-  onRemoveExisting: (index: number) => void;
-  onMoveExisting: (
-    fromIndex: number,
-    toIndex: number,
-  ) => void;
-  onClearSelected: () => void;
-  onSave: () => void;
-  saving: boolean;
-  saveText: string;
-}) {
-  return (
-    <section className="adminSectionGrid">
-      <aside style={darkPanelStyle}>
-        <h2 style={blockTitleStyle}>{title}</h2>
-        <p style={blockTextStyle}>{description}</p>
-
-        <label style={uploadBoxStyle}>
-          <Upload size={30} strokeWidth={1.5} />
-          <span style={uploadTitleStyle}>{uploadLabel}</span>
-          <span style={{ fontSize: "13px" }}>
-            {existingImages.length}/{maxCount} saved
-          </span>
-
-          <input
-            type="file"
-            multiple
-            accept={inputAccept}
-            onChange={onFileChange}
-            style={{ display: "none" }}
-          />
-        </label>
-
-        {previewImages.length > 0 ? (
-          <button
-            type="button"
-            onClick={onClearSelected}
-            style={ghostButtonStyle}
-          >
-            Clear Selected
-          </button>
-        ) : null}
-
-        <button
-          type="button"
-          onClick={onSave}
-          disabled={saving}
-          style={lightButtonStyle}
-        >
-          <Save size={16} />
-          {saving ? "Saving..." : saveText}
-        </button>
-      </aside>
-
-      <GalleryPreview
-        existingImages={existingImages}
-        previewImages={previewImages}
-        onRemoveExisting={onRemoveExisting}
-        onMoveExisting={onMoveExisting}
-      />
     </section>
   );
 }

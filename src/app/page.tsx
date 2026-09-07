@@ -7,13 +7,17 @@ import BrandStatement from "@/components/BrandStatement";
 import TrustStrip from "@/components/TrustStrip";
 import Footer from "@/components/Footer";
 import Story from "@/components/story";
+import LandscapePromoBanner from "@/components/LandscapePromoBanner";
+import PosterStrip from "@/components/PosterStrip";
 
 export default function Home() {
   return (
     <>
       <HeroWall />
+      <PosterStrip />
       <Story />
       <BestSellers />
+      <LandscapePromoBanner />
       <AccessoriesSection />
 
       <ReelsSection />

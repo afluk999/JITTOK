@@ -605,21 +605,7 @@ function ProductCard({
             ) : null}
           </div>
 
-          <span
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              color: "#111",
-              fontSize: isPhone ? "9px" : "11px",
-              fontWeight: 900,
-              letterSpacing: "0.8px",
-              textTransform: "uppercase",
-              borderBottom: "1px solid rgba(17,17,17,0.5)",
-              paddingBottom: "3px",
-            }}
-          >
-            View Product
-          </span>
+        
         </div>
       </article>
     </Link>

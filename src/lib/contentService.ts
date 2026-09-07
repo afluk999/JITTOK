@@ -104,6 +104,10 @@ export type HomeContent = {
   // Homepage story-circle row (Ringer, Raglan Half, etc).
   storyCircles: StoryCircleItem[];
 
+  // Single image for the landscape promo banner shown under
+  // Best Sellers on the homepage. Empty string = no image set yet.
+  landscapeBannerImage: string;
+
   // Single source of truth for which collections exist, their
   // display name, and whether they're live or coming soon.
   collectionsList: CollectionDefinition[];
@@ -253,6 +257,7 @@ export const defaultHomeContent: HomeContent = {
   instagramPosts: [],
   instagramItems: [],
   storyCircles: defaultStoryCircles,
+  landscapeBannerImage: "",
   collectionsList: defaultCollectionsList,
   categoriesList: defaultCategoriesList,
 
@@ -713,6 +718,10 @@ function normaliseHomeContent(
     ),
 
     storyCircles: normaliseStoryCircles(data.storyCircles),
+    landscapeBannerImage:
+      typeof data.landscapeBannerImage === "string"
+        ? data.landscapeBannerImage
+        : "",
     collectionsList: normaliseCollectionsList(data.collectionsList),
     categoriesList: normaliseCategoriesList(data.categoriesList),
 
