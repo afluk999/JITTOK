@@ -1,10 +1,11 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { useEffect, useState, type CSSProperties, type MouseEvent } from "react";
 import { useCart } from "@/context/CartContext";
 import {
-  getProducts,
+  getProductsByCollection,
   getProductSellingPrice,
   type FirebaseProduct,
 } from "@/lib/productService";
@@ -76,14 +77,12 @@ function RingerTeeCard({
           }}
         >
           {frontImage ? (
-            <img
+            <Image
               src={frontImage}
               alt={product.name}
+              fill
+              sizes="(max-width: 640px) 50vw, (max-width: 1100px) 33vw, 20vw"
               style={{
-                position: "absolute",
-                inset: 0,
-                width: "100%",
-                height: "100%",
                 objectFit: "cover",
                 opacity: hovering && backImage ? 0 : 1,
                 transition: "opacity 300ms ease",
@@ -92,14 +91,12 @@ function RingerTeeCard({
           ) : null}
 
           {backImage ? (
-            <img
+            <Image
               src={backImage}
               alt={`${product.name} back`}
+              fill
+              sizes="(max-width: 640px) 50vw, (max-width: 1100px) 33vw, 20vw"
               style={{
-                position: "absolute",
-                inset: 0,
-                width: "100%",
-                height: "100%",
                 objectFit: "cover",
                 opacity: hovering ? 1 : 0,
                 transition: "opacity 300ms ease",
@@ -136,7 +133,7 @@ function RingerTeeCard({
               margin: "6px 0 0",
               fontSize: isPhone ? "12px" : "14px",
               fontWeight: 500,
-              color: "#bea7a7",
+              color: "#4a4a4a",
             }}
           >
             {formatPrice(price)}
@@ -165,7 +162,7 @@ function RingerTeeCard({
             fontSize: isPhone ? "16px" : "19px",
             fontWeight: 300,
             lineHeight: 1,
-            color: added ? "#237a35" : "#e8dede",
+            color: added ? "#237a35" : "#111111",
             cursor: isSoldOut ? "not-allowed" : "pointer",
             opacity: isSoldOut ? 0.4 : 1,
           }}
@@ -202,7 +199,7 @@ function RingerTeeCard({
                 fontWeight: 800,
                 letterSpacing: "0.8px",
                 textTransform: "uppercase",
-                color: "#f1efed",
+                color: "#77736c",
               }}
             >
               Select Size
@@ -285,23 +282,8 @@ export default function RingerTee() {
   useEffect(() => {
     async function loadRingerTeeProducts() {
       try {
-        const data = await getProducts();
-        setProducts(
-          data.filter((product) => {
-            const candidate = product as FirebaseProduct & {
-              category?: string;
-              collection?: string;
-              collectionName?: string;
-            };
-            const collection =
-              candidate.category ??
-              candidate.collection ??
-              candidate.collectionName ??
-              "";
-
-            return collection.toLowerCase().includes("ringer");
-          }),
-        );
+        const data = await getProductsByCollection("ringer");
+        setProducts(data);
       } catch (error) {
         console.error("LOAD RINGER TEE PRODUCTS ERROR:", error);
       } finally {
@@ -343,7 +325,7 @@ export default function RingerTee() {
     height: isPhone ? "34px" : "40px",
     padding: isPhone ? "0 14px" : "0 20px",
     borderRadius: "999px",
-    background: "#f5e7e7",
+    background: "#111111",
     color: "#ffffff",
     display: "inline-flex",
     alignItems: "center",

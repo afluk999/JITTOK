@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { useEffect, useState, type CSSProperties } from "react";
 
 /*
@@ -66,13 +67,13 @@ function AccessoryCard({
         }}
       >
         {showImage ? (
-          <img
+          <Image
             src={item.image}
             alt={item.name}
+            fill
+            sizes="(max-width: 640px) 88px, (max-width: 1000px) 110px, 140px"
             onError={() => setImageFailed(true)}
             style={{
-              maxWidth: "100%",
-              maxHeight: "100%",
               objectFit: "contain",
               filter: "drop-shadow(0 10px 18px rgba(17,17,17,0.14))",
             }}

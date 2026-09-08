@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { useEffect, useState, type CSSProperties, type MouseEvent } from "react";
 import { useCart } from "@/context/CartContext";
 import {
@@ -79,14 +80,12 @@ function StoreBestSellerCard({
           }}
         >
           {frontImage ? (
-            <img
+            <Image
               src={frontImage}
               alt={product.name}
+              fill
+              sizes="(max-width: 640px) 50vw, (max-width: 1100px) 33vw, 20vw"
               style={{
-                position: "absolute",
-                inset: 0,
-                width: "100%",
-                height: "100%",
                 objectFit: "cover",
                 opacity: hovering && backImage ? 0 : 1,
                 transition: "opacity 300ms ease",
@@ -95,14 +94,12 @@ function StoreBestSellerCard({
           ) : null}
 
           {backImage ? (
-            <img
+            <Image
               src={backImage}
               alt={`${product.name} back`}
+              fill
+              sizes="(max-width: 640px) 50vw, (max-width: 1100px) 33vw, 20vw"
               style={{
-                position: "absolute",
-                inset: 0,
-                width: "100%",
-                height: "100%",
                 objectFit: "cover",
                 opacity: hovering ? 1 : 0,
                 transition: "opacity 300ms ease",
