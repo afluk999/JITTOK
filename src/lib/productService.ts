@@ -93,6 +93,18 @@ export type FirebaseProduct = {
   isBestSeller?: boolean;
 
   /*
+   * Which Store category this product belongs to (e.g. "shades",
+   * "watches"). Separate system from Category/Collection — powers
+   * the /Store page's filter buttons.
+   */
+  storeCategory?: string;
+
+  // Shows this product in the homepage "Store Best Sellers" row,
+  // independent of the main isBestSeller toggle.
+  isStoreBestSeller?: boolean;
+  storeBestSellerOrder?: number;
+
+  /*
    * Which collection page this product belongs to
    * (e.g. "ringer", "raglan-half", "raglan-full", "lovely").
    * Leave undefined for products not shown on a collection page.
@@ -251,6 +263,79 @@ export async function getProductsByCollection(collectionSlug: string) {
       (firstProduct, secondProduct) =>
         (firstProduct.collectionOrder ?? 999) -
         (secondProduct.collectionOrder ?? 999),
+    );
+}
+
+/*
+ * Gets public products matching a given Category value
+ * (e.g. "Accessories"), most recent first.
+ */
+export async function getProductsByCategory(categoryName: string) {
+  const productsQuery = query(
+    productsCollection,
+    where("category", "==", categoryName),
+    orderBy("createdAt", "desc"),
+  );
+
+  const snapshot = await getDocs(productsQuery);
+
+  return snapshot.docs
+    .map((item) =>
+      normaliseProduct({
+        id: item.id,
+        ...item.data(),
+      } as FirebaseProduct),
+    )
+    .filter(isPublicProduct);
+}
+
+/*
+ * Gets every public product tagged with a Store category. Fetched
+ * once and filtered client-side by the /Store page's buttons,
+ * rather than one Firestore query per category.
+ */
+export async function getAllStoreProducts() {
+  const productsQuery = query(
+    productsCollection,
+    where("storeCategory", "!=", ""),
+  );
+
+  const snapshot = await getDocs(productsQuery);
+
+  return snapshot.docs
+    .map((item) =>
+      normaliseProduct({
+        id: item.id,
+        ...item.data(),
+      } as FirebaseProduct),
+    )
+    .filter(isPublicProduct);
+}
+
+/*
+ * Gets public products for the homepage "Store Best Sellers" row.
+ */
+export async function getStoreBestSellerProducts() {
+  const productsQuery = query(
+    productsCollection,
+    where("isStoreBestSeller", "==", true),
+    orderBy("createdAt", "desc"),
+  );
+
+  const snapshot = await getDocs(productsQuery);
+
+  return snapshot.docs
+    .map((item) =>
+      normaliseProduct({
+        id: item.id,
+        ...item.data(),
+      } as FirebaseProduct),
+    )
+    .filter(isPublicProduct)
+    .sort(
+      (firstProduct, secondProduct) =>
+        (firstProduct.storeBestSellerOrder ?? 999) -
+        (secondProduct.storeBestSellerOrder ?? 999),
     );
 }
 

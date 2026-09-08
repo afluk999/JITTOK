@@ -14,6 +14,7 @@ import { auth } from "@/lib/firebase";
 import {
   defaultCategoriesList,
   defaultCollectionsList,
+  defaultStoreCategoriesList,
   defaultStoryCircles,
   getHomeContent,
   updateHomeContent,
@@ -21,6 +22,7 @@ import {
   type CollectionDefinition,
   type HomeSectionVisibility,
   type SocialItem,
+  type StoreCategoryDefinition,
   type StoryCircleItem,
 } from "@/lib/contentService";
 import {
@@ -43,7 +45,7 @@ const DEFAULT_SECTION_VISIBILITY: HomeSectionVisibility = {
   customerLove: true,
   brandStatement: true,
   trustStrip: true,
-   newArrivals: true, 
+  newArrivals: true,
 };
 
 const SECTION_LABELS: Array<{
@@ -173,6 +175,12 @@ export default function AdminContentPage() {
   );
   const [savingCategoriesList, setSavingCategoriesList] = useState(false);
 
+  const [storeCategoriesList, setStoreCategoriesList] = useState<
+    StoreCategoryDefinition[]
+  >(defaultStoreCategoriesList);
+  const [savingStoreCategoriesList, setSavingStoreCategoriesList] =
+    useState(false);
+
   const [savingReel, setSavingReel] = useState(false);
   const [savingReelList, setSavingReelList] = useState(false);
 
@@ -228,6 +236,12 @@ export default function AdminContentPage() {
         content.categoriesList && content.categoriesList.length > 0
           ? content.categoriesList
           : defaultCategoriesList,
+      );
+      setStoreCategoriesList(
+        content.storeCategoriesList &&
+          content.storeCategoriesList.length > 0
+          ? content.storeCategoriesList
+          : defaultStoreCategoriesList,
       );
     } catch (error) {
       console.error("LOAD CONTENT ERROR:", error);
@@ -602,23 +616,6 @@ export default function AdminContentPage() {
     );
   }
 
-  function moveStoryCircleImage(
-    circleId: string,
-    fromIndex: number,
-    toIndex: number,
-  ) {
-    setStoryCircles((previous) =>
-      previous.map((circle) =>
-        circle.id === circleId
-          ? {
-              ...circle,
-              images: moveItem(circle.images, fromIndex, toIndex),
-            }
-          : circle,
-      ),
-    );
-  }
-
   function addCollectionDefinition() {
     const newCollection: CollectionDefinition = {
       id: createCircleId(),
@@ -744,6 +741,74 @@ export default function AdminContentPage() {
     }
   }
 
+  function addStoreCategoryDefinition() {
+    const newStoreCategory: StoreCategoryDefinition = {
+      id: createCircleId(),
+      name: "New Category",
+      slug: "",
+      order: storeCategoriesList.length,
+    };
+
+    setStoreCategoriesList((previous) => [...previous, newStoreCategory]);
+  }
+
+  function updateStoreCategoryDefinition(
+    id: string,
+    patch: Partial<StoreCategoryDefinition>,
+  ) {
+    setStoreCategoriesList((previous) =>
+      previous.map((category) =>
+        category.id === id ? { ...category, ...patch } : category,
+      ),
+    );
+  }
+
+  function removeStoreCategoryDefinition(id: string) {
+    const confirmed = window.confirm(
+      "Remove this Store category? Products already tagged with it will keep the tag, but it will no longer appear as a filter button on the Store page.",
+    );
+
+    if (!confirmed) return;
+
+    setStoreCategoriesList((previous) =>
+      previous
+        .filter((category) => category.id !== id)
+        .map((category, index) => ({ ...category, order: index })),
+    );
+  }
+
+  function moveStoreCategoryDefinition(fromIndex: number, toIndex: number) {
+    setStoreCategoriesList((previous) =>
+      moveItem(previous, fromIndex, toIndex).map((category, index) => ({
+        ...category,
+        order: index,
+      })),
+    );
+  }
+
+  async function saveStoreCategoriesList() {
+    try {
+      setSavingStoreCategoriesList(true);
+
+      const cleanedList = storeCategoriesList.map((category) => ({
+        ...category,
+        slug:
+          category.slug.trim() ||
+          category.name.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-"),
+      }));
+
+      await updateHomeContent({ storeCategoriesList: cleanedList });
+
+      setStoreCategoriesList(cleanedList);
+      alert("Store categories saved successfully.");
+    } catch (error: any) {
+      console.error("SAVE STORE CATEGORIES ERROR:", error);
+      alert(error?.message || "Failed to save Store categories.");
+    } finally {
+      setSavingStoreCategoriesList(false);
+    }
+  }
+
   function clearReelDraft() {
     if (reelPreview) {
       revokePreviews([reelPreview]);
@@ -756,7 +821,6 @@ export default function AdminContentPage() {
     setReelProductName("");
     setReelProductUrl("");
   }
-  
 
   function handleSingleFileChange(
     event: ChangeEvent<HTMLInputElement>,
@@ -884,31 +948,32 @@ export default function AdminContentPage() {
         </section>
 
         {storyCircles.map((circle, index) => (
-  <div key={circle.id}>
-    <StoryCircleManager
-      circle={circle}
-      index={index}
-      total={storyCircles.length}
-      previewImages={storyCirclePreviews[circle.id] || []}
-      onChange={(patch: Partial<StoryCircleItem>) =>
-        updateStoryCircleField(circle.id, patch)
-      }
-      onFileChange={(event) =>
-        handleStoryCircleFileChange(circle.id, event)
-      }
-      onRemoveExistingImage={(imageIndex: number) =>
-        removeStoryCircleImage(circle.id, imageIndex)
-      }
-      onMoveUp={() => moveStoryCircle(index, index - 1)}
-      onMoveDown={() => moveStoryCircle(index, index + 1)}
-      onRemoveCircle={() => removeStoryCircle(circle.id)}
-      onSave={() => saveStoryCircle(circle.id)}
-      saving={savingStoryCircleId === circle.id}
-    />
+          <div key={circle.id}>
+            <StoryCircleManager
+              circle={circle}
+              index={index}
+              total={storyCircles.length}
+              previewImages={storyCirclePreviews[circle.id] || []}
+              onChange={(patch) =>
+                updateStoryCircleField(circle.id, patch)
+              }
+              onFileChange={(event) =>
+                handleStoryCircleFileChange(circle.id, event)
+              }
+              onRemoveExistingImage={(imageIndex) =>
+                removeStoryCircleImage(circle.id, imageIndex)
+              }
+              onMoveUp={() => moveStoryCircle(index, index - 1)}
+              onMoveDown={() => moveStoryCircle(index, index + 1)}
+              onRemoveCircle={() => removeStoryCircle(circle.id)}
+              onSave={() => saveStoryCircle(circle.id)}
+              saving={savingStoryCircleId === circle.id}
+            />
 
-    {index < storyCircles.length - 1 ? <Spacer /> : null}
-  </div>
-))}
+            {index < storyCircles.length - 1 ? <Spacer /> : null}
+          </div>
+        ))}
+
         <Spacer />
 
         <section style={signatureHeadingStyle}>
@@ -1118,6 +1183,119 @@ export default function AdminContentPage() {
                 <button
                   type="button"
                   onClick={() => removeCategoryDefinition(category.id)}
+                  style={smallControlButton}
+                >
+                  <X size={14} />
+                </button>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        <Spacer />
+
+        <section style={signatureHeadingStyle}>
+          <p style={signatureEyebrowStyle}>Store Page Filter Buttons</p>
+
+          <h2 style={signatureTitleStyle}>Manage Store Categories</h2>
+
+          <p style={signatureTextStyle}>
+            This list controls the filter buttons on your Store page
+            (Shades, Watches, Chains, etc) and the "Store Category"
+            dropdown on the Add/Edit Product form. Add a new one here
+            and it appears in both places automatically.
+          </p>
+
+          <button
+            type="button"
+            onClick={addStoreCategoryDefinition}
+            style={{ ...ghostButtonStyle, marginTop: "20px" }}
+          >
+            <Plus size={16} />
+            Add New Store Category
+          </button>
+
+          <button
+            type="button"
+            onClick={saveStoreCategoriesList}
+            disabled={savingStoreCategoriesList}
+            style={{
+              ...ghostButtonStyle,
+              marginTop: "12px",
+              background: "rgba(37,211,102,0.12)",
+            }}
+          >
+            <Save size={16} />
+            {savingStoreCategoriesList
+              ? "Saving..."
+              : "Save Store Categories"}
+          </button>
+        </section>
+
+        <section style={previewPanelStyle}>
+          <div style={{ display: "grid", gap: "10px" }}>
+            {storeCategoriesList.map((category, index) => (
+              <div
+                key={category.id}
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "1fr 1fr auto auto auto",
+                  gap: "10px",
+                  alignItems: "center",
+                  background: "#ffffff",
+                  border: "1px solid #e5ded4",
+                  padding: "12px",
+                }}
+              >
+                <input
+                  value={category.name}
+                  onChange={(event) =>
+                    updateStoreCategoryDefinition(category.id, {
+                      name: event.target.value,
+                    })
+                  }
+                  placeholder="Store category name"
+                  style={{ ...inputStyle, marginBottom: 0 }}
+                />
+
+                <input
+                  value={category.slug}
+                  onChange={(event) =>
+                    updateStoreCategoryDefinition(category.id, {
+                      slug: event.target.value,
+                    })
+                  }
+                  placeholder="url-slug (auto if blank)"
+                  style={{ ...inputStyle, marginBottom: 0 }}
+                />
+
+                <button
+                  type="button"
+                  onClick={() =>
+                    moveStoreCategoryDefinition(index, index - 1)
+                  }
+                  disabled={index === 0}
+                  style={smallControlButton}
+                >
+                  <ArrowUp size={14} />
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() =>
+                    moveStoreCategoryDefinition(index, index + 1)
+                  }
+                  disabled={index === storeCategoriesList.length - 1}
+                  style={smallControlButton}
+                >
+                  <ArrowDown size={14} />
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() =>
+                    removeStoreCategoryDefinition(category.id)
+                  }
                   style={smallControlButton}
                 >
                   <X size={14} />
@@ -1465,12 +1643,6 @@ function VisibilityBlock({
   );
 }
 
-type DraftField = {
-  label: string;
-  value: string;
-  placeholder: string;
-  onChange: (value: string) => void;
-};
 function StoryCircleManager({
   circle,
   index,
@@ -1621,6 +1793,13 @@ function StoryCircleManager({
     </section>
   );
 }
+
+type DraftField = {
+  label: string;
+  value: string;
+  placeholder: string;
+  onChange: (value: string) => void;
+};
 
 function SocialManager({
   title,

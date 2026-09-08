@@ -26,6 +26,7 @@ import {
   getHomeContent,
   type CategoryDefinition,
   type CollectionDefinition,
+  type StoreCategoryDefinition,
 } from "@/lib/contentService";
 import {
   ArrowLeft,
@@ -40,8 +41,6 @@ import {
 
 // categories now loaded dynamically from Firebase — see loadCollectionsList
 
-type NewArrivalRow = "both" | "1" | "2";
-
 type LocalImageItem = {
   id: string;
   file: File;
@@ -52,12 +51,6 @@ type LocalImageItem = {
   positionX: number;
   positionY: number;
 };
-
-const arrivalRows: Array<{ value: NewArrivalRow; label: string }> = [
-  { value: "both", label: "Both Rows" },
-  { value: "1", label: "Top Row Only" },
-  { value: "2", label: "Bottom Row Only" },
-];
 
 const statusOptions: Array<{ value: ProductStatus; label: string }> = [
   { value: "draft", label: "Draft" },
@@ -184,19 +177,9 @@ export default function NewProductPage() {
   const [status, setStatus] = useState<ProductStatus>("published");
   const [badge, setBadge] = useState<ProductBadge>("none");
 
-  const [isNewArrival, setIsNewArrival] = useState(true);
-  const [newArrivalRow, setNewArrivalRow] =
-    useState<NewArrivalRow>("both");
-  const [newArrivalOrder, setNewArrivalOrder] = useState("");
-
-  const [isFeatured, setIsFeatured] = useState(false);
-  const [featuredOrder, setFeaturedOrder] = useState("");
-
   const [isBestSeller, setIsBestSeller] = useState(false);
   const [bestSellerOrder, setBestSellerOrder] = useState("");
 
-  const [isIconic, setIsIconic] = useState(false);
-  const [iconicOrder, setIconicOrder] = useState("");
   const [homepageOrder, setHomepageOrder] = useState("");
 
   const [collectionTag, setCollectionTag] = useState("");
@@ -207,6 +190,14 @@ export default function NewProductPage() {
   const [availableCategories, setAvailableCategories] = useState<
     CategoryDefinition[]
   >([]);
+
+  const [storeCategoryTag, setStoreCategoryTag] = useState("");
+  const [availableStoreCategories, setAvailableStoreCategories] = useState<
+    StoreCategoryDefinition[]
+  >([]);
+
+  const [isStoreBestSeller, setIsStoreBestSeller] = useState(false);
+  const [storeBestSellerOrder, setStoreBestSellerOrder] = useState("");
 
   const [imageItems, setImageItems] = useState<LocalImageItem[]>([]);
 
@@ -238,6 +229,7 @@ export default function NewProductPage() {
       const content = await getHomeContent();
       setAvailableCollections(content.collectionsList || []);
       setAvailableCategories(content.categoriesList || []);
+      setAvailableStoreCategories(content.storeCategoriesList || []);
     } catch (error) {
       console.error("LOAD COLLECTIONS LIST ERROR:", error);
     }
@@ -584,9 +576,18 @@ export default function NewProductPage() {
           ? optionalNumber(bestSellerOrder)
           : undefined,
 
+        homepageOrder: optionalNumber(homepageOrder),
+
         collection: collectionTag || undefined,
         collectionOrder: collectionTag
           ? optionalNumber(collectionOrder)
+          : undefined,
+
+        storeCategory: storeCategoryTag || undefined,
+
+        isStoreBestSeller,
+        storeBestSellerOrder: isStoreBestSeller
+          ? optionalNumber(storeBestSellerOrder)
           : undefined,
       });
 
@@ -903,17 +904,12 @@ export default function NewProductPage() {
                 marginBottom: "24px",
               }}
             >
-
-
               <ToggleCard
                 checked={isBestSeller}
                 onChange={setIsBestSeller}
                 label="Best Seller"
               />
-
             </div>
-
-
 
             {isBestSeller ? (
               <div style={{ marginBottom: "18px" }}>
@@ -927,7 +923,6 @@ export default function NewProductPage() {
                 />
               </div>
             ) : null}
-
 
             <div style={dividerStyle} />
 
@@ -970,6 +965,66 @@ export default function NewProductPage() {
                 />
               ) : null}
             </div>
+
+            <div style={dividerStyle} />
+
+            <SectionTitle>Store Page</SectionTitle>
+
+            <p style={{ ...helpTextStyle, marginTop: "-8px" }}>
+              Choose which Store category this product belongs to
+              (Shades, Watches, Chains, etc). This is separate from
+              Collection — leave as "None" if it isn't a Store item.
+            </p>
+
+            <div style={twoColStyle}>
+              <div>
+                <label style={labelStyle}>Store Category</label>
+
+                <select
+                  value={storeCategoryTag}
+                  onChange={(event) =>
+                    setStoreCategoryTag(event.target.value)
+                  }
+                  style={inputStyle}
+                >
+                  <option value="">None</option>
+                  {availableStoreCategories.map((category) => (
+                    <option key={category.id} value={category.slug}>
+                      {category.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns:
+                  "repeat(auto-fit, minmax(180px, 1fr))",
+                gap: "14px",
+                marginBottom: "18px",
+              }}
+            >
+              <ToggleCard
+                checked={isStoreBestSeller}
+                onChange={setIsStoreBestSeller}
+                label="Store Best Seller"
+              />
+            </div>
+
+            {isStoreBestSeller ? (
+              <div style={{ marginBottom: "18px" }}>
+                <Input
+                  label="Store Best Seller Order"
+                  value={storeBestSellerOrder}
+                  onChange={setStoreBestSellerOrder}
+                  placeholder="Optional"
+                  type="number"
+                  min="0"
+                />
+              </div>
+            ) : null}
 
             <button
               type="submit"

@@ -1,28 +1,20 @@
 "use client";
 
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
-import { useEffect, useMemo, useState, Suspense, type CSSProperties, type MouseEvent } from "react";
-import Navbar from "@/components/Navbar";
-import Footer from "@/components/Footer";
+import { useEffect, useState, type CSSProperties, type MouseEvent } from "react";
 import { useCart } from "@/context/CartContext";
 import {
-  getAllStoreProducts,
+  getStoreBestSellerProducts,
   getProductOriginalPrice,
   getProductSellingPrice,
   type FirebaseProduct,
 } from "@/lib/productService";
-import {
-  getHomeContent,
-  defaultStoreCategoriesList,
-  type StoreCategoryDefinition,
-} from "@/lib/contentService";
 
 function formatPrice(value: number) {
   return `Rs. ${Number(value || 0).toLocaleString("en-IN")}.00`;
 }
 
-function ProductCard({
+function StoreBestSellerCard({
   product,
   isPhone,
 }: {
@@ -317,16 +309,9 @@ function ProductCard({
   );
 }
 
-function StoreContent() {
-  const searchParams = useSearchParams();
-  const initialCategory = searchParams.get("category") || "all";
-
-  const [categories, setCategories] = useState<StoreCategoryDefinition[]>(
-    defaultStoreCategoriesList,
-  );
+export default function StoreBestSellers() {
   const [products, setProducts] = useState<FirebaseProduct[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeFilter, setActiveFilter] = useState(initialCategory);
   const [isPhone, setIsPhone] = useState(false);
   const [isTablet, setIsTablet] = useState(false);
 
@@ -342,145 +327,87 @@ function StoreContent() {
   }, []);
 
   useEffect(() => {
-    async function loadStore() {
+    async function loadStoreBestSellers() {
       try {
-        setLoading(true);
-
-        const [content, productData] = await Promise.all([
-          getHomeContent(),
-          getAllStoreProducts(),
-        ]);
-
-        setCategories(
-          content.storeCategoriesList && content.storeCategoriesList.length > 0
-            ? content.storeCategoriesList
-            : defaultStoreCategoriesList,
-        );
-        setProducts(productData);
+        const data = await getStoreBestSellerProducts();
+        setProducts(data);
       } catch (error) {
-        console.error("LOAD STORE ERROR:", error);
+        console.error("LOAD STORE BEST SELLERS ERROR:", error);
       } finally {
         setLoading(false);
       }
     }
 
-    loadStore();
+    loadStoreBestSellers();
   }, []);
 
-  const filteredProducts = useMemo(() => {
-    if (activeFilter === "all") return products;
-    return products.filter((product) => product.storeCategory === activeFilter);
-  }, [products, activeFilter]);
+  if (loading || products.length === 0) return null;
 
   const columns = isPhone ? 2 : isTablet ? 3 : 5;
 
-  const pageStyle: CSSProperties = {
-    minHeight: "100vh",
-    background: "#f8f4ec",
+  const sectionStyle: CSSProperties = {
+    width: "100%",
+    background: "#ffffff",
+    padding: isPhone ? "32px 16px 40px" : "46px 5vw 60px",
     fontFamily: '"Outfit", sans-serif',
-    padding: isPhone ? "96px 16px 60px" : "140px 5vw 80px",
   };
 
-  const buttonRowStyle: CSSProperties = {
+  const headerStyle: CSSProperties = {
     display: "flex",
-    flexWrap: "wrap",
-    gap: isPhone ? "8px" : "12px",
-    marginBottom: isPhone ? "26px" : "36px",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: "16px",
+    marginBottom: isPhone ? "20px" : "28px",
   };
 
-  function getFilterButtonStyle(isActive: boolean): CSSProperties {
-    return {
-      height: isPhone ? "40px" : "46px",
-      padding: isPhone ? "0 16px" : "0 22px",
-      border: isActive ? "1px solid #111" : "1px solid #d4ccc1",
-      borderRadius: "6px",
-      background: isActive ? "#111" : "#ffffff",
-      color: isActive ? "#ffffff" : "#111",
-      fontSize: isPhone ? "11px" : "12px",
-      fontWeight: 800,
-      letterSpacing: "0.6px",
-      textTransform: "uppercase",
-      cursor: "pointer",
-      whiteSpace: "nowrap",
-    };
-  }
+  const headingStyle: CSSProperties = {
+    margin: 0,
+    fontSize: isPhone ? "18px" : "22px",
+    fontWeight: 800,
+    color: "#111111",
+  };
+
+  const viewStoreButtonStyle: CSSProperties = {
+    flexShrink: 0,
+    height: isPhone ? "34px" : "40px",
+    padding: isPhone ? "0 14px" : "0 20px",
+    borderRadius: "999px",
+    background: "#111111",
+    color: "#ffffff",
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    fontSize: isPhone ? "10px" : "12px",
+    fontWeight: 800,
+    letterSpacing: "0.4px",
+    textDecoration: "none",
+  };
 
   const gridStyle: CSSProperties = {
     display: "grid",
     gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))`,
-    gap: isPhone ? "12px" : "20px",
+    gap: isPhone ? "12px" : "18px",
   };
 
   return (
-    <>
-      <Navbar />
+    <section style={sectionStyle}>
+      <div style={headerStyle}>
+        <h2 style={headingStyle}>Store Best Sellers</h2>
 
-      <main style={pageStyle}>
-        <h1
-          style={{
-            margin: `0 0 ${isPhone ? "20px" : "30px"}`,
-            fontFamily: '"Bebas Neue", Impact, sans-serif',
-            fontSize: isPhone ? "48px" : "72px",
-            lineHeight: 0.9,
-            fontWeight: 400,
-            textTransform: "uppercase",
-            color: "#171717",
-          }}
-        >
-          Store
-        </h1>
+        <Link href="/Store" style={viewStoreButtonStyle}>
+          Shop Store
+        </Link>
+      </div>
 
-        <div style={buttonRowStyle}>
-          <button
-            type="button"
-            onClick={() => setActiveFilter("all")}
-            style={getFilterButtonStyle(activeFilter === "all")}
-          >
-            All
-          </button>
-
-          {categories.map((category) => (
-            <button
-              key={category.id}
-              type="button"
-              onClick={() => setActiveFilter(category.slug)}
-              style={getFilterButtonStyle(activeFilter === category.slug)}
-            >
-              {category.name}
-            </button>
-          ))}
-        </div>
-
-        {loading ? (
-          <p style={{ color: "#77736c", fontSize: "13px" }}>
-            Loading products...
-          </p>
-        ) : filteredProducts.length === 0 ? (
-          <p style={{ color: "#77736c", fontSize: "13px" }}>
-            No products in this category yet.
-          </p>
-        ) : (
-          <div style={gridStyle}>
-            {filteredProducts.map((product) => (
-              <ProductCard
-                key={product.id ?? product.slug}
-                product={product}
-                isPhone={isPhone}
-              />
-            ))}
-          </div>
-        )}
-      </main>
-
-      <Footer />
-    </>
-  );
-}
-
-export default function StorePage() {
-  return (
-    <Suspense fallback={null}>
-      <StoreContent />
-    </Suspense>
+      <div style={gridStyle}>
+        {products.map((product) => (
+          <StoreBestSellerCard
+            key={product.id ?? product.slug}
+            product={product}
+            isPhone={isPhone}
+          />
+        ))}
+      </div>
+    </section>
   );
 }

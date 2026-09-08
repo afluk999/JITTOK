@@ -18,6 +18,7 @@ export default function Home() {
       <Story />
       <BestSellers />
       <LandscapePromoBanner />
+      <StoreBestSellers />
       <AccessoriesSection />
 
       <ReelsSection />

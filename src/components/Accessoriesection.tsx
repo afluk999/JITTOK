@@ -42,7 +42,7 @@ function AccessoryCard({
 
   return (
     <Link
-      href={`/collections/${item.slug}`}
+      href={`/Store?category=${item.slug}`}
       onMouseEnter={() => setHovering(true)}
       onMouseLeave={() => setHovering(false)}
       style={{

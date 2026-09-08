@@ -27,6 +27,7 @@ import {
   getHomeContent,
   type CategoryDefinition,
   type CollectionDefinition,
+  type StoreCategoryDefinition,
 } from "@/lib/contentService";
 import {
   ArrowLeft,
@@ -199,6 +200,14 @@ export default function EditProductPage() {
     CategoryDefinition[]
   >([]);
 
+  const [storeCategoryTag, setStoreCategoryTag] = useState("");
+  const [availableStoreCategories, setAvailableStoreCategories] = useState<
+    StoreCategoryDefinition[]
+  >([]);
+
+  const [isStoreBestSeller, setIsStoreBestSeller] = useState(false);
+  const [storeBestSellerOrder, setStoreBestSellerOrder] = useState("");
+
   const [imageItems, setImageItems] = useState<EditableImageItem[]>([]);
 
   useEffect(() => {
@@ -230,6 +239,7 @@ export default function EditProductPage() {
       const content = await getHomeContent();
       setAvailableCollections(content.collectionsList || []);
       setAvailableCategories(content.categoriesList || []);
+      setAvailableStoreCategories(content.storeCategoriesList || []);
     } catch (error) {
       console.error("LOAD COLLECTIONS LIST ERROR:", error);
     }
@@ -273,6 +283,13 @@ export default function EditProductPage() {
 
       setCollectionTag(product.collection ?? "");
       setCollectionOrder(numberToInput(product.collectionOrder));
+
+      setStoreCategoryTag(product.storeCategory ?? "");
+
+      setIsStoreBestSeller(Boolean(product.isStoreBestSeller));
+      setStoreBestSellerOrder(
+        numberToInput(product.storeBestSellerOrder),
+      );
 
       const savedSettings =
         product.imageSettings && product.imageSettings.length > 0
@@ -674,6 +691,13 @@ export default function EditProductPage() {
         collectionOrder: collectionTag
           ? optionalNumber(collectionOrder)
           : undefined,
+
+        storeCategory: storeCategoryTag || undefined,
+
+        isStoreBestSeller,
+        storeBestSellerOrder: isStoreBestSeller
+          ? optionalNumber(storeBestSellerOrder)
+          : undefined,
       });
 
       alert("Product updated successfully!");
@@ -710,7 +734,7 @@ export default function EditProductPage() {
     <main
       style={{
         minHeight: "100vh",
-        background: "#ffffff",
+        background: "#f6f2eb",
         color: "#111",
         padding: "clamp(22px, 4vw, 42px)",
         fontFamily: '"Outfit", sans-serif',
@@ -1020,6 +1044,66 @@ export default function EditProductPage() {
                 />
               ) : null}
             </div>
+
+            <div style={dividerStyle} />
+
+            <SectionTitle>Store Page</SectionTitle>
+
+            <p style={{ ...helpTextStyle, marginTop: "-8px" }}>
+              Choose which Store category this product belongs to
+              (Shades, Watches, Chains, etc). This is separate from
+              Collection — leave as "None" if it isn't a Store item.
+            </p>
+
+            <div style={twoColStyle}>
+              <div>
+                <label style={labelStyle}>Store Category</label>
+
+                <select
+                  value={storeCategoryTag}
+                  onChange={(event) =>
+                    setStoreCategoryTag(event.target.value)
+                  }
+                  style={inputStyle}
+                >
+                  <option value="">None</option>
+                  {availableStoreCategories.map((category) => (
+                    <option key={category.id} value={category.slug}>
+                      {category.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns:
+                  "repeat(auto-fit, minmax(180px, 1fr))",
+                gap: "14px",
+                marginBottom: "18px",
+              }}
+            >
+              <ToggleCard
+                checked={isStoreBestSeller}
+                onChange={setIsStoreBestSeller}
+                label="Store Best Seller"
+              />
+            </div>
+
+            {isStoreBestSeller ? (
+              <div style={{ marginBottom: "18px" }}>
+                <Input
+                  label="Store Best Seller Order"
+                  value={storeBestSellerOrder}
+                  onChange={setStoreBestSellerOrder}
+                  placeholder="Optional"
+                  type="number"
+                  min="0"
+                />
+              </div>
+            ) : null}
 
             <button
               type="submit"

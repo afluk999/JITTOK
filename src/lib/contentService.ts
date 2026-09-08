@@ -72,6 +72,13 @@ export type CategoryDefinition = {
   order: number;
 };
 
+export type StoreCategoryDefinition = {
+  id: string;
+  name: string;
+  slug: string;
+  order: number;
+};
+
 export type HomeSectionVisibility = {
   hero: boolean;
   newArrivals: boolean;
@@ -115,6 +122,10 @@ export type HomeContent = {
   // Product category options (T-Shirts, Hoodies, etc), managed
   // from admin instead of hardcoded in the product form.
   categoriesList: CategoryDefinition[];
+
+  // The Store page's filter buttons (Shades, Watches, Chains, etc).
+  // Separate from Categories/Collections — this is its own system.
+  storeCategoriesList: StoreCategoryDefinition[];
 
   // Kept for compatibility with older saved homepage data.
   instagramItems?: SocialItem[];
@@ -245,6 +256,15 @@ export const defaultCategoriesList: CategoryDefinition[] = [
   { id: "accessories", name: "Accessories", order: 3 },
 ];
 
+export const defaultStoreCategoriesList: StoreCategoryDefinition[] = [
+  { id: "shades", name: "Shades", slug: "shades", order: 0 },
+  { id: "watches", name: "Watches", slug: "watches", order: 1 },
+  { id: "chains", name: "Chains", slug: "chains", order: 2 },
+  { id: "caps", name: "Caps", slug: "caps", order: 3 },
+  { id: "shoes", name: "Shoes", slug: "shoes", order: 4 },
+  { id: "pants-store", name: "Pants", slug: "pants", order: 5 },
+];
+
 export const defaultHomeContent: HomeContent = {
   heroImages: [],
   editorialImages: [],
@@ -260,6 +280,7 @@ export const defaultHomeContent: HomeContent = {
   landscapeBannerImage: "",
   collectionsList: defaultCollectionsList,
   categoriesList: defaultCategoriesList,
+  storeCategoriesList: defaultStoreCategoriesList,
 
   brandStatement:
     "JITTOK creates everyday essentials with clean design, comfort, and confidence.",
@@ -636,6 +657,55 @@ function normaliseCategoriesList(value: unknown): CategoryDefinition[] {
     );
 }
 
+function normaliseStoreCategoriesList(
+  value: unknown,
+): StoreCategoryDefinition[] {
+  if (!Array.isArray(value) || value.length === 0) {
+    return defaultStoreCategoriesList;
+  }
+
+  return value
+    .map((item, index): StoreCategoryDefinition | null => {
+      if (!item || typeof item !== "object") {
+        return null;
+      }
+
+      const data = item as Partial<StoreCategoryDefinition>;
+
+      const name =
+        typeof data.name === "string" ? data.name.trim() : "";
+
+      if (!name) {
+        return null;
+      }
+
+      const slug =
+        typeof data.slug === "string" && data.slug.trim()
+          ? data.slug.trim()
+          : name.toLowerCase().replace(/[^a-z0-9]+/g, "-");
+
+      return {
+        id:
+          typeof data.id === "string" && data.id.trim()
+            ? data.id.trim()
+            : slug,
+
+        name,
+        slug,
+
+        order:
+          typeof data.order === "number" &&
+          Number.isFinite(data.order)
+            ? data.order
+            : index,
+      };
+    })
+    .filter((item): item is StoreCategoryDefinition => item !== null)
+    .sort(
+      (firstItem, secondItem) => firstItem.order - secondItem.order,
+    );
+}
+
 function cleanPhoneNumber(value: unknown): string {
   if (typeof value !== "string") {
     return defaultHomeContent.whatsappNumber;
@@ -724,6 +794,9 @@ function normaliseHomeContent(
         : "",
     collectionsList: normaliseCollectionsList(data.collectionsList),
     categoriesList: normaliseCategoriesList(data.categoriesList),
+    storeCategoriesList: normaliseStoreCategoriesList(
+      data.storeCategoriesList,
+    ),
 
     brandStatement: cleanText(
       data.brandStatement,
