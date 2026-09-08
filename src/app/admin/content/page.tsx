@@ -43,6 +43,7 @@ const DEFAULT_SECTION_VISIBILITY: HomeSectionVisibility = {
   customerLove: true,
   brandStatement: true,
   trustStrip: true,
+   newArrivals: true, 
 };
 
 const SECTION_LABELS: Array<{
@@ -601,6 +602,23 @@ export default function AdminContentPage() {
     );
   }
 
+  function moveStoryCircleImage(
+    circleId: string,
+    fromIndex: number,
+    toIndex: number,
+  ) {
+    setStoryCircles((previous) =>
+      previous.map((circle) =>
+        circle.id === circleId
+          ? {
+              ...circle,
+              images: moveItem(circle.images, fromIndex, toIndex),
+            }
+          : circle,
+      ),
+    );
+  }
+
   function addCollectionDefinition() {
     const newCollection: CollectionDefinition = {
       id: createCircleId(),
@@ -738,6 +756,7 @@ export default function AdminContentPage() {
     setReelProductName("");
     setReelProductUrl("");
   }
+  
 
   function handleSingleFileChange(
     event: ChangeEvent<HTMLInputElement>,
@@ -865,32 +884,31 @@ export default function AdminContentPage() {
         </section>
 
         {storyCircles.map((circle, index) => (
-          <div key={circle.id}>
-            <StoryCircleManager
-              circle={circle}
-              index={index}
-              total={storyCircles.length}
-              previewImages={storyCirclePreviews[circle.id] || []}
-              onChange={(patch) =>
-                updateStoryCircleField(circle.id, patch)
-              }
-              onFileChange={(event) =>
-                handleStoryCircleFileChange(circle.id, event)
-              }
-              onRemoveExistingImage={(imageIndex) =>
-                removeStoryCircleImage(circle.id, imageIndex)
-              }
-              onMoveUp={() => moveStoryCircle(index, index - 1)}
-              onMoveDown={() => moveStoryCircle(index, index + 1)}
-              onRemoveCircle={() => removeStoryCircle(circle.id)}
-              onSave={() => saveStoryCircle(circle.id)}
-              saving={savingStoryCircleId === circle.id}
-            />
+  <div key={circle.id}>
+    <StoryCircleManager
+      circle={circle}
+      index={index}
+      total={storyCircles.length}
+      previewImages={storyCirclePreviews[circle.id] || []}
+      onChange={(patch: Partial<StoryCircleItem>) =>
+        updateStoryCircleField(circle.id, patch)
+      }
+      onFileChange={(event) =>
+        handleStoryCircleFileChange(circle.id, event)
+      }
+      onRemoveExistingImage={(imageIndex: number) =>
+        removeStoryCircleImage(circle.id, imageIndex)
+      }
+      onMoveUp={() => moveStoryCircle(index, index - 1)}
+      onMoveDown={() => moveStoryCircle(index, index + 1)}
+      onRemoveCircle={() => removeStoryCircle(circle.id)}
+      onSave={() => saveStoryCircle(circle.id)}
+      saving={savingStoryCircleId === circle.id}
+    />
 
-            {index < storyCircles.length - 1 ? <Spacer /> : null}
-          </div>
-        ))}
-
+    {index < storyCircles.length - 1 ? <Spacer /> : null}
+  </div>
+))}
         <Spacer />
 
         <section style={signatureHeadingStyle}>
@@ -1453,6 +1471,156 @@ type DraftField = {
   placeholder: string;
   onChange: (value: string) => void;
 };
+function StoryCircleManager({
+  circle,
+  index,
+  total,
+  previewImages,
+  onChange,
+  onFileChange,
+  onRemoveExistingImage,
+  onMoveUp,
+  onMoveDown,
+  onRemoveCircle,
+  onSave,
+  saving,
+}: {
+  circle: StoryCircleItem;
+  index: number;
+  total: number;
+  previewImages: string[];
+  onChange: (patch: Partial<StoryCircleItem>) => void;
+  onFileChange: (event: ChangeEvent<HTMLInputElement>) => void;
+  onRemoveExistingImage: (imageIndex: number) => void;
+  onMoveUp: () => void;
+  onMoveDown: () => void;
+  onRemoveCircle: () => void;
+  onSave: () => void;
+  saving: boolean;
+}) {
+  return (
+    <section className="adminSectionGrid">
+      <aside style={darkPanelStyle}>
+        <p style={signatureCardEyebrowStyle}>
+          Circle {index + 1} of {total}
+        </p>
+
+        <h2 style={blockTitleStyle}>{circle.name || "Untitled"}</h2>
+
+        <div
+          style={{
+            display: "flex",
+            gap: "8px",
+            flexWrap: "wrap",
+            marginBottom: "18px",
+          }}
+        >
+          <button
+            type="button"
+            onClick={onMoveUp}
+            disabled={index === 0}
+            style={smallControlButton}
+          >
+            <ArrowUp size={14} />
+            Move Up
+          </button>
+
+          <button
+            type="button"
+            onClick={onMoveDown}
+            disabled={index === total - 1}
+            style={smallControlButton}
+          >
+            <ArrowDown size={14} />
+            Move Down
+          </button>
+
+          <button
+            type="button"
+            onClick={onRemoveCircle}
+            style={{
+              ...smallControlButton,
+              background: "rgba(200,80,70,0.15)",
+              color: "#f6f2eb",
+            }}
+          >
+            <X size={14} />
+            Remove Circle
+          </button>
+        </div>
+
+        <button
+          type="button"
+          onClick={() => onChange({ comingSoon: !circle.comingSoon })}
+          style={{
+            ...ghostButtonStyle,
+            marginTop: 0,
+            background: circle.comingSoon
+              ? "rgba(255,193,7,0.15)"
+              : "rgba(37,211,102,0.12)",
+          }}
+        >
+          {circle.comingSoon ? <EyeOff size={16} /> : <Eye size={16} />}
+          {circle.comingSoon ? "Coming Soon (Locked)" : "Live (Clickable)"}
+        </button>
+
+        <label style={uploadBoxStyle}>
+          <Upload size={30} strokeWidth={1.5} />
+
+          <span style={uploadTitleStyle}>Add Circle Images</span>
+
+          <span style={{ fontSize: "13px" }}>
+            {circle.images.length}/4 saved
+          </span>
+
+          <input
+            type="file"
+            multiple
+            accept="image/png,image/jpeg,image/jpg,image/webp"
+            onChange={onFileChange}
+            style={{ display: "none" }}
+          />
+        </label>
+
+        <button
+          type="button"
+          onClick={onSave}
+          disabled={saving}
+          style={lightButtonStyle}
+        >
+          <Save size={16} />
+          {saving ? "Saving..." : "Save Circle"}
+        </button>
+      </aside>
+
+      <section style={previewPanelStyle}>
+        <div style={twoColStyle}>
+          <Field
+            label="Circle Name"
+            value={circle.name}
+            onChange={(name) => onChange({ name })}
+          />
+
+          <Field
+            label="Collection Slug (optional — auto-generated if blank)"
+            value={circle.slug}
+            onChange={(slug) => onChange({ slug })}
+          />
+        </div>
+
+        <label style={labelStyle}>Circle Images</label>
+
+        <GalleryPreview
+          existingImages={circle.images}
+          previewImages={previewImages}
+          onRemoveExisting={onRemoveExistingImage}
+          onMoveExisting={() => {}}
+          embedded
+        />
+      </section>
+    </section>
+  );
+}
 
 function SocialManager({
   title,
