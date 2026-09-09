@@ -83,7 +83,7 @@ function ProductCard({
             aspectRatio: "3 / 4",
             overflow: "hidden",
             borderRadius: "10px",
-            background: "#ececec",
+            background: "#ffff",
           }}
         >
           {frontImage ? (
