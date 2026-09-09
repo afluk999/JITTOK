@@ -71,7 +71,7 @@ function ProductCard({ product }: { product: FirebaseProduct }) {
             aspectRatio: "3 / 4",
             overflow: "hidden",
             borderRadius: "10px",
-            background: "#ececec",
+            background: "#ffffff",
           }}
         >
           {frontImage ? (
@@ -291,7 +291,7 @@ function ComingSoonPage({ name }: { name: string }) {
       <main
         style={{
           minHeight: "100vh",
-          background: "#f8f4ec",
+          background: "#ffffff",
           display: "flex",
           flexDirection: "column",
           alignItems: "center",
@@ -375,7 +375,7 @@ function NotFoundPage() {
       <main
         style={{
           minHeight: "100vh",
-          background: "#f8f4ec",
+          background: "#ffffff",
           display: "flex",
           alignItems: "center",
           justifyContent: "center",

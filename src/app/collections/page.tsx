@@ -189,7 +189,7 @@ export default function CollectionsPage() {
       <main
         style={{
           minHeight: "100vh",
-          background: "#f6f2eb",
+          background: "#ffffff",
           padding: isPhone ? "94px 14px 64px" : "140px 42px 90px",
           fontFamily: '"Outfit", sans-serif',
           color: "#111",
@@ -495,7 +495,7 @@ function ProductCard({
               height: isPhone ? "28px" : "34px",
               borderRadius: "50%",
               border: "none",
-              background: "rgba(255,255,255,0.78)",
+              background: "rgb(255, 255, 255)",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
@@ -614,7 +614,7 @@ function ProductCard({
 
 const emptyStyle: React.CSSProperties = {
   minHeight: "360px",
-  background: "#f2eee7",
+  background: "#ffffff",
   border: "1px solid #e5ded4",
   display: "flex",
   alignItems: "center",
@@ -628,7 +628,7 @@ const emptyStyle: React.CSSProperties = {
 
 const phoneEmptyStyle: React.CSSProperties = {
   minHeight: "260px",
-  background: "#f2eee7",
+  background: "#ffffff",
   border: "1px solid #e5ded4",
   display: "flex",
   alignItems: "center",

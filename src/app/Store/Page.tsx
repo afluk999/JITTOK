@@ -376,7 +376,7 @@ function StoreContent() {
 
   const pageStyle: CSSProperties = {
     minHeight: "100vh",
-    background: "#f8f4ec",
+    background: "#ffff",
     fontFamily: '"Outfit", sans-serif',
     padding: isPhone ? "96px 16px 60px" : "140px 5vw 80px",
   };
