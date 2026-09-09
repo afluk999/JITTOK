@@ -9,6 +9,8 @@ import Footer from "@/components/Footer";
 import Story from "@/components/story";
 import LandscapePromoBanner from "@/components/LandscapePromoBanner";
 import PosterStrip from "@/components/PosterStrip";
+import StoreBestSellers from "@/components/StoreBestSellers";
+
 
 export default function Home() {
   return (
