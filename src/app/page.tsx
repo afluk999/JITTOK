@@ -20,9 +20,8 @@ export default function Home() {
       <Story />
       <BestSellers />
       <LandscapePromoBanner />
-      <StoreBestSellers />
       <AccessoriesSection />
-
+<StoreBestSellers />
       <ReelsSection />
       <CustomerLoveSection />
       <BrandStatement />

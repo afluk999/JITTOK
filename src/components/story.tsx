@@ -1,336 +1,232 @@
 "use client";
 
-import Link from "next/link";
 import Image from "next/image";
-import { useSearchParams } from "next/navigation";
-import { useEffect, useMemo, useState, Suspense, type CSSProperties, type MouseEvent } from "react";
-import Navbar from "@/components/Navbar";
-import Footer from "@/components/Footer";
-import { useCart } from "@/context/CartContext";
-import {
-  getAllStoreProducts,
-  getProductOriginalPrice,
-  getProductSellingPrice,
-  type FirebaseProduct,
-} from "@/lib/productService";
+import Link from "next/link";
+import { useEffect, useRef, useState, type CSSProperties } from "react";
 import {
   getHomeContent,
-  defaultStoreCategoriesList,
-  type StoreCategoryDefinition,
+  type StoryCircleItem,
 } from "@/lib/contentService";
 
-function formatPrice(value: number) {
-  return `Rs. ${Number(value || 0).toLocaleString("en-IN")}.00`;
-}
-
-function ProductCard({
-  product,
-  isPhone,
-}: {
-  product: FirebaseProduct;
-  isPhone: boolean;
-}) {
-  const { addToCart } = useCart();
-
-  const [hovering, setHovering] = useState(false);
-  const [pickerOpen, setPickerOpen] = useState(false);
-  const [selectedSize, setSelectedSize] = useState("");
-  const [added, setAdded] = useState(false);
-
-  const frontImage = product.images?.[0];
-  const backImage = product.images?.[1] || frontImage;
-  const price = getProductSellingPrice(product);
-  const originalPrice = getProductOriginalPrice(product);
-  const hasDiscount = originalPrice !== null && originalPrice > price;
-  const availableSizes =
-    product.sizes && product.sizes.length > 0
-      ? product.sizes
-      : ["Free Size"];
-
-  const isSoldOut =
-    product.status === "sold-out" || Number(product.stock || 0) <= 0;
-
-  function togglePicker(event: MouseEvent) {
-    event.preventDefault();
-    event.stopPropagation();
-    if (isSoldOut) return;
-    setPickerOpen((open) => !open);
-  }
-
-  function handleConfirmAdd(event: MouseEvent) {
-    event.preventDefault();
-    event.stopPropagation();
-
-    const sizeToUse = selectedSize || availableSizes[0];
-    addToCart(product, sizeToUse, 1);
-
-    setAdded(true);
-    setPickerOpen(false);
-    window.setTimeout(() => setAdded(false), 1400);
-  }
+function IOSSpinner({ size, color }: { size: number; color: string }) {
+  const tickCount = 8;
+  const tickWidth = Math.max(size * 0.09, 2);
+  const tickHeight = size * 0.26;
 
   return (
-    <div style={{ position: "relative" }}>
-      <Link
-        href={`/product/${product.slug}`}
-        style={{ display: "block", textDecoration: "none" }}
-        onMouseEnter={() => setHovering(true)}
-        onMouseLeave={() => setHovering(false)}
-      >
-        <div
+    <div
+      style={{
+        position: "relative",
+        width: `${size}px`,
+        height: `${size}px`,
+      }}
+    >
+      {Array.from({ length: tickCount }).map((_, index) => (
+        <span
+          key={index}
+          className="ios-spinner-tick"
           style={{
-            position: "relative",
-            width: "100%",
-            aspectRatio: "3 / 4",
-            overflow: "hidden",
-            borderRadius: "10px",
-            background: "#ececec",
+            position: "absolute",
+            top: "50%",
+            left: "50%",
+            width: `${tickWidth}px`,
+            height: `${tickHeight}px`,
+            marginLeft: `${-tickWidth / 2}px`,
+            marginTop: `${-size / 2}px`,
+            borderRadius: `${tickWidth / 2}px`,
+            background: color,
+            transformOrigin: `50% ${size / 2}px`,
+            transform: `rotate(${index * (360 / tickCount)}deg)`,
+            animationDelay: `${-(1 - index / tickCount)}s`,
           }}
-        >
-          {frontImage ? (
-            <Image
-              src={frontImage}
-              alt={product.name}
-              fill
-              sizes="(max-width: 640px) 50vw, (max-width: 1100px) 33vw, 20vw"
-              style={{
-                objectFit: "cover",
-                opacity: hovering && backImage ? 0 : 1,
-                transition: "opacity 300ms ease",
-              }}
-            />
-          ) : null}
+        />
+      ))}
+    </div>
+  );
+}
 
-          {backImage ? (
-            <Image
-              src={backImage}
-              alt={`${product.name} back`}
-              fill
-              sizes="(max-width: 640px) 50vw, (max-width: 1100px) 33vw, 20vw"
-              style={{
-                objectFit: "cover",
-                opacity: hovering ? 1 : 0,
-                transition: "opacity 300ms ease",
-              }}
-            />
-          ) : null}
+function CircleItem({
+  circle,
+  isPhone,
+  onLockedClick,
+}: {
+  circle: StoryCircleItem;
+  isPhone: boolean;
+  onLockedClick: () => void;
+}) {
+  const [failedFlags, setFailedFlags] = useState<boolean[]>(
+    () => circle.images.map(() => false),
+  );
+  const [activeIndex, setActiveIndex] = useState(0);
 
-          {isSoldOut ? (
-            <span
-              style={{
-                position: "absolute",
-                top: "10px",
-                left: "10px",
-                padding: "5px 10px",
-                background: "#821f19",
-                color: "#fff",
-                fontSize: "9px",
-                fontWeight: 900,
-                letterSpacing: "0.8px",
-                textTransform: "uppercase",
-                borderRadius: "3px",
-              }}
-            >
-              Sold Out
-            </span>
-          ) : null}
-        </div>
-      </Link>
+  // Each circle gets its own random starting stagger (0-1200ms) so
+  // they don't all flip in lockstep, even if mounted at the exact
+  // same moment.
+  const staggerOffsetRef = useRef(Math.floor(Math.random() * 1200));
 
-      <div
-        style={{
-          display: "flex",
-          alignItems: "flex-end",
-          justifyContent: "space-between",
-          gap: "10px",
-          marginTop: "12px",
-        }}
-      >
-        <div style={{ minWidth: 0 }}>
-          <p
+  const validImages = circle.images.filter(
+    (image, index) => Boolean(image) && !failedFlags[index],
+  );
+
+  useEffect(() => {
+    if (validImages.length <= 1) return;
+
+    let cycleTimeoutId: number;
+
+    function scheduleNextCycle() {
+      // Small random jitter (+/- 400ms) around the 3s base so
+      // circles drift out of sync with each other over time,
+      // instead of all changing at the exact same instant.
+      const jitter = Math.floor(Math.random() * 800) - 400;
+      const delay = 3000 + jitter;
+
+      cycleTimeoutId = window.setTimeout(() => {
+        setActiveIndex((previous) => (previous + 1) % validImages.length);
+        scheduleNextCycle();
+      }, delay);
+    }
+
+    const startTimeoutId = window.setTimeout(() => {
+      scheduleNextCycle();
+    }, staggerOffsetRef.current);
+
+    return () => {
+      window.clearTimeout(startTimeoutId);
+      window.clearTimeout(cycleTimeoutId);
+    };
+  }, [validImages.length]);
+
+  function markFailed(originalIndex: number) {
+    setFailedFlags((previous) => {
+      const next = [...previous];
+      next[originalIndex] = true;
+      return next;
+    });
+  }
+
+  const circleSize = isPhone ? 112 : 150;
+
+  const circleContent = (
+    <div
+      style={{
+        position: "relative",
+        width: `${circleSize}px`,
+        height: `${circleSize}px`,
+        borderRadius: "50%",
+        overflow: "hidden",
+        background: circle.comingSoon ? "#f4f3ef" : "#f0eee9",
+        border: circle.comingSoon
+          ? "1px solid rgba(17,17,17,0.1)"
+          : "1px solid rgba(17,17,17,0.08)",
+      }}
+    >
+      {validImages.map((imageUrl, validIndex) => {
+        const originalIndex = circle.images.indexOf(imageUrl);
+
+        return (
+          <Image
+            key={imageUrl}
+            src={imageUrl}
+            alt={circle.name}
+            fill
+            sizes="(max-width: 768px) 112px, 150px"
             style={{
-              margin: 0,
-              fontSize: isPhone ? "11px" : "13px",
-              fontWeight: 600,
-              lineHeight: 1.35,
-              color: "#111111",
+              objectFit: "cover",
+              objectPosition: "center",
+              filter: circle.comingSoon ? "blur(9px)" : "none",
+              transform: circle.comingSoon ? "scale(1.15)" : "none",
+              opacity: validIndex === activeIndex ? 1 : 0,
+              transition: "opacity 900ms ease",
             }}
-          >
-            {product.name}
-          </p>
-
-          <div
-            style={{
-              display: "flex",
-              alignItems: "baseline",
-              gap: "6px",
-              marginTop: "4px",
-              flexWrap: "wrap",
+            onError={() => {
+              if (originalIndex >= 0) markFailed(originalIndex);
             }}
-          >
-            <span
-              style={{
-                fontSize: isPhone ? "11px" : "13px",
-                fontWeight: 600,
-                color: "#4a4a4a",
-              }}
-            >
-              {formatPrice(price)}
-            </span>
+          />
+        );
+      })}
 
-            {hasDiscount ? (
-              <span
-                style={{
-                  fontSize: isPhone ? "10px" : "12px",
-                  fontWeight: 500,
-                  color: "#a19c94",
-                  textDecoration: "line-through",
-                }}
-              >
-                {formatPrice(originalPrice!)}
-              </span>
-            ) : null}
-          </div>
-        </div>
-
-        <button
-          type="button"
-          onClick={togglePicker}
-          disabled={isSoldOut}
-          aria-label={
-            isSoldOut ? `${product.name} sold out` : `Quick add ${product.name}`
-          }
-          style={{
-            flexShrink: 0,
-            width: isPhone ? "22px" : "26px",
-            height: isPhone ? "22px" : "26px",
-            borderRadius: "50%",
-            border: "1px solid rgba(17,17,17,0.2)",
-            background: added ? "#237a35" : "#ffffff",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            padding: 0,
-            fontSize: isPhone ? "13px" : "16px",
-            fontWeight: 400,
-            lineHeight: 1,
-            color: added ? "#ffffff" : "#111111",
-            cursor: isSoldOut ? "not-allowed" : "pointer",
-            opacity: isSoldOut ? 0.4 : 1,
-          }}
-        >
-          {added ? "✓" : isSoldOut ? "×" : "+"}
-        </button>
-      </div>
-
-      {pickerOpen ? (
+      {circle.comingSoon ? (
         <>
           <div
-            onClick={() => setPickerOpen(false)}
-            style={{ position: "fixed", inset: 0, zIndex: 40, background: "transparent" }}
+            style={{
+              position: "absolute",
+              inset: 0,
+              background: "rgba(255,255,255,0.24)",
+            }}
           />
 
           <div
             style={{
               position: "absolute",
-              right: 0,
-              bottom: "calc(100% + 8px)",
-              zIndex: 50,
-              width: isPhone ? "170px" : "200px",
-              padding: "14px",
-              background: "#ffffff",
-              border: "1px solid rgba(17,17,17,0.12)",
-              borderRadius: "10px",
-              boxShadow: "0 14px 34px rgba(0,0,0,0.14)",
+              inset: 0,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
             }}
           >
-            <p
-              style={{
-                margin: "0 0 10px",
-                fontSize: "10px",
-                fontWeight: 800,
-                letterSpacing: "0.8px",
-                textTransform: "uppercase",
-                color: "#77736c",
-              }}
-            >
-              Select Size
-            </p>
-
-            <div style={{ display: "flex", flexWrap: "wrap", gap: "6px", marginBottom: "12px" }}>
-              {availableSizes.map((size) => {
-                const isActive = selectedSize === size;
-                return (
-                  <button
-                    key={size}
-                    type="button"
-                    onClick={(event) => {
-                      event.preventDefault();
-                      event.stopPropagation();
-                      setSelectedSize(size);
-                    }}
-                    style={{
-                      minWidth: "34px",
-                      height: "30px",
-                      padding: "0 8px",
-                      border: isActive ? "1px solid #111111" : "1px solid #d4ccc1",
-                      background: isActive ? "#111111" : "transparent",
-                      color: isActive ? "#ffffff" : "#111111",
-                      fontSize: "11px",
-                      fontWeight: 700,
-                      cursor: "pointer",
-                      borderRadius: "4px",
-                    }}
-                  >
-                    {size}
-                  </button>
-                );
-              })}
-            </div>
-
-            <button
-              type="button"
-              onClick={handleConfirmAdd}
-              style={{
-                width: "100%",
-                height: "36px",
-                border: "none",
-                background: "#111111",
-                color: "#ffffff",
-                fontSize: "11px",
-                fontWeight: 800,
-                letterSpacing: "0.6px",
-                textTransform: "uppercase",
-                cursor: "pointer",
-                borderRadius: "4px",
-              }}
-            >
-              Add to Cart
-            </button>
+            <IOSSpinner size={circleSize * 0.26} color="#ffffff" />
           </div>
         </>
       ) : null}
     </div>
   );
+
+  const itemStyle: CSSProperties = {
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    flex: "0 0 auto",
+    width: `${isPhone ? 118 : 165}px`,
+    border: "none",
+    background: "transparent",
+    padding: 0,
+    margin: 0,
+    cursor: "pointer",
+    textDecoration: "none",
+    color: "#171717",
+  };
+
+  const nameStyle: CSSProperties = {
+    marginTop: isPhone ? "10px" : "14px",
+    fontFamily: '"Outfit", sans-serif',
+    fontSize: isPhone ? "11px" : "13px",
+    fontWeight: 600,
+    lineHeight: 1.4,
+    color: "#111111",
+    textAlign: "center",
+  };
+
+  if (circle.comingSoon) {
+    return (
+      <button
+        type="button"
+        style={itemStyle}
+        onClick={onLockedClick}
+        aria-label={`${circle.name} coming soon`}
+      >
+        {circleContent}
+        <span style={nameStyle}>{circle.name}</span>
+      </button>
+    );
+  }
+
+  return (
+    <Link href={`/collections/${circle.slug}`} style={itemStyle}>
+      {circleContent}
+      <span style={nameStyle}>{circle.name}</span>
+    </Link>
+  );
 }
 
-function StoreContent() {
-  const searchParams = useSearchParams();
-  const initialCategory = searchParams.get("category") || "all";
-
-  const [categories, setCategories] = useState<StoreCategoryDefinition[]>(
-    defaultStoreCategoriesList,
-  );
-  const [products, setProducts] = useState<FirebaseProduct[]>([]);
+export default function Story() {
+  const [circles, setCircles] = useState<StoryCircleItem[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeFilter, setActiveFilter] = useState(initialCategory);
+  const [showComingSoon, setShowComingSoon] = useState(false);
   const [isPhone, setIsPhone] = useState(false);
-  const [isTablet, setIsTablet] = useState(false);
 
   useEffect(() => {
     function checkSize() {
       setIsPhone(window.innerWidth <= 640);
-      setIsTablet(window.innerWidth > 640 && window.innerWidth <= 1100);
     }
 
     checkSize();
@@ -339,145 +235,187 @@ function StoreContent() {
   }, []);
 
   useEffect(() => {
-    async function loadStore() {
+    async function loadCircles() {
       try {
-        setLoading(true);
-
-        const [content, productData] = await Promise.all([
-          getHomeContent(),
-          getAllStoreProducts(),
-        ]);
-
-        setCategories(
-          content.storeCategoriesList && content.storeCategoriesList.length > 0
-            ? content.storeCategoriesList
-            : defaultStoreCategoriesList,
-        );
-        setProducts(productData);
+        const content = await getHomeContent();
+        setCircles(content.storyCircles || []);
       } catch (error) {
-        console.error("LOAD STORE ERROR:", error);
+        console.error("LOAD STORY CIRCLES ERROR:", error);
       } finally {
         setLoading(false);
       }
     }
 
-    loadStore();
+    loadCircles();
   }, []);
 
-  const filteredProducts = useMemo(() => {
-    if (activeFilter === "all") return products;
-    return products.filter((product) => product.storeCategory === activeFilter);
-  }, [products, activeFilter]);
+  if (loading || circles.length === 0) return null;
 
-  const columns = isPhone ? 2 : isTablet ? 3 : 5;
-
-  const pageStyle: CSSProperties = {
-    minHeight: "100vh",
-    background: "#f8f4ec",
-    fontFamily: '"Outfit", sans-serif',
-    padding: isPhone ? "96px 16px 60px" : "140px 5vw 80px",
+  const sectionStyle: CSSProperties = {
+    width: "100%",
+    background: "#ffffff",
+    padding: isPhone ? "28px 18px" : "34px 20px",
+    overflow: "hidden",
   };
 
-  const buttonRowStyle: CSSProperties = {
+  const rowStyle: CSSProperties = {
+    maxWidth: "1160px",
+    margin: "0 auto",
     display: "flex",
-    flexWrap: "wrap",
-    gap: isPhone ? "8px" : "12px",
-    marginBottom: isPhone ? "26px" : "36px",
-  };
-
-  function getFilterButtonStyle(isActive: boolean): CSSProperties {
-    return {
-      height: isPhone ? "40px" : "46px",
-      padding: isPhone ? "0 16px" : "0 22px",
-      border: isActive ? "1px solid #111" : "1px solid #d4ccc1",
-      borderRadius: "6px",
-      background: isActive ? "#111" : "#ffffff",
-      color: isActive ? "#ffffff" : "#111",
-      fontSize: isPhone ? "11px" : "12px",
-      fontWeight: 800,
-      letterSpacing: "0.6px",
-      textTransform: "uppercase",
-      cursor: "pointer",
-      whiteSpace: "nowrap",
-    };
-  }
-
-  const gridStyle: CSSProperties = {
-    display: "grid",
-    gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))`,
-    gap: isPhone ? "12px" : "20px",
+    flexWrap: "nowrap",
+    justifyContent: isPhone ? "flex-start" : "center",
+    gap: isPhone ? "18px" : "30px",
+    overflowX: "auto",
+    WebkitOverflowScrolling: "touch",
+    scrollbarWidth: "none",
   };
 
   return (
     <>
-      <Navbar />
+      <style>{`
+        .ios-spinner-tick {
+          animation: ios-spinner-fade 1s linear infinite;
+        }
 
-      <main style={pageStyle}>
-        <h1
-          style={{
-            margin: `0 0 ${isPhone ? "20px" : "30px"}`,
-            fontFamily: '"Bebas Neue", Impact, sans-serif',
-            fontSize: isPhone ? "48px" : "72px",
-            lineHeight: 0.9,
-            fontWeight: 400,
-            textTransform: "uppercase",
-            color: "#171717",
-          }}
-        >
-          Store
-        </h1>
+        @keyframes ios-spinner-fade {
+          0% {
+            opacity: 1;
+          }
+          100% {
+            opacity: 0.15;
+          }
+        }
 
-        <div style={buttonRowStyle}>
-          <button
-            type="button"
-            onClick={() => setActiveFilter("all")}
-            style={getFilterButtonStyle(activeFilter === "all")}
-          >
-            All
-          </button>
+        @media (prefers-reduced-motion: reduce) {
+          .ios-spinner-tick {
+            animation: none;
+            opacity: 0.6;
+          }
+        }
+      `}</style>
 
-          {categories.map((category) => (
-            <button
-              key={category.id}
-              type="button"
-              onClick={() => setActiveFilter(category.slug)}
-              style={getFilterButtonStyle(activeFilter === category.slug)}
-            >
-              {category.name}
-            </button>
+      <section style={sectionStyle}>
+        <div style={rowStyle}>
+          {circles.map((circle) => (
+            <CircleItem
+              key={circle.id}
+              circle={circle}
+              isPhone={isPhone}
+              onLockedClick={() => setShowComingSoon(true)}
+            />
           ))}
         </div>
 
-        {loading ? (
-          <p style={{ color: "#77736c", fontSize: "13px" }}>
-            Loading products...
-          </p>
-        ) : filteredProducts.length === 0 ? (
-          <p style={{ color: "#77736c", fontSize: "13px" }}>
-            No products in this category yet.
-          </p>
-        ) : (
-          <div style={gridStyle}>
-            {filteredProducts.map((product) => (
-              <ProductCard
-                key={product.id ?? product.slug}
-                product={product}
-                isPhone={isPhone}
-              />
-            ))}
+        {showComingSoon && (
+          <div
+            onClick={() => setShowComingSoon(false)}
+            style={{
+              position: "fixed",
+              inset: 0,
+              zIndex: 100000,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              padding: "20px",
+              background: "rgba(0,0,0,0.4)",
+            }}
+          >
+            <div
+              onClick={(event) => event.stopPropagation()}
+              style={{
+                position: "relative",
+                width: "min(400px, 100%)",
+                padding: "38px 30px 32px",
+                borderRadius: "14px",
+                background: "#ffffff",
+                textAlign: "center",
+                boxShadow: "0 24px 60px rgba(0,0,0,0.2)",
+              }}
+            >
+              <button
+                type="button"
+                onClick={() => setShowComingSoon(false)}
+                aria-label="Close"
+                style={{
+                  position: "absolute",
+                  top: "12px",
+                  right: "14px",
+                  width: "30px",
+                  height: "30px",
+                  border: "none",
+                  background: "transparent",
+                  fontSize: "24px",
+                  fontWeight: 300,
+                  color: "#171717",
+                  cursor: "pointer",
+                }}
+              >
+                ×
+              </button>
+
+              <p
+                style={{
+                  margin: "0 0 8px",
+                  fontFamily: '"Outfit", sans-serif',
+                  fontSize: "10px",
+                  fontWeight: 800,
+                  letterSpacing: "2px",
+                  color: "#77736c",
+                }}
+              >
+                JITTOK
+              </p>
+
+              <h3
+                style={{
+                  margin: "0 0 12px",
+                  fontFamily: '"Outfit", sans-serif',
+                  fontSize: "22px",
+                  fontWeight: 800,
+                  color: "#171717",
+                }}
+              >
+                Coming Soon
+              </h3>
+
+              <p
+                style={{
+                  margin: "0 0 22px",
+                  fontFamily: '"Outfit", sans-serif',
+                  fontSize: "13px",
+                  lineHeight: 1.6,
+                  color: "#55524c",
+                }}
+              >
+                This collection is currently under development. Follow
+                JITTOK for the latest updates.
+              </p>
+
+              <a
+                href="https://www.instagram.com/jittok.in/"
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  height: "42px",
+                  padding: "0 20px",
+                  borderRadius: "6px",
+                  background: "#171717",
+                  color: "#ffffff",
+                  fontSize: "11px",
+                  fontWeight: 700,
+                  letterSpacing: "0.6px",
+                  textDecoration: "none",
+                }}
+              >
+                Follow @jittok.in
+              </a>
+            </div>
           </div>
         )}
-      </main>
-
-      <Footer />
+      </section>
     </>
-  );
-}
-
-export default function StorePage() {
-  return (
-    <Suspense fallback={null}>
-      <StoreContent />
-    </Suspense>
   );
 }
