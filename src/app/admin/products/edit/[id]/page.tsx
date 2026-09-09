@@ -32,6 +32,7 @@ import {
 import {
   ArrowLeft,
   ChevronLeft,
+  Crop,
   ChevronRight,
   GripVertical,
   ImagePlus,
@@ -40,7 +41,7 @@ import {
   Upload,
 } from "lucide-react";
 
-// categories now loaded dynamically from Firebase — see loadCollectionsList
+import ImageCropModal from "@/components/ImageCropModal";
 
 type EditableImageItem = {
   id: string;
@@ -209,6 +210,9 @@ export default function EditProductPage() {
   const [storeBestSellerOrder, setStoreBestSellerOrder] = useState("");
 
   const [imageItems, setImageItems] = useState<EditableImageItem[]>([]);
+  const [croppingImageId, setCroppingImageId] = useState<string | null>(
+    null,
+  );
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
@@ -437,6 +441,36 @@ export default function EditProductPage() {
     );
 
     event.target.value = "";
+  }
+
+  function handleCropConfirm(croppedFile: File) {
+    if (!croppingImageId) return;
+
+    const croppedPreview = URL.createObjectURL(croppedFile);
+    previewUrlsRef.current.add(croppedPreview);
+
+    setImageItems((current) =>
+      current.map((item) => {
+        if (item.id !== croppingImageId) return item;
+
+        // Revoke the previous preview if it was already a blob
+        // (i.e. this image had already been replaced/cropped once
+        // in this session) — saved Cloudinary URLs don't need this.
+        if (item.file) {
+          URL.revokeObjectURL(item.previewUrl);
+          previewUrlsRef.current.delete(item.previewUrl);
+        }
+
+        return {
+          ...item,
+          url: "",
+          file: croppedFile,
+          previewUrl: croppedPreview,
+        };
+      }),
+    );
+
+    setCroppingImageId(null);
   }
 
   function updateImageItem(
@@ -1304,6 +1338,13 @@ export default function EditProductPage() {
 
                       <div style={{ display: "flex", gap: "6px" }}>
                         <IconButton
+                          title="Crop image"
+                          onClick={() => setCroppingImageId(item.id)}
+                        >
+                          <Crop size={15} />
+                        </IconButton>
+
+                        <IconButton
                           title="Move left"
                           disabled={index === 0}
                           onClick={() => moveImage(index, index - 1)}
@@ -1481,6 +1522,24 @@ export default function EditProductPage() {
           </section>
         </form>
       </div>
+
+      {croppingImageId ? (
+        (() => {
+          const imageBeingCropped = imageItems.find(
+            (item) => item.id === croppingImageId,
+          );
+
+          if (!imageBeingCropped) return null;
+
+          return (
+            <ImageCropModal
+              imageSrc={imageBeingCropped.previewUrl}
+              onCancel={() => setCroppingImageId(null)}
+              onConfirm={handleCropConfirm}
+            />
+          );
+        })()
+      ) : null}
     </main>
   );
 }
