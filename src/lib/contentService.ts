@@ -134,6 +134,8 @@ export type HomeContent = {
   whatsappNumber: string;
   instagramUsername: string;
   instagramUrl: string;
+  seoTitle?: string;
+  seoDescription?: string;
 
   sectionVisibility: HomeSectionVisibility;
   updatedAt?: unknown;

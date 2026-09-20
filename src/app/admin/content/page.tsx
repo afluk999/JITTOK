@@ -133,12 +133,16 @@ export default function AdminContentPage() {
   const [instagramUsername, setInstagramUsername] = useState("");
   const [instagramUrl, setInstagramUrl] = useState("");
 
+  const [seoTitle, setSeoTitle] = useState("");
+  const [seoDescription, setSeoDescription] = useState("");
+
   const [sectionVisibility, setSectionVisibility] =
     useState<HomeSectionVisibility>(
       DEFAULT_SECTION_VISIBILITY,
     );
 
   const [savingSettings, setSavingSettings] = useState(false);
+  const [savingSeo, setSavingSeo] = useState(false);
   const [savingVisibility, setSavingVisibility] = useState(false);
 
   const [bannerImage, setBannerImage] = useState("");
@@ -215,6 +219,9 @@ export default function AdminContentPage() {
       setWhatsappNumber(content.whatsappNumber || "");
       setInstagramUsername(content.instagramUsername || "");
       setInstagramUrl(content.instagramUrl || "");
+
+      setSeoTitle(content.seoTitle || "");
+      setSeoDescription(content.seoDescription || "");
 
       setSectionVisibility({
         ...DEFAULT_SECTION_VISIBILITY,
@@ -319,6 +326,24 @@ export default function AdminContentPage() {
       alert(error?.message || "Failed to save settings.");
     } finally {
       setSavingSettings(false);
+    }
+  }
+
+  async function saveSeo() {
+    try {
+      setSavingSeo(true);
+
+      await updateHomeContent({
+        seoTitle,
+        seoDescription,
+      });
+
+      alert("SEO settings saved successfully.");
+    } catch (error: any) {
+      console.error("SAVE SEO ERROR:", error);
+      alert(error?.message || "Failed to save SEO settings.");
+    } finally {
+      setSavingSeo(false);
     }
   }
 
@@ -900,6 +925,17 @@ export default function AdminContentPage() {
           setInstagramUrl={setInstagramUrl}
           onSave={saveSettings}
           saving={savingSettings}
+        />
+
+        <Spacer />
+
+        <SeoBlock
+          seoTitle={seoTitle}
+          seoDescription={seoDescription}
+          setSeoTitle={setSeoTitle}
+          setSeoDescription={setSeoDescription}
+          onSave={saveSeo}
+          saving={savingSeo}
         />
 
         <Spacer />
@@ -1572,6 +1608,70 @@ function SettingsBlock({
           placeholder="https://www.instagram.com/jittok.in/"
           style={inputStyle}
         />
+      </section>
+    </section>
+  );
+}
+
+function SeoBlock({
+  seoTitle,
+  seoDescription,
+  setSeoTitle,
+  setSeoDescription,
+  onSave,
+  saving,
+}: {
+  seoTitle: string;
+  seoDescription: string;
+  setSeoTitle: (value: string) => void;
+  setSeoDescription: (value: string) => void;
+  onSave: () => void;
+  saving: boolean;
+}) {
+  return (
+    <section className="adminSectionGrid">
+      <aside style={darkPanelStyle}>
+        <h2 style={blockTitleStyle}>SEO Settings</h2>
+        <p style={blockTextStyle}>
+          This title and description are what shows up on Google search
+          results and when the site is shared as a link. Update it whenever
+          your products or focus changes.
+        </p>
+
+        <button
+          type="button"
+          onClick={onSave}
+          disabled={saving}
+          style={lightButtonStyle}
+        >
+          <Save size={16} />
+          {saving ? "Saving..." : "Save SEO Settings"}
+        </button>
+      </aside>
+
+      <section style={previewPanelStyle}>
+        <label style={labelStyle}>Site Title</label>
+        <input
+          value={seoTitle}
+          onChange={(event) => setSeoTitle(event.target.value)}
+          placeholder="JITTOK Store | Oversized T-Shirts & Streetwear India"
+          style={inputStyle}
+        />
+        <p style={{ margin: "-10px 0 18px", color: "#77736c", fontSize: "12px" }}>
+          Best kept under 60 characters.
+        </p>
+
+        <label style={labelStyle}>Site Description</label>
+        <textarea
+          value={seoDescription}
+          onChange={(event) => setSeoDescription(event.target.value)}
+          placeholder="Shop JITTOK for premium oversized T-shirts, hoodies and streetwear essentials, delivered across India."
+          style={{ ...inputStyle, minHeight: "110px", paddingTop: "14px" }}
+        />
+        <p style={{ margin: "-10px 0 0", color: "#77736c", fontSize: "12px" }}>
+          Best kept under 160 characters. This is the line people see under
+          your site name on Google.
+        </p>
       </section>
     </section>
   );
