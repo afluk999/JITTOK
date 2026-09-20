@@ -2,24 +2,6 @@
 
 import { useEffect, useRef } from "react";
 
-const philosophy = [
-  {
-    number: "01",
-    title: "IDENTITY",
-    text: "Clothing is personal. We design pieces that leave room for the person wearing them.",
-  },
-  {
-    number: "02",
-    title: "MOVEMENT",
-    text: "JITTOK is made for real life — changing places, changing moods, and whatever comes next.",
-  },
-  {
-    number: "03",
-    title: "SIMPLICITY",
-    text: "Strong design does not need to shout. The details should do the talking.",
-  },
-];
-
 export default function AboutPage() {
   const pageRef = useRef<HTMLElement>(null);
 
@@ -121,107 +103,6 @@ export default function AboutPage() {
               <div className="j-small-mark">
                 J / I / T / T / O / K
               </div>
-            </div>
-          </div>
-        </section>
-
-        {/* =====================================================
-            PHILOSOPHY
-        ===================================================== */}
-
-        <section className="j-section j-philosophy j-reveal">
-
-          <div className="j-section-heading">
-            <div className="j-eyebrow">
-              <span>02</span>
-              <span>THE PHILOSOPHY</span>
-            </div>
-
-            <h2>
-              THE
-              <br />
-              JITTOK
-              <br />
-              WAY<span className="j-red-dot">.</span>
-            </h2>
-          </div>
-
-          <div className="j-philosophy-list">
-            {philosophy.map((item) => (
-              <div
-                className="j-philosophy-row"
-                key={item.number}
-              >
-                <span className="j-number">{item.number}</span>
-
-                <h3>{item.title}</h3>
-
-                <p>{item.text}</p>
-
-                <span className="j-arrow">↗</span>
-              </div>
-            ))}
-          </div>
-        </section>
-
-        {/* =====================================================
-            FULL IMAGE
-        ===================================================== */}
-
-        
-        {/* =====================================================
-            CRAFT
-        ===================================================== */}
-
-        <section className="j-section j-craft j-reveal">
-
-          <div className="j-eyebrow">
-            <span>04</span>
-            <span>CRAFT</span>
-          </div>
-
-          <div className="j-craft-grid">
-
-            <h2>
-              MADE TO
-              <br />
-              BE WORN.
-              <br />
-              <em>MADE TO LAST.</em>
-            </h2>
-
-            <div className="j-craft-right">
-
-              <p className="j-craft-lead">
-                We care about the feeling of a piece as much
-                as the way it looks. Proportion, fabric, weight
-                and print all matter.
-              </p>
-
-              <div className="j-specs">
-
-                <div>
-                  <span>APPROACH</span>
-                  <strong>COMFORT / FORM / DETAIL</strong>
-                </div>
-
-                <div>
-                  <span>FIT</span>
-                  <strong>RELAXED / OVERSIZED</strong>
-                </div>
-
-                <div>
-                  <span>DETAIL</span>
-                  <strong>BUILT WITH INTENTION</strong>
-                </div>
-
-                <div>
-                  <span>PHILOSOPHY</span>
-                  <strong>LESS NOISE. MORE CHARACTER.</strong>
-                </div>
-
-              </div>
-
             </div>
           </div>
         </section>
