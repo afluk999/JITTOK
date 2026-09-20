@@ -2,57 +2,6 @@
 
 import { useEffect, useRef } from "react";
 
-const collections = [
-  {
-    number: "01",
-    name: "RINGER",
-    description:
-      "Sport-inspired essentials with a classic everyday attitude.",
-    href: "/collections/ringer",
-    image: "/public/hero-slide-1.png",
-  },
-  {
-    number: "02",
-    name: "RAGLAN HALF",
-    description:
-      "A relaxed athletic silhouette built for everyday movement.",
-    href: "/collections/raglan-half",
-    image: "/public/hero-slide-2.png",
-  },
-  {
-    number: "03",
-    name: "RAGLAN FULL",
-    description:
-      "Layered proportions with a stronger, more structured feel.",
-    href: "/collections/raglan-full",
-    image: "/hero/hero-3.webp",
-  },
-  {
-    number: "04",
-    name: "LOVELY",
-    description:
-      "A softer expression of JITTOK with personality at its core.",
-    href: "/collections/lovely",
-    image: "/hero/hero-4.webp",
-  },
-  {
-    number: "05",
-    name: "TERRY",
-    description:
-      "Comfort-led pieces focused on texture, weight and ease.",
-    href: "/collections/terry",
-    image: "/hero/hero-5.webp",
-  },
-  {
-    number: "06",
-    name: "SIGNATURE",
-    description:
-      "Statement pieces built around bold graphics and premium silhouettes.",
-    href: "/collections/signature",
-    image: "/hero-slide-1.PNG",
-  },
-];
-
 const philosophy = [
   {
     number: "01",
@@ -68,29 +17,6 @@ const philosophy = [
     number: "03",
     title: "SIMPLICITY",
     text: "Strong design does not need to shout. The details should do the talking.",
-  },
-];
-
-const timeline = [
-  {
-    number: "01",
-    title: "THE IDEA",
-    text: "JITTOK begins with a simple idea: make clothing that feels personal.",
-  },
-  {
-    number: "02",
-    title: "THE FIRST DROP",
-    text: "The first pieces take shape — built around attitude, comfort and everyday wear.",
-  },
-  {
-    number: "03",
-    title: "THE COLLECTIONS",
-    text: "Different silhouettes become different expressions of the same JITTOK mindset.",
-  },
-  {
-    number: "04",
-    title: "NOW",
-    text: "Building the next chapter, one piece at a time.",
   },
 ];
 
@@ -242,93 +168,7 @@ export default function AboutPage() {
             FULL IMAGE
         ===================================================== */}
 
-        <section className="j-image-break j-reveal">
-
-          <div className="j-image-container">
-            <img
-              src="/hero/hero-2.webp"
-              alt="JITTOK editorial campaign"
-            />
-
-            <div className="j-image-caption">
-              <span>JITTOK / 001</span>
-              <span>BUILT FOR EVERYDAY EXPRESSION</span>
-            </div>
-          </div>
-
-        </section>
-
-        {/* =====================================================
-            COLLECTIONS
-        ===================================================== */}
-
-        <section className="j-section j-collections j-reveal">
-
-          <div className="j-collection-heading">
-
-            <div className="j-eyebrow">
-              <span>03</span>
-              <span>THE COLLECTIONS</span>
-            </div>
-
-            <div>
-              <h2>
-                DIFFERENT
-                <br />
-                <em>EXPRESSIONS.</em>
-              </h2>
-
-              <p>
-                One JITTOK mindset. Different silhouettes,
-                moods and ways to wear them.
-              </p>
-            </div>
-
-          </div>
-
-          <div className="j-collection-grid">
-
-            {collections.map((collection) => (
-              <a
-                key={collection.name}
-                href={collection.href}
-                className="j-collection-card"
-              >
-                <div className="j-collection-image">
-
-                  <img
-                    src={collection.image}
-                    alt={`${collection.name} collection`}
-                  />
-
-                  <span className="j-collection-number">
-                    {collection.number}
-                  </span>
-
-                  <span className="j-collection-view">
-                    VIEW
-                    <span>↗</span>
-                  </span>
-
-                </div>
-
-                <div className="j-collection-info">
-
-                  <div>
-                    <h3>{collection.name}</h3>
-
-                    <p>{collection.description}</p>
-                  </div>
-
-                  <span className="j-arrow">↗</span>
-
-                </div>
-              </a>
-            ))}
-
-          </div>
-        </section>
-
+        
         {/* =====================================================
             CRAFT
         ===================================================== */}
@@ -384,95 +224,6 @@ export default function AboutPage() {
 
             </div>
           </div>
-        </section>
-
-        {/* =====================================================
-            COMMUNITY
-        ===================================================== */}
-
-        <section className="j-section j-community j-reveal">
-
-          <div className="j-community-head">
-
-            <div className="j-eyebrow">
-              <span>05</span>
-              <span>THE PEOPLE</span>
-            </div>
-
-            <h2>
-              JITTOK IS NOT
-              <br />
-              <em>JUST THE CLOTHES.</em>
-            </h2>
-
-          </div>
-
-          <div className="j-community-grid">
-
-            <div className="j-community-image j-community-large">
-              <img
-                src="/hero/hero-3.webp"
-                alt="JITTOK community"
-              />
-              <span>01</span>
-            </div>
-
-            <div className="j-community-copy">
-
-              <p>
-                It is the people who wear them, style them
-                differently, take them somewhere new,
-                and make them theirs.
-              </p>
-
-              <span className="j-community-mark">
-                J / K / T / K
-              </span>
-
-            </div>
-
-            <div className="j-community-image">
-              <img
-                src="/hero/hero-4.webp"
-                alt="JITTOK streetwear"
-              />
-              <span>02</span>
-            </div>
-
-          </div>
-
-        </section>
-
-        {/* =====================================================
-            STORY / TIMELINE
-        ===================================================== */}
-
-        <section className="j-section j-story j-reveal">
-
-          <div className="j-eyebrow">
-            <span>06</span>
-            <span>THE STORY</span>
-          </div>
-
-          <div className="j-timeline">
-
-            {timeline.map((item) => (
-              <div
-                className="j-timeline-row"
-                key={item.number}
-              >
-
-                <span>{item.number}</span>
-
-                <h3>{item.title}</h3>
-
-                <p>{item.text}</p>
-
-              </div>
-            ))}
-
-          </div>
-
         </section>
 
         {/* =====================================================
