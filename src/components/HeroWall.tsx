@@ -11,8 +11,8 @@ import { useEffect, useState } from "react";
  * Until that file exists, mobile falls back to the desktop image
  * automatically (no broken image will ever show).
  */
-const DESKTOP_IMAGE = "/hero-slide-1.PNG";
-const MOBILE_IMAGE = "/hero-slide-1.PNG";
+const DESKTOP_IMAGE = "/hero-slide-1.png";
+const MOBILE_IMAGE = "/hero-slide-1.png";
 
 export default function HeroWall() {
   const [isPhone, setIsPhone] = useState(false);
