@@ -440,6 +440,10 @@ function AdminOrdersPageContent() {
               Dashboard
             </Link>
 
+            <Link href="/admin/content" style={outlineButtonStyle}>
+              Content
+            </Link>
+
             <button type="button" onClick={handleLogout} style={outlineButtonStyle}>
               <LogOut size={16} />
               Logout

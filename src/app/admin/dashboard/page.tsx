@@ -3,10 +3,11 @@
 import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { onAuthStateChanged } from "firebase/auth";
+import { onAuthStateChanged, signOut } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import { getOrders, type Order, type OrderStatus } from "@/lib/orderService";
 import {
+  LogOut,
   Package,
   Receipt,
   TrendingUp,
@@ -183,6 +184,16 @@ export default function AdminDashboardPage() {
     };
   }, [orders]);
 
+  async function handleLogout() {
+    try {
+      await signOut(auth);
+      router.replace("/admin");
+    } catch (logoutError) {
+      console.error("LOGOUT ERROR:", logoutError);
+      alert("Logout failed. Please try again.");
+    }
+  }
+
   if (checkingAuth) {
     return <main style={loadingStyle}>Checking admin access...</main>;
   }
@@ -192,11 +203,37 @@ export default function AdminDashboardPage() {
       <div style={{ maxWidth: "1100px", margin: "0 auto" }}>
         <header
           style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            gap: "20px",
             marginBottom: "34px",
+            flexWrap: "wrap",
           }}
         >
-          <p style={eyebrowStyle}>JITTOK Admin</p>
-          <h1 style={titleStyle}>Dashboard</h1>
+          <div>
+            <p style={eyebrowStyle}>JITTOK Admin</p>
+            <h1 style={titleStyle}>Dashboard</h1>
+          </div>
+
+          <nav style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
+            <Link href="/admin/products" style={outlineButtonStyle}>
+              Products
+            </Link>
+
+            <Link href="/admin/orders" style={outlineButtonStyle}>
+              Orders
+            </Link>
+
+            <Link href="/admin/content" style={outlineButtonStyle}>
+              Content
+            </Link>
+
+            <button type="button" onClick={handleLogout} style={outlineButtonStyle}>
+              <LogOut size={16} />
+              Logout
+            </button>
+          </nav>
         </header>
 
         {error ? (

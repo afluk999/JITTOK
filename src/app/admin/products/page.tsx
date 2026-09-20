@@ -376,6 +376,10 @@ export default function AdminProductsPage() {
               Orders
             </Link>
 
+            <Link href="/admin/content" style={outlineButtonStyle}>
+              Content
+            </Link>
+
             <Link href="/admin/products/new" style={blackButtonStyle}>
               <Plus size={16} />
               Add Product
