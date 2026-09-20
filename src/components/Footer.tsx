@@ -145,6 +145,7 @@ export default function Footer() {
               <h3 style={headingStyle}>Shop</h3>
               <FooterLink href="/collections">All Products</FooterLink>
               <FooterLink href="/cart">Cart</FooterLink>
+              <FooterLink href="/about">About</FooterLink>
             </div>
 
             {isPhone ? (

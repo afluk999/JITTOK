@@ -8,48 +8,48 @@ const collections = [
     name: "RINGER",
     description:
       "Sport-inspired essentials with a classic everyday attitude.",
-    href: "/ringer",
-    image: "/images/about/ringer.jpg",
+    href: "/collections/ringer",
+    image: "/public/hero-slide-1.png",
   },
   {
     number: "02",
     name: "RAGLAN HALF",
     description:
       "A relaxed athletic silhouette built for everyday movement.",
-    href: "/raglan-half",
-    image: "/images/about/raglan-half.jpg",
+    href: "/collections/raglan-half",
+    image: "/public/hero-slide-2.png",
   },
   {
     number: "03",
     name: "RAGLAN FULL",
     description:
       "Layered proportions with a stronger, more structured feel.",
-    href: "/raglan-full",
-    image: "/images/about/raglan-full.jpg",
+    href: "/collections/raglan-full",
+    image: "/hero/hero-3.webp",
   },
   {
     number: "04",
     name: "LOVELY",
     description:
       "A softer expression of JITTOK with personality at its core.",
-    href: "/lovely",
-    image: "/images/about/lovely.jpg",
+    href: "/collections/lovely",
+    image: "/hero/hero-4.webp",
   },
   {
     number: "05",
     name: "TERRY",
     description:
       "Comfort-led pieces focused on texture, weight and ease.",
-    href: "/terry",
-    image: "/images/about/terry.jpg",
+    href: "/collections/terry",
+    image: "/hero/hero-5.webp",
   },
   {
     number: "06",
     name: "SIGNATURE",
     description:
       "Statement pieces built around bold graphics and premium silhouettes.",
-    href: "/signature",
-    image: "/images/about/signature.jpg",
+    href: "/collections/signature",
+    image: "/hero-slide-1.PNG",
   },
 ];
 
@@ -246,7 +246,7 @@ export default function AboutPage() {
 
           <div className="j-image-container">
             <img
-              src="/images/about/editorial-01.jpg"
+              src="/hero/hero-2.webp"
               alt="JITTOK editorial campaign"
             />
 
@@ -411,7 +411,7 @@ export default function AboutPage() {
 
             <div className="j-community-image j-community-large">
               <img
-                src="/images/about/community-01.jpg"
+                src="/hero/hero-3.webp"
                 alt="JITTOK community"
               />
               <span>01</span>
@@ -433,7 +433,7 @@ export default function AboutPage() {
 
             <div className="j-community-image">
               <img
-                src="/images/about/community-02.jpg"
+                src="/hero/hero-4.webp"
                 alt="JITTOK streetwear"
               />
               <span>02</span>
@@ -531,7 +531,7 @@ export default function AboutPage() {
             </a>
 
             <a
-              href="/shop"
+              href="/Store"
               className="j-button j-button-white"
             >
               SHOP ALL

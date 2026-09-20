@@ -17,7 +17,7 @@ export default function Navbar() {
     { label: "Home", href: "/" },
     { label: "Collection", href: "/collections" },
     { label: "Store", href: "/Store" },
-   
+    { label: "About", href: "/about" },
   ];
 
   useEffect(() => {
@@ -455,6 +455,25 @@ export default function Navbar() {
                   </Link>
                 );
               })}
+
+              <Link
+                href="/search"
+                onClick={() => setMenuOpen(false)}
+                style={{
+                  color: pathname === "/search" ? "#77736c" : "#111",
+                  textDecoration: "none",
+                  padding: "18px 0",
+                  borderBottom: "1px solid rgba(17,17,17,0.08)",
+                  fontFamily: '"Bebas Neue", Impact, sans-serif',
+                  fontSize: "46px",
+                  lineHeight: 0.9,
+                  fontWeight: 400,
+                  letterSpacing: "1px",
+                  textTransform: "uppercase",
+                }}
+              >
+                Search
+              </Link>
             </nav>
 
             {/* MOBILE CART */}

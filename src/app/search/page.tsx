@@ -6,6 +6,8 @@ import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { FirebaseProduct, getProducts } from "@/lib/productService";
 import { Search, Heart, ArrowRight } from "lucide-react";
+import { useWishlist } from "@/context/WishlistContext";
+import { getProductId } from "@/context/CartContext";
 
 function normalizeText(value: string) {
   return value.toLowerCase().replace(/[^a-z0-9]/g, "");
@@ -272,6 +274,9 @@ function ProductCard({
   product: FirebaseProduct;
   isPhone: boolean;
 }) {
+  const { toggle, isWishlisted } = useWishlist();
+  const productId = getProductId(product);
+  const liked = isWishlisted(productId);
   const image = product.images?.[0];
 
   return (
@@ -326,9 +331,12 @@ function ProductCard({
           )}
 
           <button
+            type="button"
+            aria-label={liked ? "Remove from favourites" : "Add to favourites"}
             onClick={(event) => {
               event.preventDefault();
               event.stopPropagation();
+              toggle(productId);
             }}
             style={{
               position: "absolute",
@@ -345,7 +353,7 @@ function ProductCard({
               cursor: "pointer",
             }}
           >
-            <Heart size={isPhone ? 12 : 15} strokeWidth={1.8} />
+            <Heart size={isPhone ? 12 : 15} strokeWidth={1.8} fill={liked ? "#111" : "none"} />
           </button>
         </div>
 
