@@ -3,8 +3,8 @@
 import { useEffect, useRef, useState } from "react";
 import loaderLogo from "@/assets/jittok-loader-logo.png";
 
-const MINIMUM_VISIBLE_TIME = 4500;
-const MAXIMUM_VISIBLE_TIME = 15000;
+const MINIMUM_VISIBLE_TIME = 600;
+const MAXIMUM_VISIBLE_TIME = 3000;
 const EXIT_DURATION = 700;
 
 export default function SiteLoader() {

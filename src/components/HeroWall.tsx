@@ -12,7 +12,7 @@ import { useEffect, useState } from "react";
  * automatically (no broken image will ever show).
  */
 const DESKTOP_IMAGE = "/hero-slide-1.png";
-const MOBILE_IMAGE = "/hero/hero-mobile-1.jpg";
+const MOBILE_IMAGE = "/hero-slide-1.png";
 
 export default function HeroWall() {
   const [isPhone, setIsPhone] = useState(false);

@@ -3,11 +3,10 @@
 import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { onAuthStateChanged, signOut } from "firebase/auth";
+import { onAuthStateChanged } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import { getOrders, type Order, type OrderStatus } from "@/lib/orderService";
 import {
-  LogOut,
   Package,
   Receipt,
   TrendingUp,
@@ -111,16 +110,6 @@ export default function AdminDashboardPage() {
     }
   }
 
-  async function handleLogout() {
-    try {
-      await signOut(auth);
-      router.replace("/admin");
-    } catch (logoutError) {
-      console.error("LOGOUT ERROR:", logoutError);
-      alert("Logout failed. Please try again.");
-    }
-  }
-
   const stats = useMemo(() => {
     const revenueOrders = orders.filter((order) =>
       REVENUE_STATUSES.includes(order.status),
@@ -203,41 +192,11 @@ export default function AdminDashboardPage() {
       <div style={{ maxWidth: "1100px", margin: "0 auto" }}>
         <header
           style={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            gap: "20px",
             marginBottom: "34px",
-            flexWrap: "wrap",
           }}
         >
-          <div>
-            <p style={eyebrowStyle}>JITTOK Admin</p>
-            <h1 style={titleStyle}>Dashboard</h1>
-          </div>
-
-          <nav style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
-            <Link href="/admin/products" style={outlineButtonStyle}>
-              Products
-            </Link>
-
-            <Link href="/admin/orders" style={outlineButtonStyle}>
-              Orders
-            </Link>
-
-            <Link href="/admin/content" style={outlineButtonStyle}>
-              Content
-            </Link>
-
-            <button
-              type="button"
-              onClick={handleLogout}
-              style={outlineButtonStyle}
-            >
-              <LogOut size={15} />
-              Logout
-            </button>
-          </nav>
+          <p style={eyebrowStyle}>JITTOK Admin</p>
+          <h1 style={titleStyle}>Dashboard</h1>
         </header>
 
         {error ? (
@@ -292,12 +251,14 @@ export default function AdminDashboardPage() {
                 sub="Per completed order"
               />
 
-              <StatCard
-                icon={<Package size={20} />}
-                label="New Orders"
-                value={String(stats.statusCounts.new)}
-                sub="Need confirmation"
-              />
+              <Link href="/admin/orders?status=new" style={{ textDecoration: "none", color: "inherit" }}>
+                <StatCard
+                  icon={<Package size={20} />}
+                  label="New Orders"
+                  value={String(stats.statusCounts.new)}
+                  sub="Need confirmation"
+                />
+              </Link>
             </section>
 
             <section

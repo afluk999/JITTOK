@@ -1,26 +1,20 @@
+
+"use client";
+
+import { useState } from "react";
 import Link from "next/link";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { Search, Package, ArrowRight, Truck, CheckCircle } from "lucide-react";
 
-const sampleOrders = [
-  {
-    id: "JTK-1024",
-    date: "10 June 2026",
-    status: "Processing",
-    total: "₹3,798.00",
-    items: "Oversized Tee, Signature Hoodie",
-  },
-  {
-    id: "JTK-1018",
-    date: "04 June 2026",
-    status: "Delivered",
-    total: "₹1,299.00",
-    items: "Premium Tee",
-  },
-];
-
 export default function OrdersPage() {
+  const [orderId, setOrderId] = useState("");
+  const [trackingMessage, setTrackingMessage] = useState<string | null>(null);
+
+  function handleTrackOrder() {
+    setTrackingMessage("Order tracking isn't connected yet.");
+  }
+
   return (
     <>
       <Navbar />
@@ -145,7 +139,9 @@ export default function OrdersPage() {
                   marginBottom: "28px",
                 }}
               >
-                <input
+                                <input
+                  value={orderId}
+                  onChange={(event) => setOrderId(event.target.value)}
                   placeholder="Order ID, e.g. JTK-1024"
                   style={{
                     flex: 1,
@@ -163,6 +159,7 @@ export default function OrdersPage() {
 
               <button
                 type="button"
+                onClick={handleTrackOrder}
                 style={{
                   height: "54px",
                   padding: "0 26px",
@@ -181,6 +178,12 @@ export default function OrdersPage() {
               >
                 Track Order <ArrowRight size={16} />
               </button>
+
+              {trackingMessage ? (
+                <p style={{ margin: "16px 0 0", color: "rgba(246,242,235,0.68)", fontSize: "13px", lineHeight: 1.6 }}>
+                  {trackingMessage}
+                </p>
+              ) : null}
             </div>
 
             {/* RECENT ORDERS */}
@@ -205,90 +208,14 @@ export default function OrdersPage() {
                 Recent Orders
               </h2>
 
-              <div style={{ display: "grid", gap: "16px" }}>
-                {sampleOrders.map((order) => (
-                  <article
-                    key={order.id}
-                    style={{
-                      background: "#f6f2eb",
-                      border: "1px solid #ddd5ca",
-                      padding: "22px",
-                    }}
-                  >
-                    <div
-                      style={{
-                        display: "flex",
-                        justifyContent: "space-between",
-                        gap: "20px",
-                        marginBottom: "18px",
-                      }}
-                    >
-                      <div>
-                        <h3
-                          style={{
-                            margin: "0 0 8px",
-                            fontSize: "13px",
-                            fontWeight: 900,
-                            letterSpacing: "1px",
-                            textTransform: "uppercase",
-                          }}
-                        >
-                          Order {order.id}
-                        </h3>
-
-                        <p
-                          style={{
-                            margin: 0,
-                            color: "#77736c",
-                            fontSize: "13px",
-                          }}
-                        >
-                          {order.date}
-                        </p>
-                      </div>
-
-                      <StatusBadge status={order.status} />
-                    </div>
-
-                    <p
-                      style={{
-                        margin: "0 0 10px",
-                        color: "#4d4943",
-                        fontSize: "14px",
-                      }}
-                    >
-                      {order.items}
-                    </p>
-
-                    <div
-                      style={{
-                        display: "flex",
-                        justifyContent: "space-between",
-                        gap: "20px",
-                        alignItems: "center",
-                      }}
-                    >
-                      <strong style={{ fontSize: "15px" }}>{order.total}</strong>
-
-                      <Link
-                        href="/contact"
-                        style={{
-                          color: "#111",
-                          textDecoration: "none",
-                          display: "inline-flex",
-                          alignItems: "center",
-                          gap: "8px",
-                          fontSize: "12px",
-                          fontWeight: 900,
-                          letterSpacing: "1px",
-                          textTransform: "uppercase",
-                        }}
-                      >
-                        Need Help <ArrowRight size={14} />
-                      </Link>
-                    </div>
-                  </article>
-                ))}
+                            <div style={{ background: "#f6f2eb", border: "1px solid #ddd5ca", padding: "32px 22px", textAlign: "center" }}>
+                <p style={{ margin: "0 0 10px", fontSize: "14px", fontWeight: 900, letterSpacing: "1px", textTransform: "uppercase" }}>
+                  No orders yet
+                </p>
+                <p style={{ margin: 0, color: "#4d4943", fontSize: "13px", lineHeight: 1.6 }}>
+                  Orders you place on WhatsApp will show up here once account
+                  history is connected.
+                </p>
               </div>
             </div>
           </section>

@@ -14,6 +14,8 @@ export default function Footer() {
   const [instagramUsername, setInstagramUsername] = useState("@jittok");
   const [instagramUrl, setInstagramUrl] = useState("https://www.instagram.com/jittok.in/");
   const [whatsappNumber, setWhatsappNumber] = useState("919605300701");
+  const [newsletterEmail, setNewsletterEmail] = useState("");
+  const [newsletterStatus, setNewsletterStatus] = useState<string | null>(null);
 
   useEffect(() => {
     function checkPhone() {
@@ -50,8 +52,21 @@ export default function Footer() {
       }
     }
 
-    loadFooterSettings();
+     loadFooterSettings();
   }, []);
+
+  function handleNewsletterSubmit() {
+    const isValidEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(newsletterEmail);
+
+    if (!isValidEmail) {
+      setNewsletterStatus("Enter a valid email");
+      return;
+    }
+
+    // TODO: send `newsletterEmail` to a real newsletter backend/API once one exists.
+    setNewsletterStatus("Thanks — you're on the list!");
+    setNewsletterEmail("");
+  }
 
   const displayPhone = whatsappNumber
     ? `+${whatsappNumber.replace(/^\+/, "")}`
@@ -176,9 +191,11 @@ export default function Footer() {
                 marginBottom: "24px",
               }}
             >
-              <input
+                           <input
                 type="email"
                 placeholder="Email address"
+                value={newsletterEmail}
+                onChange={(event) => setNewsletterEmail(event.target.value)}
                 style={{
                   flex: 1,
                   border: "none",
@@ -193,6 +210,7 @@ export default function Footer() {
 
               <button
                 type="button"
+                onClick={handleNewsletterSubmit}
                 style={{
                   border: "none",
                   background: "transparent",
@@ -203,6 +221,13 @@ export default function Footer() {
               >
                 <ArrowRight size={18} />
               </button>
+            </div>
+
+            {newsletterStatus ? (
+              <p style={{ margin: "-14px 0 20px", color: "rgba(17,17,17,0.66)", fontSize: "12px" }}>
+                {newsletterStatus}
+              </p>
+            ) : null}
             </div>
 
             <ContactLink href={instagramUrl}>
@@ -281,7 +306,7 @@ export default function Footer() {
             </Link>
           </div>
         </div>
-      </div>
+      
     </footer>
   );
 }

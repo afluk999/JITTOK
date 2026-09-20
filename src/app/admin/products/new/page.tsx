@@ -10,11 +10,11 @@ import {
   type ReactNode,
 } from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
 import { onAuthStateChanged } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import {
   createProduct,
+  isSlugTaken,
   type ProductBadge,
   type ProductImageFit,
   type ProductImageRatio,
@@ -29,7 +29,6 @@ import {
   type StoreCategoryDefinition,
 } from "@/lib/contentService";
 import {
-  ArrowLeft,
   ChevronLeft,
   Crop,
   ChevronRight,
@@ -157,6 +156,7 @@ function ensureRequiredImageRoles(items: LocalImageItem[]) {
 export default function NewProductPage() {
   const router = useRouter();
   const previewUrlsRef = useRef<Set<string>>(new Set());
+  const previousStockRef = useRef("10");
 
   const [checkingAuth, setCheckingAuth] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -430,6 +430,10 @@ export default function NewProductPage() {
   }
 
   function handleStatusChange(nextStatus: ProductStatus) {
+    if (nextStatus === "sold-out" && status !== "sold-out") {
+      previousStockRef.current = stock;
+    }
+
     setStatus(nextStatus);
 
     if (nextStatus === "sold-out") {
@@ -441,9 +445,17 @@ export default function NewProductPage() {
     if (badge === "sold-out") {
       setBadge("none");
     }
+
+    if (status === "sold-out") {
+      setStock(previousStockRef.current);
+    }
   }
 
   function handleBadgeChange(nextBadge: ProductBadge) {
+    if (nextBadge === "sold-out" && status !== "sold-out") {
+      previousStockRef.current = stock;
+    }
+
     setBadge(nextBadge);
 
     if (nextBadge === "sold-out") {
@@ -558,6 +570,17 @@ export default function NewProductPage() {
       setSaving(true);
       setUploading(true);
 
+      const slug = makeSlug(`${name}-${variant}`);
+
+      if (await isSlugTaken(slug)) {
+        alert(
+          "A product with this Name + Variant combination already exists, which would create a duplicate URL. Please change the Name or Variant.",
+        );
+        setSaving(false);
+        setUploading(false);
+        return;
+      }
+
       const { imageUrls, imageSettings } = await uploadImages();
 
       let finalStatus = status;
@@ -571,7 +594,7 @@ export default function NewProductPage() {
       }
 
       await createProduct({
-        slug: makeSlug(`${name}-${variant}`),
+        slug,
         name: name.trim(),
         variant: variant.trim(),
         category,
@@ -661,25 +684,6 @@ export default function NewProductPage() {
       }}
     >
       <div style={{ maxWidth: "1280px", margin: "0 auto" }}>
-        <Link
-          href="/admin/products"
-          style={{
-            color: "#77736c",
-            textDecoration: "none",
-            display: "inline-flex",
-            alignItems: "center",
-            gap: "10px",
-            fontSize: "12px",
-            fontWeight: 900,
-            letterSpacing: "1px",
-            textTransform: "uppercase",
-            marginBottom: "32px",
-          }}
-        >
-          <ArrowLeft size={15} />
-          Back to Products
-        </Link>
-
         <h1
           style={{
             margin: "0 0 38px",

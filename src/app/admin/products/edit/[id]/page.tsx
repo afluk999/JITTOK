@@ -10,11 +10,11 @@ import {
   type ReactNode,
 } from "react";
 import { useParams, useRouter } from "next/navigation";
-import Link from "next/link";
 import { onAuthStateChanged } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import {
   getProductById,
+  isSlugTaken,
   updateProduct,
   type ProductBadge,
   type ProductImageFit,
@@ -30,7 +30,6 @@ import {
   type StoreCategoryDefinition,
 } from "@/lib/contentService";
 import {
-  ArrowLeft,
   ChevronLeft,
   Crop,
   ChevronRight,
@@ -163,6 +162,7 @@ export default function EditProductPage() {
   const params = useParams();
   const productId = params.id as string;
   const previewUrlsRef = useRef<Set<string>>(new Set());
+  const previousStockRef = useRef("10");
 
   const [checkingAuth, setCheckingAuth] = useState(true);
   const [loading, setLoading] = useState(true);
@@ -174,6 +174,7 @@ export default function EditProductPage() {
 
   const [name, setName] = useState("");
   const [variant, setVariant] = useState("");
+  const [slug, setSlug] = useState("");
   const [category, setCategory] = useState("T-Shirts");
   const [sellingPrice, setSellingPrice] = useState("");
   const [originalPrice, setOriginalPrice] = useState("");
@@ -267,6 +268,7 @@ export default function EditProductPage() {
 
       setName(product.name || "");
       setVariant(product.variant || "");
+      setSlug(product.slug || "");
       setCategory(product.category || "T-Shirts");
       setSellingPrice(String(currentSellingPrice));
       setOriginalPrice(String(currentOriginalPrice));
@@ -547,6 +549,10 @@ export default function EditProductPage() {
   }
 
   function handleStatusChange(nextStatus: ProductStatus) {
+    if (nextStatus === "sold-out" && status !== "sold-out") {
+      previousStockRef.current = stock;
+    }
+
     setStatus(nextStatus);
 
     if (nextStatus === "sold-out") {
@@ -558,9 +564,17 @@ export default function EditProductPage() {
     if (badge === "sold-out") {
       setBadge("none");
     }
+
+    if (status === "sold-out") {
+      setStock(previousStockRef.current);
+    }
   }
 
   function handleBadgeChange(nextBadge: ProductBadge) {
+    if (nextBadge === "sold-out" && status !== "sold-out") {
+      previousStockRef.current = stock;
+    }
+
     setBadge(nextBadge);
 
     if (nextBadge === "sold-out") {
@@ -672,6 +686,17 @@ export default function EditProductPage() {
       setSaving(true);
       setUploading(imageItems.some((item) => Boolean(item.file)));
 
+      const finalSlug = slug.trim() || makeSlug(`${name}-${variant}`);
+
+      if (await isSlugTaken(finalSlug, productId)) {
+        alert(
+          "That URL slug is already used by another product. Please choose a different one or regenerate it.",
+        );
+        setSaving(false);
+        setUploading(false);
+        return;
+      }
+
       const { imageUrls, imageSettings } = await buildFinalImages();
 
       let finalStatus = status;
@@ -685,7 +710,7 @@ export default function EditProductPage() {
       }
 
       await updateProduct(productId, {
-        slug: makeSlug(`${name}-${variant}`),
+        slug: finalSlug,
         name: name.trim(),
         variant: variant.trim(),
         category,
@@ -775,11 +800,6 @@ export default function EditProductPage() {
       }}
     >
       <div style={{ maxWidth: "1280px", margin: "0 auto" }}>
-        <Link href="/admin/products" style={backLinkStyle}>
-          <ArrowLeft size={15} />
-          Back to Products
-        </Link>
-
         <h1 style={titleStyle}>Edit Product</h1>
 
         <form
@@ -809,6 +829,45 @@ export default function EditProductPage() {
                 onChange={setVariant}
                 placeholder="Ivory"
               />
+            </div>
+
+            <div style={{ marginBottom: "18px" }}>
+              <label style={labelStyle}>Product URL Slug</label>
+
+              <div style={{ display: "flex", gap: "10px" }}>
+                <input
+                  value={slug}
+                  onChange={(event) => setSlug(event.target.value)}
+                  placeholder="product-url-slug"
+                  style={{ ...inputStyle, flex: 1 }}
+                />
+
+                <button
+                  type="button"
+                  onClick={() => setSlug(makeSlug(`${name}-${variant}`))}
+                  style={{
+                    height: "52px",
+                    padding: "0 18px",
+                    border: "none",
+                    background: "#111",
+                    color: "#fff",
+                    fontSize: "11px",
+                    fontWeight: 900,
+                    letterSpacing: "0.8px",
+                    textTransform: "uppercase",
+                    cursor: "pointer",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  Regenerate URL
+                </button>
+              </div>
+
+              <p style={helpTextStyle}>
+                This is the product's live URL (/product/{slug || "..."}).
+                Changing it breaks any links already shared with the old one —
+                it will not update automatically when you edit the name or variant.
+              </p>
             </div>
 
             <div style={twoColStyle}>
@@ -1742,19 +1801,6 @@ function IconButton({
     </button>
   );
 }
-
-const backLinkStyle: CSSProperties = {
-  color: "#77736c",
-  textDecoration: "none",
-  display: "inline-flex",
-  alignItems: "center",
-  gap: "10px",
-  fontSize: "12px",
-  fontWeight: 900,
-  letterSpacing: "1px",
-  textTransform: "uppercase",
-  marginBottom: "32px",
-};
 
 const titleStyle: CSSProperties = {
   margin: "0 0 38px",

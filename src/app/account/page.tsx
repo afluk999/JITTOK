@@ -146,8 +146,10 @@ export default function AccountPage() {
                 </div>
               </div>
 
-              <button
+                            <button
                 type="button"
+                disabled
+                title="Coming soon"
                 style={{
                   height: "54px",
                   padding: "0 26px",
@@ -161,7 +163,8 @@ export default function AccountPage() {
                   fontWeight: 900,
                   letterSpacing: "1px",
                   textTransform: "uppercase",
-                  cursor: "pointer",
+                  cursor: "not-allowed",
+                  opacity: 0.5,
                   marginRight: "16px",
                 }}
               >
@@ -170,6 +173,8 @@ export default function AccountPage() {
 
               <button
                 type="button"
+                disabled
+                title="Coming soon"
                 style={{
                   height: "54px",
                   padding: "0 26px",
@@ -180,11 +185,25 @@ export default function AccountPage() {
                   fontWeight: 900,
                   letterSpacing: "1px",
                   textTransform: "uppercase",
-                  cursor: "pointer",
+                  cursor: "not-allowed",
+                  opacity: 0.5,
                 }}
               >
                 Create Account
               </button>
+
+              <p
+                style={{
+                  margin: "14px 0 0",
+                  color: "rgba(246,242,235,0.5)",
+                  fontSize: "11px",
+                  fontWeight: 700,
+                  letterSpacing: "0.6px",
+                  textTransform: "uppercase",
+                }}
+              >
+                Login & account creation coming soon
+              </p>
             </div>
 
             {/* ACCOUNT BENEFITS */}

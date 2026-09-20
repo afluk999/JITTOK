@@ -636,30 +636,35 @@ Please confirm availability, delivery charges, payment method, and the final ord
               </div>
 
               <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
-                {(product.sizes ?? []).map((productSize) => (
-                  <button
-                    key={productSize}
-                    type="button"
-                    disabled={isSoldOut}
-                    onClick={() => setSelectedSize(productSize)}
-                    style={{
-                      minWidth: "46px",
-                      height: "42px",
-                      border:
-                        size === productSize
-                          ? "1px solid #111"
-                          : "1px solid #d4ccc1",
-                      background: size === productSize ? "#111" : "transparent",
-                      color: size === productSize ? "#fff" : "#111",
-                      fontSize: "12px",
-                      fontWeight: 800,
-                      cursor: isSoldOut ? "not-allowed" : "pointer",
-                      opacity: isSoldOut ? 0.45 : 1,
-                    }}
-                  >
-                    {productSize}
-                  </button>
-                ))}
+                {(product.sizes ?? []).map((productSize) => {
+                  const outOfStock = product.sizeStock?.[productSize] === 0;
+
+                  return (
+                    <button
+                      key={productSize}
+                      type="button"
+                      disabled={isSoldOut || outOfStock}
+                      onClick={() => setSelectedSize(productSize)}
+                      style={{
+                        minWidth: "46px",
+                        height: "42px",
+                        border:
+                          size === productSize
+                            ? "1px solid #111"
+                            : "1px solid #d4ccc1",
+                        background: size === productSize ? "#111" : "transparent",
+                        color: size === productSize ? "#fff" : "#111",
+                        fontSize: "12px",
+                        fontWeight: 800,
+                        cursor: isSoldOut || outOfStock ? "not-allowed" : "pointer",
+                        opacity: isSoldOut || outOfStock ? 0.45 : 1,
+                        textDecoration: outOfStock ? "line-through" : "none",
+                      }}
+                    >
+                      {productSize}
+                    </button>
+                  );
+                })}
               </div>
             </div>
 

@@ -31,13 +31,10 @@ export default function Navbar() {
     return () => window.removeEventListener("resize", checkPhone);
   }, []);
 
-  useEffect(() => {
+    useEffect(() => {
     function loadCartCount() {
       try {
-        const cartData =
-          localStorage.getItem("jittok-cart") ||
-          localStorage.getItem("cart") ||
-          "[]";
+        const cartData = localStorage.getItem("jittok-cart") || "[]";
 
         const cartItems = JSON.parse(cartData);
 
@@ -52,7 +49,6 @@ export default function Navbar() {
         setCartCount(0);
       }
     }
-
     loadCartCount();
 
     window.addEventListener("storage", loadCartCount);

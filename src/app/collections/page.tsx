@@ -13,6 +13,8 @@ import {
   ProductImageSetting,
 } from "@/lib/productService";
 import { Heart } from "lucide-react";
+import { useWishlist } from "@/context/WishlistContext";
+import { getProductId } from "@/context/CartContext";
 
 const categories = ["All", "T-Shirts", "Hoodies", "Pants", "Accessories"];
 
@@ -330,8 +332,10 @@ function ProductCard({
   product: FirebaseProduct;
   isPhone: boolean;
 }) {
-  const [liked, setLiked] = useState(false);
-  const [hovered, setHovered] = useState(false);
+  const { toggle, isWishlisted } = useWishlist();
+  const productId = getProductId(product);
+  const liked = isWishlisted(productId);
+  const [hovered, setHovered] = useState(false);;
 
   const frontSetting = getImageSetting(product, "front");
   const backSetting = getImageSetting(product, "back");
@@ -484,7 +488,7 @@ function ProductCard({
             onClick={(event) => {
               event.preventDefault();
               event.stopPropagation();
-              setLiked((previous) => !previous);
+              toggle(productId);
             }}
             style={{
               position: "absolute",

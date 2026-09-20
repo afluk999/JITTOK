@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useState, type CSSProperties } from "react";
+import { Suspense, useEffect, useMemo, useState, type CSSProperties } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { onAuthStateChanged, signOut } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import {
@@ -13,6 +13,7 @@ import {
 } from "@/lib/orderService";
 import {
   ArrowLeft,
+  Download,
   LogOut,
   Package,
   Save,
@@ -66,6 +67,44 @@ function formatDate(value: unknown) {
   }
 
   return "—";
+}
+
+function escapeCsvValue(value: string) {
+  return `"${value.replace(/"/g, '""')}"`;
+}
+
+function exportOrdersCsv(ordersToExport: Order[]) {
+  const headers = [
+    "Order Reference", "Status", "Created At", "Customer Name", "Customer Phone",
+    "Delivery Address", "Pincode", "Source", "Items", "Subtotal", "Shipping", "Total",
+  ];
+
+  const rows = ordersToExport.map((order) => {
+    const itemsSummary = order.items
+      .map((item) => `${item.productName} (${item.variant || "Standard"} / ${item.size} x${item.quantity})`)
+      .join("; ");
+
+    return [
+      order.orderReference, order.status, formatDate(order.createdAt),
+      order.customerName || "", order.customerPhone || "", order.deliveryAddress || "",
+      order.pincode || "", order.source, itemsSummary,
+      String(order.subtotal), String(order.shipping), String(order.total),
+    ].map((value) => escapeCsvValue(String(value))).join(",");
+  });
+
+  const csvContent = [headers.map(escapeCsvValue).join(","), ...rows].join("\n");
+  const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = `jittok-orders-${new Date().toISOString().slice(0, 10)}.csv`;
+
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+
+  URL.revokeObjectURL(url);
 }
 
 function OrderRow({
@@ -281,13 +320,28 @@ function OrderRow({
 }
 
 export default function AdminOrdersPage() {
+  return (
+    <Suspense fallback={null}>
+      <AdminOrdersPageContent />
+    </Suspense>
+  );
+}
+
+function AdminOrdersPageContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
 
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>(() => {
+    const statusParam = searchParams.get("status");
+
+    return statusFilterOptions.some((option) => option.value === statusParam)
+      ? (statusParam as StatusFilter)
+      : "all";
+  });
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
@@ -396,7 +450,7 @@ export default function AdminOrdersPage() {
         <section
           style={{
             display: "grid",
-            gridTemplateColumns: "minmax(0, 1fr) 200px",
+            gridTemplateColumns: "minmax(0, 1fr) 200px auto",
             gap: "12px",
             marginBottom: "20px",
           }}
@@ -434,6 +488,11 @@ export default function AdminOrdersPage() {
               </option>
             ))}
           </select>
+
+          <button type="button" onClick={() => exportOrdersCsv(filteredOrders)} style={outlineButtonStyle}>
+            <Download size={16} />
+            Export CSV
+          </button>
         </section>
 
         {error ? (

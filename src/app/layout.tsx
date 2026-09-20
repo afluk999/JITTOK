@@ -2,6 +2,7 @@ import FloatingSocialButtons from "@/components/FloatingSocialButtons";
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { CartProvider } from "@/context/CartContext";
+import { WishlistProvider } from "@/context/WishlistContext";
 import SiteLoader from "@/components/SiteLoader";
 import { RouteScrollManager } from "@/components/RouteScrollManager";
 import AnnouncementBar from "@/components/AnnouncementBar";
@@ -148,16 +149,18 @@ export default function RootLayout({
         />
       </head>
 
-      <body>
+            <body>
         <CartProvider>
-          <SiteLoader />
-          <RouteScrollManager />
-          <AnnouncementBar />
+          <WishlistProvider>
+            <SiteLoader />
+            <RouteScrollManager />
+            <AnnouncementBar />
 
-          {/* GLOBAL NAVBAR */}
-          <Navbar />
+            {/* GLOBAL NAVBAR */}
+            <Navbar />
 
-          {children}
+            {children}
+          </WishlistProvider>
         </CartProvider>
 
         <FloatingSocialButtons />

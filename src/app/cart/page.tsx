@@ -7,6 +7,7 @@ import Footer from "@/components/Footer";
 import { useCart, getProductId } from "@/context/CartContext";
 import { getHomeContent } from "@/lib/contentService";
 import { getProductSellingPrice } from "@/lib/productService";
+import { createOrder } from "@/lib/orderService";
 import { Minus, Plus, Trash2, ShoppingBag, ArrowLeft } from "lucide-react";
 import { FaWhatsapp } from "react-icons/fa";
 
@@ -67,7 +68,7 @@ export default function CartPage() {
 
   const calculatedTotal = calculatedSubtotal + shipping;
 
-  function handleWhatsAppCheckout() {
+    async function handleWhatsAppCheckout() {
     if (cartItems.length === 0) {
       alert("Your cart is empty.");
       return;
@@ -151,7 +152,7 @@ Phone Number:
 
 Please confirm product availability, delivery details, payment method, and the final order total.`;
 
-    const whatsappUrl = `https://wa.me/${cleanWhatsappNumber}?text=${encodeURIComponent(
+        const whatsappUrl = `https://wa.me/${cleanWhatsappNumber}?text=${encodeURIComponent(
       whatsappMessage,
     )}`;
 
@@ -169,7 +170,43 @@ Please confirm product availability, delivery details, payment method, and the f
       total: calculatedTotal,
     });
 
+    try {
+      await createOrder({
+        orderReference,
+        items: cartItems.map((item) => {
+          const unitPrice = getProductSellingPrice(item.product);
+          const lineTotal = unitPrice * item.quantity;
+
+          return {
+            productId: getProductId(item.product),
+            productName: item.product.name,
+            variant: item.product.variant || "Standard",
+            slug: item.product.slug,
+            size: item.size,
+            quantity: item.quantity,
+            unitPrice,
+            lineTotal,
+          };
+        }),
+        subtotal: calculatedSubtotal,
+        shipping,
+        total: calculatedTotal,
+        // Minimal viable version: there's no delivery-address form on this
+        // page yet, so these stay empty and the customer fills them in over
+        // WhatsApp. Feed a real address form's values in here once it exists.
+        customerName: "",
+        customerPhone: "",
+        deliveryAddress: "",
+        pincode: "",
+        source: "cart",
+      });
+    } catch (error) {
+      console.error("CREATE ORDER ERROR:", error);
+    }
+
     window.open(whatsappUrl, "_blank", "noopener,noreferrer");
+
+    clearCart();
   }
 
   return (

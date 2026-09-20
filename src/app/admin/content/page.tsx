@@ -59,6 +59,7 @@ const SECTION_LABELS: Array<{
   { key: "customerLove", label: "Customer Love" },
   { key: "brandStatement", label: "Brand Statement" },
   { key: "trustStrip", label: "Trust Strip" },
+  { key: "newArrivals", label: "New Arrivals" },
 ];
 
 function createSocialId() {
@@ -603,14 +604,21 @@ export default function AdminContentPage() {
     }
   }
 
-  function removeStoryCircleImage(circleId: string, imageIndex: number) {
+    function removeStoryCircleImage(circleId: string, imageIndex: number) {
     setStoryCircles((previous) =>
       previous.map((circle) =>
         circle.id === circleId
-          ? {
-              ...circle,
-              images: circle.images.filter((_, index) => index !== imageIndex),
-            }
+          ? { ...circle, images: circle.images.filter((_, index) => index !== imageIndex) }
+          : circle,
+      ),
+    );
+  }
+
+  function moveStoryCircleImage(circleId: string, fromIndex: number, toIndex: number) {
+    setStoryCircles((previous) =>
+      previous.map((circle) =>
+        circle.id === circleId
+          ? { ...circle, images: moveItem(circle.images, fromIndex, toIndex) }
           : circle,
       ),
     );
@@ -896,13 +904,10 @@ export default function AdminContentPage() {
 
         <Spacer />
 
-        <VisibilityBlock
+                <VisibilityBlock
           value={sectionVisibility}
           onChange={(key, visible) =>
-            setSectionVisibility((previous) => ({
-              ...previous,
-              [key]: visible,
-            }))
+            setSectionVisibility((previous) => ({ ...previous, [key]: visible }))
           }
           onSave={saveVisibility}
           saving={savingVisibility}
@@ -910,7 +915,20 @@ export default function AdminContentPage() {
 
         <Spacer />
 
-        <section style={signatureHeadingStyle}>
+        <BannerBlock
+          bannerImage={bannerImage}
+          bannerFile={bannerFile}
+          bannerPreview={bannerPreview}
+          onFileChange={(event) =>
+            handleSingleFileChange(event, bannerPreview, setBannerFile, setBannerPreview)
+          }
+          onSave={saveBanner}
+          saving={savingBanner}
+        />
+
+        <Spacer />
+
+            <section style={signatureHeadingStyle}>
           <p style={signatureEyebrowStyle}>Homepage Story Row</p>
 
           <h2 style={signatureTitleStyle}>Story Circles Manager</h2>
@@ -960,8 +978,11 @@ export default function AdminContentPage() {
               onFileChange={(event) =>
                 handleStoryCircleFileChange(circle.id, event)
               }
-              onRemoveExistingImage={(imageIndex) =>
+                            onRemoveExistingImage={(imageIndex) =>
                 removeStoryCircleImage(circle.id, imageIndex)
+              }
+              onMoveExistingImage={(fromIndex, toIndex) =>
+                moveStoryCircleImage(circle.id, fromIndex, toIndex)
               }
               onMoveUp={() => moveStoryCircle(index, index - 1)}
               onMoveDown={() => moveStoryCircle(index, index + 1)}
@@ -1638,6 +1659,63 @@ function VisibilityBlock({
             );
           })}
         </div>
+            </section>
+    </section>
+  );
+}
+
+function BannerBlock({
+  bannerImage,
+  bannerFile,
+  bannerPreview,
+  onFileChange,
+  onSave,
+  saving,
+}: {
+  bannerImage: string;
+  bannerFile: File | null;
+  bannerPreview: string;
+  onFileChange: (event: ChangeEvent<HTMLInputElement>) => void;
+  onSave: () => void;
+  saving: boolean;
+}) {
+  return (
+    <section className="adminSectionGrid">
+      <aside style={darkPanelStyle}>
+        <h2 style={blockTitleStyle}>Landscape Banner</h2>
+        <p style={blockTextStyle}>
+          Upload the wide promo banner shown under Best Sellers on the homepage.
+        </p>
+
+        <label style={uploadBoxStyle}>
+          <Upload size={30} strokeWidth={1.5} />
+          <span style={uploadTitleStyle}>Upload Banner Image</span>
+          <span style={{ fontSize: "13px" }}>
+            {bannerFile || bannerImage ? "1 image saved" : "No image saved"}
+          </span>
+
+          <input
+            type="file"
+            accept="image/png,image/jpeg,image/jpg,image/webp"
+            onChange={onFileChange}
+            style={{ display: "none" }}
+          />
+        </label>
+
+        <button type="button" onClick={onSave} disabled={saving} style={lightButtonStyle}>
+          <Save size={16} />
+          {saving ? "Saving..." : "Save Banner"}
+        </button>
+      </aside>
+
+      <section style={previewPanelStyle}>
+        {bannerPreview || bannerImage ? (
+          <div style={{ width: "100%", aspectRatio: "16 / 6", overflow: "hidden", background: "#e6dfd3" }}>
+            <img src={bannerPreview || bannerImage} alt="Landscape banner preview" style={mediaStyle} />
+          </div>
+        ) : (
+          <EmptyBox text="No banner image saved" />
+        )}
       </section>
     </section>
   );
@@ -1651,6 +1729,7 @@ function StoryCircleManager({
   onChange,
   onFileChange,
   onRemoveExistingImage,
+  onMoveExistingImage,
   onMoveUp,
   onMoveDown,
   onRemoveCircle,
@@ -1664,6 +1743,7 @@ function StoryCircleManager({
   onChange: (patch: Partial<StoryCircleItem>) => void;
   onFileChange: (event: ChangeEvent<HTMLInputElement>) => void;
   onRemoveExistingImage: (imageIndex: number) => void;
+  onMoveExistingImage: (fromIndex: number, toIndex: number) => void;
   onMoveUp: () => void;
   onMoveDown: () => void;
   onRemoveCircle: () => void;
@@ -1782,11 +1862,11 @@ function StoryCircleManager({
 
         <label style={labelStyle}>Circle Images</label>
 
-        <GalleryPreview
+                <GalleryPreview
           existingImages={circle.images}
           previewImages={previewImages}
           onRemoveExisting={onRemoveExistingImage}
-          onMoveExisting={() => {}}
+          onMoveExisting={onMoveExistingImage}
           embedded
         />
       </section>

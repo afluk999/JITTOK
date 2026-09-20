@@ -82,6 +82,7 @@ export type FirebaseProduct = {
 
   sizes: string[];
   stock: number;
+  sizeStock?: Record<string, number>;
 
   status?: ProductStatus;
   badge?: ProductBadge;
@@ -414,6 +415,20 @@ export async function getProductById(productId: string) {
     id: snapshot.id,
     ...snapshot.data(),
   } as FirebaseProduct);
+}
+
+/*
+ * Checks whether another product already uses this slug.
+ * Pass the current product's id (when editing) so it doesn't
+ * flag the product's own slug as taken.
+ */
+export async function isSlugTaken(
+  slug: string,
+  excludeProductId?: string,
+): Promise<boolean> {
+  const productQuery = query(productsCollection, where("slug", "==", slug));
+  const snapshot = await getDocs(productQuery);
+  return snapshot.docs.some((item) => item.id !== excludeProductId);
 }
 
 /*
