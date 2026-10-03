@@ -1,21 +1,24 @@
 "use client";
 
-const INSTAGRAM_URL = "https://www.instagram.com/jittok.in/";
+import { useEffect, useState } from "react";
+import { getHomeContent, defaultHomeContent } from "@/lib/contentService";
 
-const WHATSAPP_NUMBER = "919605300701";
+
 
 const WHATSAPP_MESSAGE =
   "Hi JITTOK, I would like to know more about your products.";
 
 export default function FloatingSocialButtons() {
-  const whatsappUrl = `https://wa.me/919605300701?text=${encodeURIComponent(
+  const [settings, setSettings] = useState(defaultHomeContent);
+  useEffect(() => { void getHomeContent().then(setSettings).catch(() => {}); }, []);
+  const whatsappUrl = `https://wa.me/${settings.whatsappNumber.replace(/\D/g, "")}?text=${encodeURIComponent(
     WHATSAPP_MESSAGE
   )}`;
 
   return (
     <div className="floating-socials" aria-label="JITTOK social links">
       <a
-        href={INSTAGRAM_URL}
+        href={settings.instagramUrl}
         target="_blank"
         rel="noopener noreferrer"
         className="social-button instagram-button"

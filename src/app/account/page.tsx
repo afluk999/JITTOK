@@ -1,12 +1,10 @@
 import Link from "next/link";
-import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { User, Mail, Lock, ArrowRight, Package, Heart, MapPin } from "lucide-react";
 
 export default function AccountPage() {
   return (
     <>
-      <Navbar />
 
       <main
         style={{

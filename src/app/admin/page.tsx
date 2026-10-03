@@ -1,5 +1,8 @@
 "use client";
 
+import { onAdminStateChanged, requireAdmin, ADMIN_EMAIL } from "@/lib/adminAccess";
+
+
 import type {
   CSSProperties,
   FormEvent,
@@ -9,13 +12,15 @@ import {
   useState,
 } from "react";
 import {
-  onAuthStateChanged,
   signInWithEmailAndPassword,
+  signOut,
+  sendEmailVerification,
 } from "firebase/auth";
 import { LockKeyhole } from "lucide-react";
 import { auth } from "@/lib/firebase";
 
 export default function AdminLoginPage() {
+  const [verificationAvailable, setVerificationAvailable] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] =
     useState("");
@@ -24,7 +29,7 @@ export default function AdminLoginPage() {
   const [error, setError] = useState("");
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(
+    const unsubscribe = onAdminStateChanged(
       auth,
       (user) => {
         if (user) {
@@ -72,17 +77,24 @@ export default function AdminLoginPage() {
         password,
       );
 
+      if (auth.currentUser?.email === ADMIN_EMAIL && !auth.currentUser.emailVerified) {
+        setVerificationAvailable(true);
+        setError("Please verify the approved admin email before signing in.");
+        return;
+      }
+      await requireAdmin();
       window.location.replace(
         "/admin/products",
       );
     } catch (loginError: unknown) {
+      await signOut(auth).catch(() => {});
       console.error(
         "ADMIN LOGIN ERROR:",
         loginError,
       );
 
       setError(
-        "Invalid email or password.",
+        "Sign-in failed or this account has not been granted admin access.",
       );
     } finally {
       setLoading(false);
@@ -170,6 +182,15 @@ export default function AdminLoginPage() {
             gap: "18px",
           }}
         >
+          {verificationAvailable && <button type="button" onClick={async () => {
+            try {
+              if (!auth.currentUser) return;
+              await sendEmailVerification(auth.currentUser);
+              setError("Verification email sent. Open its link, then sign in again.");
+              setVerificationAvailable(false);
+              await signOut(auth);
+            } catch { setError("Could not send the verification email. Please try again later."); }
+          }} style={{ padding: 12, marginBottom: 16, width: "100%" }}>Send verification email</button>}
           <div>
             <label style={labelStyle}>
               Email

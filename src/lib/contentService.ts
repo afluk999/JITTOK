@@ -1,3 +1,5 @@
+import { requireAdmin } from "@/lib/adminAccess";
+import { defaultHomePresentation, normalizeHomePresentation, type HomePresentation } from "@/lib/homePresentation";
 import {
   doc,
   getDoc,
@@ -80,6 +82,9 @@ export type StoreCategoryDefinition = {
 };
 
 export type HomeSectionVisibility = {
+  accessories?: boolean;
+  storeBestSellers?: boolean;
+  posterStrip?: boolean;
   hero: boolean;
   newArrivals: boolean;
   jittokLineup: boolean;
@@ -91,6 +96,7 @@ export type HomeSectionVisibility = {
 };
 
 export type HomeContent = {
+  presentation: HomePresentation;
   heroImages: string[];
   editorialImages: string[];
   iconicImages: string[];
@@ -142,6 +148,9 @@ export type HomeContent = {
 };
 
 const defaultSectionVisibility: HomeSectionVisibility = {
+  accessories: true,
+  storeBestSellers: true,
+  posterStrip: true,
   hero: true,
   newArrivals: true,
   jittokLineup: true,
@@ -198,7 +207,6 @@ export const defaultStoryCircles: StoryCircleItem[] = [
       "/story/raglan-half-1.jpg",
       "/story/raglan-half-2.jpg",
       "/story/raglan-half-3.jpg",
-      "/story/raglan-half-4.jpg",
     ],
     comingSoon: false,
     order: 1,
@@ -268,6 +276,7 @@ export const defaultStoreCategoriesList: StoreCategoryDefinition[] = [
 ];
 
 export const defaultHomeContent: HomeContent = {
+  presentation: defaultHomePresentation,
   heroImages: [],
   editorialImages: [],
   iconicImages: [],
@@ -767,6 +776,7 @@ function normaliseHomeContent(
     ...defaultHomeContent,
     ...data,
 
+    presentation: normalizeHomePresentation(data.presentation),
     heroImages: cleanImageArray(data.heroImages),
     editorialImages: cleanImageArray(data.editorialImages),
     iconicImages: cleanImageArray(data.iconicImages),
@@ -827,7 +837,7 @@ function normaliseHomeContent(
   };
 }
 
-export async function getHomeContent(): Promise<HomeContent> {
+async function fetchHomeContent(): Promise<HomeContent> {
   const snapshot = await getDoc(homeContentRef);
 
   if (!snapshot.exists()) {
@@ -837,6 +847,23 @@ export async function getHomeContent(): Promise<HomeContent> {
   return normaliseHomeContent(
     snapshot.data() as Partial<HomeContent>,
   );
+}
+
+// Share concurrent browser reads; do not keep a server-global cache across requests.
+let contentRequest: Promise<HomeContent> | null = null;
+let contentCache: { value: HomeContent; expires: number } | null = null;
+let contentVersion = 0;
+export async function getHomeContent(): Promise<HomeContent> {
+  if (typeof window === "undefined") return fetchHomeContent();
+  if (contentCache && contentCache.expires > Date.now()) return contentCache.value;
+  if (!contentRequest) {
+    const version = contentVersion;
+    contentRequest = fetchHomeContent().then(value => {
+      if (version === contentVersion) contentCache = { value, expires: Date.now() + 15000 };
+      return value;
+    }).finally(() => { if (version === contentVersion) contentRequest = null; });
+  }
+  return contentRequest;
 }
 
 export async function getPublicHomeContent(): Promise<HomeContent> {
@@ -867,6 +894,7 @@ export async function getPublicHomeContent(): Promise<HomeContent> {
 export async function updateHomeContent(
   content: Partial<HomeContent>,
 ) {
+  await requireAdmin();
   const cleanedContent = removeUndefinedDeep(
     content,
   ) as Partial<HomeContent>;
@@ -879,4 +907,7 @@ export async function updateHomeContent(
     },
     { merge: true },
   );
+  contentVersion++;
+  contentCache = null;
+  contentRequest = null;
 }

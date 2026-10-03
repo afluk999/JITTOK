@@ -1,10 +1,8 @@
-import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 
 export default function TermsPage() {
   return (
     <>
-      <Navbar />
 
       <main
         style={{

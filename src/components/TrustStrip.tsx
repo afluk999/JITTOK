@@ -1,3 +1,6 @@
+"use client";
+import { useEffect, useState } from "react";
+import { getHomeContent } from "@/lib/contentService";
 import {
   BadgeCheck,
   MessageCircleMore,
@@ -40,6 +43,8 @@ const trustItems: TrustItem[] = [
 ];
 
 export default function TrustStrip() {
+  const [phone, setPhone] = useState(WHATSAPP_NUMBER);
+  useEffect(() => { void getHomeContent().then(c => setPhone(c.whatsappNumber)).catch(() => {}); }, []);
   return (
     <section
       aria-label="Why shop with JITTOK"
@@ -124,7 +129,7 @@ export default function TrustStrip() {
           return item.href ? (
             <a
               key={item.title}
-              href={item.href}
+              href={item.href?.startsWith("https://wa.me/") ? `https://wa.me/${phone.replace(/\D/g, "")}` : item.href}
               target="_blank"
               rel="noopener noreferrer"
               aria-label={`${item.title}: ${item.description}`}

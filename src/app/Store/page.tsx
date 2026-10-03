@@ -1,9 +1,9 @@
 "use client";
+import ProductImage from "@/components/ProductImage";
 
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState, Suspense, type CSSProperties, type MouseEvent } from "react";
-import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { useCart } from "@/context/CartContext";
 import {
@@ -87,7 +87,7 @@ function ProductCard({
           }}
         >
           {frontImage ? (
-            <img
+            <ProductImage
               src={frontImage}
               alt={product.name}
               style={{
@@ -103,7 +103,7 @@ function ProductCard({
           ) : null}
 
           {backImage ? (
-            <img
+            <ProductImage
               src={backImage}
               alt={`${product.name} back`}
               style={{
@@ -413,7 +413,6 @@ function StoreContent() {
 
   return (
     <>
-      <Navbar />
 
       <main style={pageStyle}>
         <h1

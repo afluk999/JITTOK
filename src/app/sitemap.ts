@@ -1,9 +1,9 @@
 import type { MetadataRoute } from "next";
 import {
-  getProducts,
+  getPublicProducts,
   type FirebaseProduct,
 } from "@/lib/productService";
-import { signatureProducts } from "@/data/signatureProducts";
+import { getHomeContent } from "@/lib/contentService";
 
 const SITE_URL = "https://jittok.in";
 
@@ -76,13 +76,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       url: SITE_URL,
       changeFrequency: "daily",
       priority: 1,
-      images: [
-        `${SITE_URL}/hero/hero-1.webp`,
-        `${SITE_URL}/hero/hero-2.webp`,
-        `${SITE_URL}/hero/hero-3.webp`,
-        `${SITE_URL}/hero/hero-4.webp`,
-        `${SITE_URL}/hero/hero-5.webp`,
-      ],
+      images: [`${SITE_URL}/hero-slide-1.png`],
     },
     {
       url: `${SITE_URL}/collections`,
@@ -91,15 +85,11 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     },
   ];
 
-  const signaturePages: MetadataRoute.Sitemap =
-    signatureProducts.map((product) => ({
-      url: `${SITE_URL}/signature/${product.slug}`,
-      changeFrequency: "weekly" as const,
-      priority: 0.8,
-    }));
-
   try {
-    const products = await getProducts();
+    const [products, content] = await Promise.all([getPublicProducts(), getHomeContent()]);
+    staticPages[0].images = [content.presentation.heroDesktop, content.presentation.heroMobile]
+      .filter(Boolean).map(makeAbsoluteUrl);
+    const collectionPages = content.collectionsList.filter(c => c.status === "live").map(c => ({ url: `${SITE_URL}/collections/${c.slug}` }));
 
     const productPages: MetadataRoute.Sitemap = products
       .filter(
@@ -134,11 +124,14 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     return [
       ...staticPages,
       ...productPages,
-      ...signaturePages,
+      ...collectionPages,
+      { url: `${SITE_URL}/Store` },
+      { url: `${SITE_URL}/about` },
+      { url: `${SITE_URL}/contact` },
     ];
   } catch (error) {
     console.error("SITEMAP PRODUCT LOAD ERROR:", error);
 
-    return [...staticPages, ...signaturePages];
+    return staticPages;
   }
 }

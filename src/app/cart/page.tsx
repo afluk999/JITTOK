@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { useCart, getProductId } from "@/context/CartContext";
 import { getHomeContent } from "@/lib/contentService";
@@ -211,7 +210,6 @@ Please confirm product availability, delivery details, payment method, and the f
 
   return (
     <>
-      <Navbar />
 
       <main
         style={{

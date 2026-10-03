@@ -1,14 +1,11 @@
-import FloatingSocialButtons from "@/components/FloatingSocialButtons";
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { CartProvider } from "@/context/CartContext";
 import { WishlistProvider } from "@/context/WishlistContext";
-import SiteLoader from "@/components/SiteLoader";
 import { RouteScrollManager } from "@/components/RouteScrollManager";
-import AnnouncementBar from "@/components/AnnouncementBar";
-import Navbar from "@/components/Navbar";
 import { Bebas_Neue, Outfit } from "next/font/google";
-import { getHomeContent } from "@/lib/contentService";
+import StorefrontShell from "@/components/StorefrontShell";
+import { getServerHome } from "@/lib/serverCatalog";
 
 const bebasNeue = Bebas_Neue({
   subsets: ["latin"],
@@ -27,7 +24,7 @@ const outfit = Outfit({
 const SITE_URL = "https://jittok.in";
 
 export async function generateMetadata(): Promise<Metadata> {
-  const content = await getHomeContent();
+  const { content } = await getServerHome();
 
   const seoTitle =
     content.seoTitle || "JITTOK Store | Oversized T-Shirts & Streetwear India";
@@ -73,9 +70,7 @@ export async function generateMetadata(): Promise<Metadata> {
       description: seoDescription,
       images: [
         {
-          url: "/jittok-og-image.jpg",
-          width: 1200,
-          height: 630,
+          url: content.presentation.heroDesktop,
           alt: "JITTOK Store – premium oversized T-shirts and streetwear in India",
         },
       ],
@@ -85,15 +80,11 @@ export async function generateMetadata(): Promise<Metadata> {
       card: "summary_large_image",
       title: seoTitle,
       description: seoDescription,
-      images: ["/jittok-og-image.jpg"],
+      images: [content.presentation.heroDesktop],
     },
 
     icons: {
       icon: [
-        {
-          url: "/favicon.ico",
-          sizes: "any",
-        },
         {
           url: "/icon.png",
           type: "image/png",
@@ -103,7 +94,7 @@ export async function generateMetadata(): Promise<Metadata> {
 
       apple: [
         {
-          url: "/apple-icon.png",
+          url: "/icon.png",
           type: "image/png",
           sizes: "180x180",
         },
@@ -157,21 +148,18 @@ export default function RootLayout({
         />
       </head>
 
-            <body>
+      <body>
         <CartProvider>
           <WishlistProvider>
-            <SiteLoader />
+
             <RouteScrollManager />
-            <AnnouncementBar />
 
-            {/* GLOBAL NAVBAR */}
-            <Navbar />
 
-            {children}
+            <StorefrontShell>{children}</StorefrontShell>
           </WishlistProvider>
         </CartProvider>
 
-        <FloatingSocialButtons />
+
       </body>
     </html>
   );

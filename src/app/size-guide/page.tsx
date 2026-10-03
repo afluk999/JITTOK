@@ -1,10 +1,8 @@
-import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 
 export default function SizeGuidePage() {
   return (
     <>
-      <Navbar />
 
       <main
         style={{

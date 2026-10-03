@@ -1,5 +1,8 @@
 "use client";
 
+import { onAdminStateChanged } from "@/lib/adminAccess";
+
+
 import {
   useEffect,
   useMemo,
@@ -8,8 +11,8 @@ import {
   type CSSProperties,
 } from "react";
 import Link from "next/link";
+import AdminHomePresentation from "@/components/AdminHomePresentation";
 import { useRouter } from "next/navigation";
-import { onAuthStateChanged } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import {
   defaultCategoriesList,
@@ -46,20 +49,24 @@ const DEFAULT_SECTION_VISIBILITY: HomeSectionVisibility = {
   brandStatement: true,
   trustStrip: true,
   newArrivals: true,
+  accessories: true, storeBestSellers: true, posterStrip: true,
 };
 
 const SECTION_LABELS: Array<{
   key: keyof HomeSectionVisibility;
   label: string;
 }> = [
-  { key: "hero", label: "Hero Moving Wall" },
-  { key: "jittokLineup", label: "JITTOK Lineup" },
-  { key: "editorial", label: "Editorial" },
+  { key: "hero", label: "Hero banner" },
+  { key: "jittokLineup", label: "Collection story circles" },
+  { key: "editorial", label: "Promo banner" },
   { key: "reels", label: "Instagram Reels" },
   { key: "customerLove", label: "Customer Love" },
   { key: "brandStatement", label: "Brand Statement" },
   { key: "trustStrip", label: "Trust Strip" },
-  { key: "newArrivals", label: "New Arrivals" },
+  { key: "newArrivals", label: "Best sellers" },
+  { key: "accessories", label: "Accessories" },
+  { key: "storeBestSellers", label: "Store best sellers" },
+  { key: "posterStrip", label: "JITTOK on FITTOK strip" },
 ];
 
 function createSocialId() {
@@ -190,7 +197,7 @@ export default function AdminContentPage() {
   const [savingReelList, setSavingReelList] = useState(false);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+    const unsubscribe = onAdminStateChanged(auth, async (user) => {
       if (!user) {
         router.replace("/admin");
         return;
@@ -914,6 +921,8 @@ export default function AdminContentPage() {
           </div>
         </header>
 
+        <AdminHomePresentation />
+        <Spacer />
         <SettingsBlock
           brandStatement={brandStatement}
           whatsappNumber={whatsappNumber}

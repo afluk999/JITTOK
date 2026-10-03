@@ -1,40 +1,11 @@
-﻿import HeroWall from "@/components/HeroWall";
-import BestSellers from "@/components/Bestsellers";
-import AccessoriesSection from "@/components/Accessoriesection";
-import ReelsSection from "@/components/ReelsSection";
-import CustomerLoveSection from "@/components/CustomerLoveSection";
-import BrandStatement from "@/components/BrandStatement";
-import TrustStrip from "@/components/TrustStrip";
+import HomeSections from "@/components/HomeSections";
 import Footer from "@/components/Footer";
-import Story from "@/components/story";
-import LandscapePromoBanner from "@/components/LandscapePromoBanner";
-import PosterStrip from "@/components/PosterStrip";
-import StoreBestSellers from "@/components/StoreBestSellers";
-
-
-export default function Home() {
-  return (
-    <>
-      <HeroWall />
-      <PosterStrip />
-      <Story />
-      <BestSellers />
-      <LandscapePromoBanner />
-      <AccessoriesSection />
-<StoreBestSellers />
-      <ReelsSection />
-      <CustomerLoveSection />
-      <BrandStatement />
-      <TrustStrip />
-      <Footer />
-
-      <style>{`
-        @media (max-width: 768px) {
-          .desktop-only-lineup {
-            display: none;
-          }
-        }
-      `}</style>
-    </>
-  );
+import JittokStructuredData from "@/components/JittokStructuredData";
+import { type HomeContent } from "@/lib/contentService";
+import { getServerHome } from "@/lib/serverCatalog";
+export const dynamic = "force-dynamic";
+export default async function Home() {
+  const { content, renderedAt } = await getServerHome();
+  const serializable = JSON.parse(JSON.stringify(content)) as HomeContent;
+  return <><main><JittokStructuredData content={content} /><HomeSections content={serializable} now={renderedAt} /></main><Footer /></>;
 }

@@ -1,10 +1,10 @@
 "use client";
+import ProductImage from "@/components/ProductImage";
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
-import { FirebaseProduct, getProducts } from "@/lib/productService";
+import { FirebaseProduct, getPublicProducts } from "@/lib/productService";
 import { Search, Heart, ArrowRight } from "lucide-react";
 import { useWishlist } from "@/context/WishlistContext";
 import { getProductId } from "@/context/CartContext";
@@ -69,7 +69,7 @@ export default function SearchPage() {
   useEffect(() => {
     async function loadProducts() {
       try {
-        const data = await getProducts();
+        const data = await getPublicProducts();
         setProducts(data);
       } catch (error) {
         console.error("LOAD SEARCH PRODUCTS ERROR:", error);
@@ -99,7 +99,6 @@ export default function SearchPage() {
 
   return (
     <>
-      <Navbar />
 
       <main
         style={{
@@ -300,7 +299,7 @@ function ProductCard({
           }}
         >
           {image ? (
-            <img
+            <ProductImage
               src={image}
               alt={product.name}
               style={{

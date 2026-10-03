@@ -1,9 +1,13 @@
 "use client";
 
+import { onAdminStateChanged } from "@/lib/adminAccess";
+
+
 import { Suspense, useEffect, useMemo, useState, type CSSProperties } from "react";
 import Link from "next/link";
+import { csvCell } from "@/lib/csv";
 import { useRouter, useSearchParams } from "next/navigation";
-import { onAuthStateChanged, signOut } from "firebase/auth";
+import { signOut } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import {
   getOrders,
@@ -69,14 +73,13 @@ function formatDate(value: unknown) {
   return "—";
 }
 
-function escapeCsvValue(value: string) {
-  return `"${value.replace(/"/g, '""')}"`;
-}
+function escapeCsvValue(value: string) { return csvCell(value); }
 
 function exportOrdersCsv(ordersToExport: Order[]) {
   const headers = [
     "Order Reference", "Status", "Created At", "Customer Name", "Customer Phone",
     "Delivery Address", "Pincode", "Source", "Items", "Subtotal", "Shipping", "Total",
+    "Courier", "Tracking Number", "Tracking URL", "Internal Notes", "Exchange / Refund", "Exchange / Refund Notes",
   ];
 
   const rows = ordersToExport.map((order) => {
@@ -89,6 +92,8 @@ function exportOrdersCsv(ordersToExport: Order[]) {
       order.customerName || "", order.customerPhone || "", order.deliveryAddress || "",
       order.pincode || "", order.source, itemsSummary,
       String(order.subtotal), String(order.shipping), String(order.total),
+      order.courier || "", order.trackingNumber || "", order.trackingUrl || "",
+      order.internalNotes || "", order.aftercare || "none", order.aftercareNotes || "",
     ].map((value) => escapeCsvValue(String(value))).join(",");
   });
 
@@ -125,6 +130,12 @@ function OrderRow({
   );
   const [pincode, setPincode] = useState(order.pincode || "");
   const [saving, setSaving] = useState(false);
+  const [courier, setCourier] = useState(order.courier || "");
+  const [trackingNumber, setTrackingNumber] = useState(order.trackingNumber || "");
+  const [trackingUrl, setTrackingUrl] = useState(order.trackingUrl || "");
+  const [internalNotes, setInternalNotes] = useState(order.internalNotes || "");
+  const [aftercare, setAftercare] = useState<NonNullable<Order["aftercare"]>>(order.aftercare || "none");
+  const [aftercareNotes, setAftercareNotes] = useState(order.aftercareNotes || "");
 
   async function handleSave() {
     if (!order.id) return;
@@ -138,6 +149,8 @@ function OrderRow({
         customerPhone: customerPhone.trim(),
         deliveryAddress: deliveryAddress.trim(),
         pincode: pincode.trim(),
+        courier: courier.trim(), trackingNumber: trackingNumber.trim(), trackingUrl: trackingUrl.trim(),
+        internalNotes: internalNotes.trim(), aftercare, aftercareNotes: aftercareNotes.trim(),
       });
 
       onSaved({
@@ -147,6 +160,8 @@ function OrderRow({
         customerPhone: customerPhone.trim(),
         deliveryAddress: deliveryAddress.trim(),
         pincode: pincode.trim(),
+        courier: courier.trim(), trackingNumber: trackingNumber.trim(), trackingUrl: trackingUrl.trim(),
+        internalNotes: internalNotes.trim(), aftercare, aftercareNotes: aftercareNotes.trim(),
       });
 
       alert("Order updated successfully.");
@@ -304,6 +319,19 @@ function OrderRow({
             />
           </div>
 
+          <div className="admin-field-grid">
+            <label className="admin-field">Courier<input value={courier} onChange={e => setCourier(e.target.value)} /></label>
+            <label className="admin-field">Tracking number<input value={trackingNumber} onChange={e => setTrackingNumber(e.target.value)} /></label>
+            <label className="admin-field">Tracking link<input type="url" placeholder="https://" value={trackingUrl} onChange={e => setTrackingUrl(e.target.value)} /></label>
+            <label className="admin-field">Exchange / refund record<select value={aftercare} onChange={e => setAftercare(e.target.value as NonNullable<Order["aftercare"]>)}>
+              <option value="none">None</option><option value="exchange-requested">Exchange requested</option>
+              <option value="exchange-completed">Exchange completed</option><option value="refund-requested">Refund requested</option>
+              <option value="refund-completed">Refund completed outside the website</option>
+            </select></label>
+          </div>
+          <label className="admin-field">Internal notes<textarea value={internalNotes} onChange={e => setInternalNotes(e.target.value)} /></label>
+          <label className="admin-field">Exchange / refund notes<textarea value={aftercareNotes} onChange={e => setAftercareNotes(e.target.value)} /></label>
+          <p style={{fontSize:12}}>These are internal records. Payments, refunds and customer communication remain in WhatsApp.</p>
           <button
             type="button"
             onClick={handleSave}
@@ -344,7 +372,7 @@ function AdminOrdersPageContent() {
   });
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+    const unsubscribe = onAdminStateChanged(auth, async (user) => {
       if (!user) {
         router.replace("/admin");
         return;

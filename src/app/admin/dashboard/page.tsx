@@ -1,9 +1,12 @@
 "use client";
 
+import { onAdminStateChanged } from "@/lib/adminAccess";
+
+
 import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { onAuthStateChanged, signOut } from "firebase/auth";
+import { signOut } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import { getOrders, type Order, type OrderStatus } from "@/lib/orderService";
 import {
@@ -83,7 +86,7 @@ export default function AdminDashboardPage() {
   const [error, setError] = useState("");
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+    const unsubscribe = onAdminStateChanged(auth, async (user) => {
       if (!user) {
         router.replace("/admin");
         return;

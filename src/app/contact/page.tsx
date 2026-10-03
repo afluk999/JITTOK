@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { Mail, Phone, MapPin, Send } from "lucide-react";
 import { FaInstagram, FaWhatsapp } from "react-icons/fa";
@@ -80,7 +79,6 @@ ${message || "I want to know more about your products."}`;
 
   return (
     <>
-      <Navbar />
 
       <main
         style={{

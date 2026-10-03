@@ -2,15 +2,19 @@ import {
   addDoc,
   collection,
   deleteDoc,
+  deleteField,
+  writeBatch,
   doc,
   getDoc,
   getDocs,
+  getDocsFromServer,
   orderBy,
   query,
   serverTimestamp,
   updateDoc,
   where,
 } from "firebase/firestore";
+import { requireAdmin } from "@/lib/adminAccess";
 import { db } from "@/lib/firebase";
 
 export type ProductStatus =
@@ -189,12 +193,7 @@ function normaliseProduct(product: FirebaseProduct): FirebaseProduct {
  * Draft and archived products are hidden from the public website.
  * Sold-out products remain visible.
  */
-function isPublicProduct(product: FirebaseProduct) {
-  return (
-    product.status !== "draft" &&
-    product.status !== "archived"
-  );
-}
+
 
 /*
  * Returns the actual selling price.
@@ -224,6 +223,7 @@ export function getProductOriginalPrice(
  * Draft and archived products are included.
  */
 export async function getProducts() {
+  await requireAdmin();
   const productsQuery = query(
     productsCollection,
     orderBy("createdAt", "desc"),
@@ -239,164 +239,32 @@ export async function getProducts() {
   );
 }
 
-/*
- * Gets public products belonging to a specific collection page
- * (e.g. "ringer", "raglan-half", "raglan-full", "lovely").
- */
-export async function getProductsByCollection(collectionSlug: string) {
-  const productsQuery = query(
-    productsCollection,
-    where("collection", "==", collectionSlug),
-    orderBy("createdAt", "desc"),
-  );
-
-  const snapshot = await getDocs(productsQuery);
-
-  return snapshot.docs
-    .map((item) =>
-      normaliseProduct({
-        id: item.id,
-        ...item.data(),
-      } as FirebaseProduct),
-    )
-    .filter(isPublicProduct)
-    .sort(
-      (firstProduct, secondProduct) =>
-        (firstProduct.collectionOrder ?? 999) -
-        (secondProduct.collectionOrder ?? 999),
-    );
+// Public queries must constrain status: Firestore rules are not result filters.
+export async function getPublicProducts(): Promise<FirebaseProduct[]> {
+  const snapshot = await getDocsFromServer(query(productsCollection, where("status", "in", ["published", "sold-out"])));
+  return snapshot.docs.map(item => normaliseProduct({ ...item.data(), id: item.id } as FirebaseProduct));
 }
 
-/*
- * Gets public products matching a given Category value
- * (e.g. "Accessories"), most recent first.
- */
-export async function getProductsByCategory(categoryName: string) {
-  const productsQuery = query(
-    productsCollection,
-    where("category", "==", categoryName),
-    orderBy("createdAt", "desc"),
-  );
-
-  const snapshot = await getDocs(productsQuery);
-
-  return snapshot.docs
-    .map((item) =>
-      normaliseProduct({
-        id: item.id,
-        ...item.data(),
-      } as FirebaseProduct),
-    )
-    .filter(isPublicProduct);
+export async function getProductsByCollection(slug: string) {
+  return (await getPublicProducts()).filter(p => p.collection === slug)
+    .sort((a,b) => (a.collectionOrder ?? 999) - (b.collectionOrder ?? 999));
 }
-
-/*
- * Gets every public product tagged with a Store category. Fetched
- * once and filtered client-side by the /Store page's buttons,
- * rather than one Firestore query per category.
- */
+export async function getProductsByCategory(category: string) {
+  return (await getPublicProducts()).filter(p => p.category === category);
+}
 export async function getAllStoreProducts() {
-  const productsQuery = query(
-    productsCollection,
-    where("storeCategory", "!=", ""),
-  );
-
-  const snapshot = await getDocs(productsQuery);
-
-  return snapshot.docs
-    .map((item) =>
-      normaliseProduct({
-        id: item.id,
-        ...item.data(),
-      } as FirebaseProduct),
-    )
-    .filter(isPublicProduct);
+  return (await getPublicProducts()).filter(p => Boolean(p.storeCategory));
 }
-
-/*
- * Gets public products for the homepage "Store Best Sellers" row.
- */
 export async function getStoreBestSellerProducts() {
-  const productsQuery = query(
-    productsCollection,
-    where("isStoreBestSeller", "==", true),
-    orderBy("createdAt", "desc"),
-  );
-
-  const snapshot = await getDocs(productsQuery);
-
-  return snapshot.docs
-    .map((item) =>
-      normaliseProduct({
-        id: item.id,
-        ...item.data(),
-      } as FirebaseProduct),
-    )
-    .filter(isPublicProduct)
-    .sort(
-      (firstProduct, secondProduct) =>
-        (firstProduct.storeBestSellerOrder ?? 999) -
-        (secondProduct.storeBestSellerOrder ?? 999),
-    );
+  return (await getPublicProducts()).filter(p => p.isStoreBestSeller)
+    .sort((a,b) => (a.storeBestSellerOrder ?? 999) - (b.storeBestSellerOrder ?? 999));
 }
-
-/*
- * Gets public Best Seller products for the homepage row.
- */
 export async function getBestSellerProducts() {
-  const productsQuery = query(
-    productsCollection,
-    where("isBestSeller", "==", true),
-    orderBy("createdAt", "desc"),
-  );
-
-  const snapshot = await getDocs(productsQuery);
-
-  return snapshot.docs
-    .map((item) =>
-      normaliseProduct({
-        id: item.id,
-        ...item.data(),
-      } as FirebaseProduct),
-    )
-    .filter(isPublicProduct)
-    .sort(
-      (firstProduct, secondProduct) =>
-        (firstProduct.bestSellerOrder ?? 999) -
-        (secondProduct.bestSellerOrder ?? 999),
-    );
+  return (await getPublicProducts()).filter(p => p.isBestSeller)
+    .sort((a,b) => (a.bestSellerOrder ?? 999) - (b.bestSellerOrder ?? 999));
 }
-
-/*
- * Gets a public product using its slug.
- * Draft and archived products return null.
- */
-export async function getProductBySlugFromFirebase(
-  slug: string,
-) {
-  const productQuery = query(
-    productsCollection,
-    where("slug", "==", slug),
-  );
-
-  const snapshot = await getDocs(productQuery);
-
-  if (snapshot.empty) {
-    return null;
-  }
-
-  const productDocument = snapshot.docs[0];
-
-  const product = normaliseProduct({
-    id: productDocument.id,
-    ...productDocument.data(),
-  } as FirebaseProduct);
-
-  if (!isPublicProduct(product)) {
-    return null;
-  }
-
-  return product;
+export async function getProductBySlugFromFirebase(slug: string) {
+  return (await getPublicProducts()).find(p => p.slug === slug) ?? null;
 }
 
 /*
@@ -404,6 +272,7 @@ export async function getProductBySlugFromFirebase(
  * This is used by the admin edit page.
  */
 export async function getProductById(productId: string) {
+  await requireAdmin();
   const productReference = doc(db, "products", productId);
   const snapshot = await getDoc(productReference);
 
@@ -426,6 +295,7 @@ export async function isSlugTaken(
   slug: string,
   excludeProductId?: string,
 ): Promise<boolean> {
+  await requireAdmin();
   const productQuery = query(productsCollection, where("slug", "==", slug));
   const snapshot = await getDocs(productQuery);
   return snapshot.docs.some((item) => item.id !== excludeProductId);
@@ -437,6 +307,7 @@ export async function isSlugTaken(
 export async function createProduct(
   product: Omit<FirebaseProduct, "id">,
 ) {
+  await requireAdmin();
   const sellingPrice =
     product.sellingPrice ?? product.price;
 
@@ -485,6 +356,7 @@ export async function updateProduct(
   productId: string,
   product: Partial<FirebaseProduct>,
 ) {
+  await requireAdmin();
   const productReference = doc(
     db,
     "products",
@@ -501,6 +373,7 @@ export async function updateProduct(
 
   const updateData: Record<string, unknown> = {
     ...cleanProduct,
+    ...Object.fromEntries(Object.entries(product).filter(([, value]) => value === undefined).map(([key]) => [key, deleteField()])),
     updatedAt: serverTimestamp(),
   };
 
@@ -528,6 +401,7 @@ export async function updateProduct(
  * Archives a product without permanently deleting it.
  */
 export async function archiveProduct(productId: string) {
+  await requireAdmin();
   const productReference = doc(
     db,
     "products",
@@ -545,6 +419,7 @@ export async function archiveProduct(productId: string) {
  * Restores an archived product.
  */
 export async function restoreProduct(productId: string) {
+  await requireAdmin();
   const productReference = doc(
     db,
     "products",
@@ -563,6 +438,7 @@ export async function restoreProduct(productId: string) {
  * Use this only from the admin Danger Zone.
  */
 export async function deleteProduct(productId: string) {
+  await requireAdmin();
   const productReference = doc(
     db,
     "products",
@@ -570,4 +446,33 @@ export async function deleteProduct(productId: string) {
   );
 
   await deleteDoc(productReference);
+}
+export async function bulkSetProductStatus(ids: string[], status: ProductStatus) {
+  await requireAdmin();
+  const uniqueIds = [...new Set(ids)];
+  if (!uniqueIds.length || uniqueIds.length > 200) throw new Error("Select between 1 and 200 products.");
+  const batch = writeBatch(db);
+  for (const id of uniqueIds) batch.update(doc(db, "products", id), {
+    status, updatedAt: serverTimestamp(),
+    badge: status === "sold-out" ? "sold-out" : "none",
+    archivedAt: status === "archived" ? serverTimestamp() : null,
+  });
+  await batch.commit();
+}
+
+export async function duplicateProduct(product: FirebaseProduct) {
+  const { id, createdAt, updatedAt, archivedAt, ...copy } = product;
+  void id; void createdAt; void updatedAt; void archivedAt;
+  return createProduct({ ...copy, name: copy.name + " (Copy)",
+    slug: copy.slug + "-copy-" + crypto.randomUUID().slice(0, 8),
+    status: "draft", isBestSeller: false, isStoreBestSeller: false, badge: "none" });
+}
+
+export async function bulkUpdateProductDetails(ids: string[], patch: { category: string }) {
+  await requireAdmin();
+  const uniqueIds = [...new Set(ids)];
+  if (!uniqueIds.length || uniqueIds.length > 200 || !patch.category.trim()) throw new Error("Select up to 200 products and enter a category.");
+  const batch = writeBatch(db);
+  for (const id of uniqueIds) batch.update(doc(db, "products", id), { category: patch.category.trim(), updatedAt: serverTimestamp() });
+  await batch.commit();
 }

@@ -3,7 +3,6 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { Search, Package, ArrowRight, Truck, CheckCircle } from "lucide-react";
 
@@ -17,7 +16,6 @@ export default function OrdersPage() {
 
   return (
     <>
-      <Navbar />
 
       <main
         style={{

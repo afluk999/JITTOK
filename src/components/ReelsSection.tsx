@@ -413,7 +413,7 @@ export default function ReelsSection() {
     async function loadReels() {
       try {
         const content = await getHomeContent();
-        setReels((content.reelsItems || []).slice(0, 8));
+        setReels((content.reelsItems || []).filter(item => item.visible !== false).slice(0, 8));
         setInstagramUrl(
           content.instagramUrl || "https://www.instagram.com/"
         );

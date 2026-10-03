@@ -1,14 +1,14 @@
 "use client";
+import ProductImage from "@/components/ProductImage";
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import {
   FirebaseProduct,
   getProductOriginalPrice,
   getProductSellingPrice,
-  getProducts,
+  getPublicProducts,
   ProductBadge,
   ProductImageSetting,
 } from "@/lib/productService";
@@ -153,7 +153,7 @@ export default function CollectionsPage() {
   useEffect(() => {
     async function loadProducts() {
       try {
-        const data = await getProducts();
+        const data = await getPublicProducts();
 
         setProducts(
           data
@@ -186,7 +186,6 @@ export default function CollectionsPage() {
 
   return (
     <>
-      <Navbar />
 
       <main
         style={{
@@ -386,7 +385,7 @@ function ProductCard({
         >
           {frontImage ? (
             <>
-              <img
+              <ProductImage
                 src={frontImage}
                 alt={product.name}
                 style={{
@@ -411,7 +410,7 @@ function ProductCard({
               />
 
               {backImage ? (
-                <img
+                <ProductImage
                   src={backImage}
                   alt={`${product.name} back`}
                   style={{

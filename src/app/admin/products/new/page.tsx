@@ -1,5 +1,8 @@
 "use client";
 
+import { onAdminStateChanged } from "@/lib/adminAccess";
+
+
 import {
   useEffect,
   useRef,
@@ -10,7 +13,6 @@ import {
   type ReactNode,
 } from "react";
 import { useRouter } from "next/navigation";
-import { onAuthStateChanged } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import {
   createProduct,
@@ -208,7 +210,7 @@ export default function NewProductPage() {
   );
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
+    const unsubscribe = onAdminStateChanged(auth, (user) => {
       if (!user) {
         router.replace("/admin");
         return;

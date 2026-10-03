@@ -10,6 +10,7 @@ import {
   updateDoc,
   where,
 } from "firebase/firestore";
+import { requireAdmin } from "@/lib/adminAccess";
 import { db } from "@/lib/firebase";
 
 export type OrderStatus =
@@ -54,6 +55,12 @@ export type Order = {
   pincode?: string;
 
   status: OrderStatus;
+  courier?: string;
+  trackingNumber?: string;
+  trackingUrl?: string;
+  internalNotes?: string;
+  aftercare?: "none" | "exchange-requested" | "exchange-completed" | "refund-requested" | "refund-completed";
+  aftercareNotes?: string;
 
   // Where the order was placed from, useful for tracking which
   // page converts best.
@@ -90,6 +97,7 @@ export async function createOrder(
  * Gets every order, most recent first, for the admin Orders page.
  */
 export async function getOrders() {
+  await requireAdmin();
   const ordersQuery = query(ordersCollection, orderBy("createdAt", "desc"));
   const snapshot = await getDocs(ordersQuery);
 
@@ -106,6 +114,7 @@ export async function getOrders() {
  * Gets orders filtered to a single status, for tab/filter views.
  */
 export async function getOrdersByStatus(status: OrderStatus) {
+  await requireAdmin();
   const ordersQuery = query(
     ordersCollection,
     where("status", "==", status),
@@ -124,6 +133,7 @@ export async function getOrdersByStatus(status: OrderStatus) {
 }
 
 export async function getOrderById(orderId: string) {
+  await requireAdmin();
   const orderReference = doc(db, "orders", orderId);
   const snapshot = await getDoc(orderReference);
 
@@ -147,9 +157,15 @@ export async function updateOrder(
       | "customerPhone"
       | "deliveryAddress"
       | "pincode"
+      | "courier" | "trackingNumber" | "trackingUrl" | "internalNotes" | "aftercare" | "aftercareNotes"
     >
   >,
 ) {
+  await requireAdmin();
+  if (patch.trackingUrl) {
+    const url = new URL(patch.trackingUrl);
+    if (url.protocol !== "https:") throw new Error("Tracking links must use https://.");
+  }
   const orderReference = doc(db, "orders", orderId);
 
   await updateDoc(orderReference, {

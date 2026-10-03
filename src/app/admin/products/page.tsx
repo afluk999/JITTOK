@@ -1,12 +1,17 @@
 "use client";
 
+import { onAdminStateChanged } from "@/lib/adminAccess";
+
+
 import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from "react";
 import Link from "next/link";
+import AdminProductTools from "@/components/AdminProductTools";
 import { useRouter } from "next/navigation";
-import { onAuthStateChanged, signOut } from "firebase/auth";
+import { signOut } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import {
   archiveProduct,
+  duplicateProduct,
   deleteProduct,
   FirebaseProduct,
   getProductOriginalPrice,
@@ -49,6 +54,7 @@ const badgeLabels: Record<string, string> = {
 
 export default function AdminProductsPage() {
   const router = useRouter();
+  const [selected, setSelected] = useState<string[]>([]);
 
   const [products, setProducts] = useState<FirebaseProduct[]>([]);
   const [loading, setLoading] = useState(true);
@@ -62,7 +68,7 @@ export default function AdminProductsPage() {
     useState<StatusFilter>("all");
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+    const unsubscribe = onAdminStateChanged(auth, async (user) => {
       if (!user) {
         router.replace("/admin");
         return;
@@ -472,6 +478,7 @@ export default function AdminProductsPage() {
           </>
         ) : null}
 
+        <AdminProductTools products={filteredProducts} selected={selected} setSelected={setSelected} refresh={() => loadProducts(false)} />
         {error ? (
           <section
             style={{
@@ -620,6 +627,14 @@ export default function AdminProductsPage() {
                   </div>
 
                   <div style={{ minWidth: 0 }}>
+                    <label className="admin-check"><input type="checkbox" aria-label={"Select " + product.name}
+                      checked={Boolean(product.id && selected.includes(product.id))}
+                      onChange={event => { const id = product.id; if (id) setSelected(previous => event.target.checked ? [...new Set([...previous, id])].slice(0,200) : previous.filter(item => item !== id)); }} /> Select product</label>
+                    <button type="button" disabled={isProcessing} className="admin-small-button" onClick={async () => {
+                      try { setActionProductId(product.id || null); const id = await duplicateProduct(product); router.push("/admin/products/edit/" + id); }
+                      catch { setError("Could not duplicate this product."); }
+                      finally { setActionProductId(null); }
+                    }}>Duplicate as draft</button>
                     <div className="product-meta-row">
                       <StatusBadge status={productStatus} />
 

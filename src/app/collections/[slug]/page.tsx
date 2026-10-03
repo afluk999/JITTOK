@@ -1,9 +1,9 @@
 "use client";
+import ProductImage from "@/components/ProductImage";
 
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useEffect, useState, type CSSProperties, type MouseEvent } from "react";
-import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { useCart } from "@/context/CartContext";
 import {
@@ -75,7 +75,7 @@ function ProductCard({ product }: { product: FirebaseProduct }) {
           }}
         >
           {frontImage ? (
-            <img
+            <ProductImage
               src={frontImage}
               alt={product.name}
               style={{
@@ -91,7 +91,7 @@ function ProductCard({ product }: { product: FirebaseProduct }) {
           ) : null}
 
           {backImage ? (
-            <img
+            <ProductImage
               src={backImage}
               alt={`${product.name} back`}
               style={{
@@ -286,7 +286,6 @@ function ProductCard({ product }: { product: FirebaseProduct }) {
 function ComingSoonPage({ name }: { name: string }) {
   return (
     <>
-      <Navbar />
 
       <main
         style={{
@@ -370,7 +369,6 @@ function ComingSoonPage({ name }: { name: string }) {
 function NotFoundPage() {
   return (
     <>
-      <Navbar />
 
       <main
         style={{
@@ -490,7 +488,6 @@ export default function CollectionPage() {
 
   return (
     <>
-      <Navbar />
 
       <main style={sectionStyle}>
         <h1
