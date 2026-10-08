@@ -20,7 +20,7 @@ export default function CartPage() {
     clearCart,
   } = useCart();
 
-  const [whatsappNumber, setWhatsappNumber] = useState("919605300701");
+  const [whatsappNumber, setWhatsappNumber] = useState("919207300901");
   const [isPhone, setIsPhone] = useState(false);
 
   useEffect(() => {
@@ -48,7 +48,7 @@ export default function CartPage() {
     async function loadSettings() {
       try {
         const content = await getHomeContent();
-        setWhatsappNumber(content.whatsappNumber || "919605300701");
+        setWhatsappNumber(content.whatsappNumber || "919207300901");
       } catch (error) {
         console.error("LOAD CART SETTINGS ERROR:", error);
       }
@@ -58,7 +58,7 @@ export default function CartPage() {
   }, []);
 
   const cleanWhatsappNumber =
-    whatsappNumber.replace(/\D/g, "") || "919605300701";
+    whatsappNumber.replace(/\D/g, "") || "919207300901";
 
   const calculatedSubtotal = cartItems.reduce((sum, item) => {
     const unitPrice = getProductSellingPrice(item.product);

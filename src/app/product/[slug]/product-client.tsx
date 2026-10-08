@@ -23,7 +23,7 @@ import { useCart } from "@/context/CartContext";
 import { Minus, Plus, X, ChevronLeft, ChevronRight, Expand } from "lucide-react";
 import { FaWhatsapp } from "react-icons/fa";
 
-const WHATSAPP_NUMBER = "919605300701";
+const WHATSAPP_NUMBER = "919207300901";
 
 const COLLECTION_LABELS: Record<string, string> = {
   ringer: "Ringer Collection",

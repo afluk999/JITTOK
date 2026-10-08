@@ -9,7 +9,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 
-const WHATSAPP_NUMBER = "919605300701";
+const WHATSAPP_NUMBER = "919207300901";
 
 type TrustItem = {
   title: string;

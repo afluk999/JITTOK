@@ -1590,7 +1590,7 @@ function SettingsBlock({
               onChange={(event) =>
                 setWhatsappNumber(event.target.value)
               }
-              placeholder="919605300701"
+              placeholder="919207300901"
               style={inputStyle}
             />
           </div>

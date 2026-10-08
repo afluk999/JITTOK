@@ -295,7 +295,7 @@ export const defaultHomeContent: HomeContent = {
 
   brandStatement:
     "JITTOK creates everyday essentials with clean design, comfort, and confidence.",
-  whatsappNumber: "919605300701",
+  whatsappNumber: "919207300901",
   instagramUsername: "@jittok.in",
   instagramUrl: "https://www.instagram.com/jittok.in/",
 

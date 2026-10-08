@@ -10,7 +10,7 @@ import type { CSSProperties, ReactNode } from "react";
 export default function ContactPage() {
   const [isPhone, setIsPhone] = useState(false);
 
-  const [whatsappNumber, setWhatsappNumber] = useState("919605300701");
+  const [whatsappNumber, setWhatsappNumber] = useState("919207300901");
   const [instagramUrl, setInstagramUrl] = useState("https://www.instagram.com/");
   const [instagramUsername, setInstagramUsername] = useState("@jittok");
 
@@ -46,7 +46,7 @@ export default function ContactPage() {
       try {
         const content = await getHomeContent();
 
-        setWhatsappNumber(content.whatsappNumber || "919605300701");
+        setWhatsappNumber(content.whatsappNumber || "919207300901");
         setInstagramUrl(content.instagramUrl || "https://www.instagram.com/");
         setInstagramUsername(content.instagramUsername || "@jittok");
       } catch (error) {
@@ -278,7 +278,7 @@ ${message || "I want to know more about your products."}`;
               <div style={{ marginBottom: "18px" }}>
                 <Input
                   label="Phone"
-                  placeholder="+91 96053 00701"
+                  placeholder="+91 92073 00901"
                   value={phone}
                   onChange={setPhone}
                 />

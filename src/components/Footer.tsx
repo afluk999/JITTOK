@@ -13,7 +13,7 @@ export default function Footer() {
   );
   const [instagramUsername, setInstagramUsername] = useState("@jittok");
   const [instagramUrl, setInstagramUrl] = useState("https://www.instagram.com/jittok.in/");
-  const [whatsappNumber, setWhatsappNumber] = useState("919605300701");
+  const [whatsappNumber, setWhatsappNumber] = useState("919207300901");
   const [newsletterEmail, setNewsletterEmail] = useState("");
   const [newsletterStatus, setNewsletterStatus] = useState<string | null>(null);
 
@@ -46,7 +46,7 @@ export default function Footer() {
         );
         setInstagramUsername(content.instagramUsername || "@jittok");
         setInstagramUrl(content.instagramUrl || "https://www.instagram.com/jittok.in/");
-        setWhatsappNumber(content.whatsappNumber || "919605300701");
+        setWhatsappNumber(content.whatsappNumber || "919207300901");
       } catch (error) {
         console.error("LOAD FOOTER SETTINGS ERROR:", error);
       }
@@ -70,7 +70,7 @@ export default function Footer() {
 
   const displayPhone = whatsappNumber
     ? `+${whatsappNumber.replace(/^\+/, "")}`
-    : "+91 96053 00701";
+    : "+91 92073 00901";
 
   return (
     <footer
