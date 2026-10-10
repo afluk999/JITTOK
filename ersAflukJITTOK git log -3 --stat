@@ -1,0 +1,100 @@
+[33mcommit d97dce26a2bd4abed46cdbdd90eedfa3ff3ba6d1[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m, [m[1;31morigin/main[m[33m, [m[1;31morigin/HEAD[m[33m)[m
+Author: aflahk313 <aflahk313@gmail.com>
+Date:   Sat Oct 10 07:29:57 2026 +0530
+
+    Add event restart
+
+ src/app/admin/products/edit/[id]/page.tsx |   6 [32m+[m
+ src/app/admin/products/new/page.tsx       |   5 [32m+[m
+ src/app/product/[slug]/product-client.tsx |  44 [32m++[m[31m-[m
+ src/components/Footer.tsx                 |  11 [32m+[m[31m-[m
+ src/components/ReelsSection.tsx           |  70 [32m+[m[31m---[m
+ src/components/TryOnImageField.tsx        | 154 [32m+++++++++[m
+ src/components/TryOnModal.tsx             | 550 [32m++++++++++++++++++++++++++++++[m
+ src/lib/contentService.ts                 |   6 [32m+[m[31m-[m
+ src/lib/productService.ts                 |   6 [32m+[m
+ 9 files changed, 777 insertions(+), 75 deletions(-)
+
+[33mcommit e78fda1addb0f892239760f9b31e4a6e83bc09d1[m
+Author: aflahk313 <aflahk313@gmail.com>
+Date:   Thu Oct 8 21:36:04 2026 +0530
+
+    Add event restart
+
+ src/app/admin/content/page.tsx            | 2 [32m+[m[31m-[m
+ src/app/cart/page.tsx                     | 6 [32m+++[m[31m---[m
+ src/app/contact/page.tsx                  | 6 [32m+++[m[31m---[m
+ src/app/product/[slug]/product-client.tsx | 2 [32m+[m[31m-[m
+ src/components/Footer.tsx                 | 6 [32m+++[m[31m---[m
+ src/components/TrustStrip.tsx             | 2 [32m+[m[31m-[m
+ src/lib/contentService.ts                 | 2 [32m+[m[31m-[m
+ 7 files changed, 13 insertions(+), 13 deletions(-)
+
+[33mcommit caabd0c0e784c610fc5272c2f1df36fdba08723a[m
+Author: aflahk313 <aflahk313@gmail.com>
+Date:   Sun Oct 4 00:04:18 2026 +0530
+
+    Update project
+
+ ADMIN-SETUP.md                            |   47 [32m++[m
+ FEATURE-OPTIONS.md                        |   43 [32m++[m
+ firebase.json                             |    9 [32m+[m
+ firestore.indexes.json                    |    1 [32m+[m
+ firestore.rules                           |   50 [32m++[m
+ next.config.ts                            |    5 [32m+[m[31m-[m
+ public/hero-slide-1.png                   |  Bin [31m1753935[m -> [32m2586520[m bytes
+ public/hero-sslide-1.png                  |  Bin [31m0[m -> [32m1753935[m bytes
+ src/app/Store/page.tsx                    |    7 [32m+[m[31m-[m
+ src/app/account/page.tsx                  |    2 [31m-[m
+ src/app/admin/admin-layout.tsx            |   24 [32m+[m[31m-[m
+ src/app/admin/content/page.tsx            |   21 [32m+[m[31m-[m
+ src/app/admin/dashboard/page.tsx          |    7 [32m+[m[31m-[m
+ src/app/admin/layout.tsx                  |   11 [32m+[m
+ src/app/admin/orders/page.tsx             |   40 [32m+[m[31m-[m
+ src/app/admin/page.tsx                    |   27 [32m+[m[31m-[m
+ src/app/admin/products/edit/[id]/page.tsx |    6 [32m+[m[31m-[m
+ src/app/admin/products/new/page.tsx       |    6 [32m+[m[31m-[m
+ src/app/admin/products/page.tsx           |   19 [32m+[m[31m-[m
+ src/app/cart/page.tsx                     |    2 [31m-[m
+ src/app/collections/[slug]/page.tsx       |    9 [32m+[m[31m-[m
+ src/app/collections/page.tsx              |   11 [32m+[m[31m-[m
+ src/app/contact/page.tsx                  |    2 [31m-[m
+ src/app/globals.css                       |   40 [32m+[m[31m-[m
+ src/app/layout.tsx                        |   34 [32m+[m[31m-[m
+ src/app/orders/page.tsx                   |    2 [31m-[m
+ src/app/page.tsx                          |   49 [32m+[m[31m-[m
+ src/app/privacy/page.tsx                  |    2 [31m-[m
+ src/app/product/[slug]/error.tsx          |   12 [32m+[m
+ src/app/product/[slug]/loading.tsx        |    5 [32m+[m
+ src/app/product/[slug]/not-found.tsx      |    8 [32m+[m
+ src/app/product/[slug]/page.tsx           | 1140 [32m+[m[31m----------------------------[m
+ src/app/product/[slug]/product-client.tsx | 1056 [32m++++++++++++++++++++++++++[m
+ src/app/robots.ts                         |    4 [32m+[m[31m-[m
+ src/app/search/page.tsx                   |    9 [32m+[m[31m-[m
+ src/app/shipping/page.tsx                 |    2 [31m-[m
+ src/app/sitemap.ts                        |   33 [32m+[m[31m-[m
+ src/app/size-guide/page.tsx               |    2 [31m-[m
+ src/app/terms/page.tsx                    |    2 [31m-[m
+ src/components/AdminHomePresentation.tsx  |   99 [32m+++[m
+ src/components/AdminProductTools.tsx      |   50 [32m++[m
+ src/components/AdminSidebar.tsx           |    2 [32m+[m[31m-[m
+ src/components/FloatingSocialButtons.tsx  |   11 [32m+[m[31m-[m
+ src/components/HeroWall.tsx               |   77 [32m+[m[31m-[m
+ src/components/HomeSections.tsx           |   31 [32m+[m
+ src/components/JittokStructuredData.tsx   |   19 [32m+[m[31m-[m
+ src/components/LandscapePromoBanner.tsx   |   71 [32m+[m[31m-[m
+ src/components/ProductImage.tsx           |   10 [32m+[m
+ src/components/ReelsSection.tsx           |    2 [32m+[m[31m-[m
+ src/components/ResponsiveImage.tsx        |   17 [32m+[m
+ src/components/StorefrontShell.tsx        |   16 [32m+[m
+ src/components/TrustStrip.tsx             |    7 [32m+[m[31m-[m
+ src/lib/adminAccess.ts                    |   42 [32m++[m
+ src/lib/contentService.ts                 |   37 [32m+[m[31m-[m
+ src/lib/csv.ts                            |   15 [32m+[m
+ src/lib/homePresentation.ts               |   47 [32m++[m
+ src/lib/jsonLd.ts                         |    4 [32m+[m
+ src/lib/orderService.ts                   |   16 [32m+[m
+ src/lib/productService.ts                 |  217 [32m++[m[31m----[m
+ src/lib/serverCatalog.ts                  |   10 [32m+[m
+ tests/approved-features.test.mjs          |  143 [32m++++[m
+ 61 files changed, 2135 insertions(+), 1557 deletions(-)
