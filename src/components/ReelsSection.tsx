@@ -490,74 +490,6 @@ export default function ReelsSection() {
         overflow: "hidden",
       }}
     >
-      <motion.header
-        initial={{ opacity: 0, y: 24 }}
-        whileInView={{ opacity: 1, y: 0 }}
-        viewport={{ once: true, amount: 0.45 }}
-        transition={{
-          duration: 0.7,
-          ease: [0.22, 1, 0.36, 1],
-        }}
-        style={{
-          width: "min(92vw, 920px)",
-          margin: "0 auto",
-          textAlign: "center",
-        }}
-      >
-        <p
-          style={{
-            margin: "0 0 12px",
-            color: "#77736c",
-            fontSize: isPhone ? "9px" : "10px",
-            fontWeight: 900,
-            letterSpacing: isPhone ? "2.3px" : "3px",
-            textTransform: "uppercase",
-          }}
-        >
-          JITTOK Social Edit
-        </p>
-
-        <h2
-          style={{
-            margin: 0,
-            fontFamily:
-              '"Bebas Neue", Impact, "Arial Narrow", sans-serif',
-            fontSize: isPhone
-              ? "clamp(62px, 19vw, 82px)"
-              : "clamp(82px, 9vw, 132px)",
-            lineHeight: 0.8,
-            fontWeight: 400,
-            letterSpacing: isPhone ? "0.5px" : "1px",
-            textTransform: "uppercase",
-          }}
-        >
-          Watch The Drop
-        </h2>
-
-        <div
-          aria-hidden="true"
-          style={{
-            width: isPhone ? "44px" : "58px",
-            height: "1px",
-            margin: isPhone ? "19px auto 16px" : "24px auto 18px",
-            background: "#111111",
-          }}
-        />
-
-        <p
-          style={{
-            maxWidth: "540px",
-            margin: "0 auto",
-            color: "#6f6a63",
-            fontSize: isPhone ? "12px" : "14px",
-            lineHeight: 1.75,
-          }}
-        >
-          Looks, movement, and behind-the-scenes moments from the JITTOK
-          world.
-        </p>
-      </motion.header>
-
       <div
         onMouseEnter={() => {
           if (!isPhone) setPaused(true);
@@ -569,7 +501,7 @@ export default function ReelsSection() {
           position: "relative",
           width: "100%",
           height: isPhone ? "530px" : "650px",
-          marginTop: isPhone ? "28px" : "38px",
+          marginTop: 0,
           perspective: "none",
         }}
       >

@@ -129,6 +129,12 @@ export type FirebaseProduct = {
   materialCare?: string;
   sizeGuideText?: string;
 
+  /*
+   * Transparent PNG of the item (front view) used by the
+   * virtual try-on camera. Leave empty to hide the Try It On button.
+   */
+  tryOnImage?: string;
+
   homepageOrder?: number;
   bestSellerOrder?: number;
 

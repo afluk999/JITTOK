@@ -68,9 +68,12 @@ export default function Footer() {
     setNewsletterEmail("");
   }
 
-  const displayPhone = whatsappNumber
-    ? `+${whatsappNumber.replace(/^\+/, "")}`
-    : "+91 92073 00901";
+  const phoneDigits = whatsappNumber.replace(/\D/g, "");
+  const fullPhone = phoneDigits.length === 10 ? `91${phoneDigits}` : phoneDigits;
+  const displayPhone =
+    fullPhone.length === 12 && fullPhone.startsWith("91")
+      ? `+91 ${fullPhone.slice(2, 7)} ${fullPhone.slice(7)}`
+      : `+${fullPhone}`;
 
   return (
     <footer
@@ -239,7 +242,7 @@ export default function Footer() {
               <Mail size={15} /> jittokoofficial@gmail.com
             </ContactLink>
 
-            <ContactLink href={`tel:+${whatsappNumber.replace(/^\+/, "")}`}>
+            <ContactLink href={`tel:+${fullPhone}`}>
               <Phone size={15} /> {displayPhone}
             </ContactLink>
           </div>

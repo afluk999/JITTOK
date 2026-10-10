@@ -722,7 +722,11 @@ function cleanPhoneNumber(value: unknown): string {
     return defaultHomeContent.whatsappNumber;
   }
 
-  const cleaned = value.replace(/[^\d]/g, "");
+  let cleaned = value.replace(/[^\d]/g, "");
+
+  if (cleaned.length === 10) {
+    cleaned = `91${cleaned}`;
+  }
 
   return cleaned || defaultHomeContent.whatsappNumber;
 }
