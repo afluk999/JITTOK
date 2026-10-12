@@ -244,7 +244,7 @@ export const defaultStoryCircles: StoryCircleItem[] = [
     name: "HENLEY",
     slug: "henley",
     images: [],
-    comingSoon: true,
+    comingSoon: false,
     order: 5,
   },
 ];
@@ -255,7 +255,7 @@ export const defaultCollectionsList: CollectionDefinition[] = [
   { id: "waffle", name: "Waffle", slug: "waffle", status: "live", order: 2 },
   { id: "polo", name: "Polo", slug: "polo", status: "live", order: 3 },
   { id: "slub", name: "Slub", slug: "slub", status: "live", order: 4 },
-  { id: "henley", name: "Henley", slug: "henley", status: "coming-soon", order: 5 },
+  { id: "henley", name: "Henley", slug: "henley", status: "live", order: 5 },
 ];
 
 export const defaultCategoriesList: CategoryDefinition[] = [
@@ -539,7 +539,7 @@ const LEGACY_COLLECTION_SLUGS: Record<string, string> = {
 };
 
 // Renamed collections that are now open to customers.
-const LIVE_RENAMED = ["waffle", "polo", "slub"];
+const LIVE_RENAMED = ["waffle", "polo", "slub", "henley"];
 
 export function resolveCollectionSlug(slug: string | undefined | null): string {
   const clean = (slug ?? "").trim().toLowerCase();
@@ -585,7 +585,7 @@ function migrateStoryCircles(list: StoryCircleItem[]): StoryCircleItem[] {
       name: "HENLEY",
       slug: "henley",
       images: [],
-      comingSoon: true,
+      comingSoon: false,
       order: result.length,
     });
   }
@@ -625,7 +625,7 @@ function migrateCollectionsList(
       id: "henley",
       name: "Henley",
       slug: "henley",
-      status: "coming-soon",
+      status: "live",
       order: result.length,
     });
   }

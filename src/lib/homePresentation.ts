@@ -5,7 +5,7 @@ export type HomePresentation = {
   launchDesktop: string; launchMobile: string; launchHref: string;
 };
 export const defaultHomePresentation: HomePresentation = {
-  heroDesktop: "/hero-slide-1.png", heroMobile: "", heroTitle: "",
+  heroDesktop: "/hero/jittok-hero-desktop.jpg", heroMobile: "", heroTitle: "",
   heroButton: "Shop the collection", heroHref: "/collections",
   bannerMobile: "", bannerHref: "/Store", launchEnabled: false,
   launchAt: "", launchTitle: "", launchDesktop: "", launchMobile: "", launchHref: "/collections",

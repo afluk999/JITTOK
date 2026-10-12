@@ -265,7 +265,14 @@ export default function Story() {
                 .filter((image): image is string => Boolean(image));
 
               const merged = Array.from(
-                new Set([...circle.images.filter(Boolean), ...productImages]),
+                new Set([
+                  ...(productImages.length > 0
+                    ? circle.images.filter(
+                        (image) => Boolean(image) && !image.startsWith("/story/"),
+                      )
+                    : circle.images.filter(Boolean)),
+                  ...productImages,
+                ]),
               ).slice(0, 4);
 
               return merged.length > 0 ? { ...circle, images: merged } : circle;
