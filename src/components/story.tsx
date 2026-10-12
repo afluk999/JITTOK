@@ -5,10 +5,9 @@ import Link from "next/link";
 import { useEffect, useRef, useState, type CSSProperties } from "react";
 import {
   getHomeContent,
-  resolveCollectionSlug,
   type StoryCircleItem,
 } from "@/lib/contentService";
-import { getPublicProducts } from "@/lib/productService";
+import { getPublicProducts, productBelongsToCollection } from "@/lib/productService";
 
 function IOSSpinner({ size, color }: { size: number; color: string }) {
   const tickCount = 8;
@@ -256,10 +255,8 @@ export default function Story() {
               if (!needsImages(circle)) return circle;
 
               const productImages = products
-                .filter(
-                  (product) =>
-                    resolveCollectionSlug(product.collection) ===
-                    resolveCollectionSlug(circle.slug),
+                .filter((product) =>
+                  productBelongsToCollection(product, circle.slug),
                 )
                 .map((product) => product.images?.[0])
                 .filter((image): image is string => Boolean(image));

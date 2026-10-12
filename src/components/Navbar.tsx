@@ -171,6 +171,8 @@ export default function Navbar() {
                 objectFit: "contain",
                 display: "block",
                 transform: "scale(2.12)",
+                // Scaled logo must not block taps on the menu/cart icons.
+                pointerEvents: "none",
                 transformOrigin: "center",
               }}
             />
@@ -224,6 +226,8 @@ export default function Navbar() {
             alignItems: "center",
             justifyContent: "flex-end",
             justifySelf: "end",
+            position: "relative",
+            zIndex: 2,
             gap: isPhone ? "6px" : "14px",
           }}
         >

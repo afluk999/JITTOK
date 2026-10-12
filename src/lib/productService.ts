@@ -246,8 +246,20 @@ export async function getPublicProducts(): Promise<FirebaseProduct[]> {
   return snapshot.docs.map(item => normaliseProduct({ ...item.data(), id: item.id } as FirebaseProduct));
 }
 
+// Products tagged with the collection match directly. Products with NO
+// collection tag still match when their name contains the collection
+// name (e.g. "WAFFLE 01 (BLACK)" belongs to Waffle).
+export function productBelongsToCollection(p: FirebaseProduct, slug: string) {
+  const wanted = resolveCollectionSlug(slug);
+  if (p.collection && p.collection.trim()) {
+    return resolveCollectionSlug(p.collection) === wanted;
+  }
+  const label = [p.name, p.slug, p.category].filter(Boolean).join(" ").toLowerCase();
+  return new RegExp(`(^|[^a-z])${wanted}([^a-z]|$)`).test(label);
+}
+
 export async function getProductsByCollection(slug: string) {
-  return (await getPublicProducts()).filter(p => resolveCollectionSlug(p.collection) === resolveCollectionSlug(slug))
+  return (await getPublicProducts()).filter(p => productBelongsToCollection(p, slug))
     .sort((a,b) => (a.collectionOrder ?? 999) - (b.collectionOrder ?? 999));
 }
 export async function getProductsByCategory(category: string) {
