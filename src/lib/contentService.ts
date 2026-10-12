@@ -200,51 +200,50 @@ export const defaultStoryCircles: StoryCircleItem[] = [
     order: 0,
   },
   {
-    id: "raglan-half",
-    name: "RAGLAN HALF",
-    slug: "raglan-half",
+    id: "raglan",
+    name: "RAGLAN",
+    slug: "raglan",
     images: [
       "/story/raglan-half-1.jpg",
       "/story/raglan-half-2.jpg",
       "/story/raglan-half-3.jpg",
-    ],
-    comingSoon: false,
-    order: 1,
-  },
-  {
-    id: "raglan-full",
-    name: "RAGLAN FULL",
-    slug: "raglan-full",
-    images: [
       "/story/raglan-full-1.jpg",
       "/story/raglan-full-2.jpg",
       "/story/raglan-full-3.jpg",
       "/story/raglan-full-4.jpg",
     ],
     comingSoon: false,
+    order: 1,
+  },
+  {
+    id: "waffle",
+    name: "WAFFLE",
+    slug: "waffle",
+    images: ["/story/lovely-1.jpg"],
+    comingSoon: false,
     order: 2,
   },
   {
-    id: "lovely",
-    name: "LOVELY",
-    slug: "lovely",
-    images: ["/story/lovely-1.jpg"],
-    comingSoon: true,
+    id: "polo",
+    name: "POLO",
+    slug: "polo",
+    images: ["/story/terry-1.jpg"],
+    comingSoon: false,
     order: 3,
   },
   {
-    id: "terry",
-    name: "TERRY",
-    slug: "terry",
-    images: ["/story/terry-1.jpg"],
-    comingSoon: true,
+    id: "slub",
+    name: "SLUB",
+    slug: "slub",
+    images: ["/story/pollo-1.jpg"],
+    comingSoon: false,
     order: 4,
   },
   {
-    id: "pollo",
-    name: "POLLO",
-    slug: "pollo",
-    images: ["/story/pollo-1.jpg"],
+    id: "henley",
+    name: "HENLEY",
+    slug: "henley",
+    images: [],
     comingSoon: true,
     order: 5,
   },
@@ -252,11 +251,11 @@ export const defaultStoryCircles: StoryCircleItem[] = [
 
 export const defaultCollectionsList: CollectionDefinition[] = [
   { id: "ringer", name: "Ringer", slug: "ringer", status: "live", order: 0 },
-  { id: "raglan-half", name: "Raglan Half", slug: "raglan-half", status: "live", order: 1 },
-  { id: "raglan-full", name: "Raglan Full", slug: "raglan-full", status: "live", order: 2 },
-  { id: "lovely", name: "Lovely", slug: "lovely", status: "live", order: 3 },
-  { id: "terry", name: "Terry", slug: "terry", status: "coming-soon", order: 4 },
-  { id: "pollo", name: "Pollo", slug: "pollo", status: "coming-soon", order: 5 },
+  { id: "raglan", name: "Raglan", slug: "raglan", status: "live", order: 1 },
+  { id: "waffle", name: "Waffle", slug: "waffle", status: "live", order: 2 },
+  { id: "polo", name: "Polo", slug: "polo", status: "live", order: 3 },
+  { id: "slub", name: "Slub", slug: "slub", status: "live", order: 4 },
+  { id: "henley", name: "Henley", slug: "henley", status: "coming-soon", order: 5 },
 ];
 
 export const defaultCategoriesList: CategoryDefinition[] = [
@@ -525,7 +524,124 @@ function normaliseSocialItems(value: unknown): SocialItem[] {
     );
 }
 
+/*
+ * Old collection names that were merged or renamed. Lets old saved data,
+ * old product tags and old links keep working without manual edits.
+ *   Raglan Half + Raglan Full -> Raglan
+ *   Lovely -> Waffle, Terry -> Polo, Pollo -> Slub
+ */
+const LEGACY_COLLECTION_SLUGS: Record<string, string> = {
+  "raglan-half": "raglan",
+  "raglan-full": "raglan",
+  lovely: "waffle",
+  terry: "polo",
+  pollo: "slub",
+};
+
+// Renamed collections that are now open to customers.
+const LIVE_RENAMED = ["waffle", "polo", "slub"];
+
+export function resolveCollectionSlug(slug: string | undefined | null): string {
+  const clean = (slug ?? "").trim().toLowerCase();
+  return LEGACY_COLLECTION_SLUGS[clean] ?? clean;
+}
+
+function migrateStoryCircles(list: StoryCircleItem[]): StoryCircleItem[] {
+  const hasLegacy = list.some((item) => item.slug in LEGACY_COLLECTION_SLUGS);
+  if (!hasLegacy) return list;
+
+  const result: StoryCircleItem[] = [];
+
+  for (const item of list) {
+    const target = LEGACY_COLLECTION_SLUGS[item.slug];
+
+    if (!target) {
+      result.push(item);
+      continue;
+    }
+
+    const existing = result.find((entry) => entry.slug === target);
+
+    if (existing) {
+      existing.images = Array.from(
+        new Set([...existing.images, ...item.images]),
+      ).slice(0, 8);
+      continue;
+    }
+
+    result.push({
+      ...item,
+      id: target,
+      slug: target,
+      name: target.toUpperCase(),
+      images: item.images.slice(0, 8),
+      comingSoon: LIVE_RENAMED.includes(target) ? false : item.comingSoon,
+    });
+  }
+
+  if (!result.some((item) => item.slug === "henley")) {
+    result.push({
+      id: "henley",
+      name: "HENLEY",
+      slug: "henley",
+      images: [],
+      comingSoon: true,
+      order: result.length,
+    });
+  }
+
+  return result.map((item, index) => ({ ...item, order: index }));
+}
+
+function migrateCollectionsList(
+  list: CollectionDefinition[],
+): CollectionDefinition[] {
+  const hasLegacy = list.some((item) => item.slug in LEGACY_COLLECTION_SLUGS);
+  if (!hasLegacy) return list;
+
+  const result: CollectionDefinition[] = [];
+
+  for (const item of list) {
+    const target = LEGACY_COLLECTION_SLUGS[item.slug];
+
+    if (!target) {
+      result.push(item);
+      continue;
+    }
+
+    if (result.some((entry) => entry.slug === target)) continue;
+
+    result.push({
+      ...item,
+      id: target,
+      slug: target,
+      name: target.charAt(0).toUpperCase() + target.slice(1),
+      status: LIVE_RENAMED.includes(target) ? "live" : item.status,
+    });
+  }
+
+  if (!result.some((item) => item.slug === "henley")) {
+    result.push({
+      id: "henley",
+      name: "Henley",
+      slug: "henley",
+      status: "coming-soon",
+      order: result.length,
+    });
+  }
+
+  return result.map((item, index) => ({ ...item, order: index }));
+}
+
 function normaliseStoryCircles(value: unknown): StoryCircleItem[] {
+  return migrateStoryCircles(normaliseStoryCirclesRaw(value));
+}
+
+function normaliseCollectionsList(value: unknown): CollectionDefinition[] {
+  return migrateCollectionsList(normaliseCollectionsListRaw(value));
+}
+
+function normaliseStoryCirclesRaw(value: unknown): StoryCircleItem[] {
   if (!Array.isArray(value) || value.length === 0) {
     return defaultStoryCircles;
   }
@@ -559,7 +675,7 @@ function normaliseStoryCircles(value: unknown): StoryCircleItem[] {
         name,
         slug,
 
-        images: cleanImageArray(data.images).slice(0, 4),
+        images: cleanImageArray(data.images).slice(0, 8),
 
         comingSoon: data.comingSoon === true,
 
@@ -576,7 +692,7 @@ function normaliseStoryCircles(value: unknown): StoryCircleItem[] {
     );
 }
 
-function normaliseCollectionsList(
+function normaliseCollectionsListRaw(
   value: unknown,
 ): CollectionDefinition[] {
   if (!Array.isArray(value) || value.length === 0) {

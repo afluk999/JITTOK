@@ -13,6 +13,7 @@ import {
 } from "@/lib/productService";
 import {
   getHomeContent,
+  resolveCollectionSlug,
   type CollectionDefinition,
 } from "@/lib/contentService";
 
@@ -396,7 +397,9 @@ function NotFoundPage() {
 
 export default function CollectionPage() {
   const params = useParams();
-  const slug = typeof params.slug === "string" ? params.slug.toLowerCase() : "";
+  const slug = resolveCollectionSlug(
+    typeof params.slug === "string" ? params.slug : "",
+  );
   const [meta, setMeta] = useState<CollectionDefinition | null>(null);
   const [metaLoading, setMetaLoading] = useState(true);
 

@@ -592,7 +592,7 @@ export default function AdminContentPage() {
 
       const selectedFiles = storyCircleFiles[id] || [];
       const uploaded = await uploadFiles(selectedFiles);
-      const finalImages = [...circle.images, ...uploaded].slice(0, 4);
+      const finalImages = [...circle.images, ...uploaded].slice(0, 8);
 
       const finalSlug =
         circle.slug.trim() ||

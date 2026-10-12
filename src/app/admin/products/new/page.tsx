@@ -1,5 +1,4 @@
 "use client";
-import TryOnImageField from "@/components/TryOnImageField";
 
 import { onAdminStateChanged } from "@/lib/adminAccess";
 
@@ -178,7 +177,6 @@ export default function NewProductPage() {
   const [shippingReturns, setShippingReturns] = useState("");
   const [materialCare, setMaterialCare] = useState("");
   const [sizeGuideText, setSizeGuideText] = useState("");
-  const [tryOnImage, setTryOnImage] = useState("");
   const [sizes, setSizes] = useState("S,M,L,XL");
   const [stock, setStock] = useState("10");
   const [status, setStatus] = useState<ProductStatus>("published");
@@ -616,7 +614,6 @@ export default function NewProductPage() {
         shippingReturns: shippingReturns.trim() || undefined,
         materialCare: materialCare.trim() || undefined,
         sizeGuideText: sizeGuideText.trim() || undefined,
-        tryOnImage: tryOnImage || undefined,
         images: imageUrls,
         imageSettings,
 
@@ -881,8 +878,6 @@ export default function NewProductPage() {
                 }}
               />
             </div>
-
-            <TryOnImageField value={tryOnImage} onChange={setTryOnImage} />
 
             <div style={twoColStyle}>
               <Input

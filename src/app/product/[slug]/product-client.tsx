@@ -10,10 +10,9 @@ import {
   type TouchEvent,
 } from "react";
 import Link from "next/link";
-import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import Footer from "@/components/Footer";
-import { getHomeContent } from "@/lib/contentService";
+import { getHomeContent, resolveCollectionSlug } from "@/lib/contentService";
 import { generateOrderReference } from "@/lib/orderService";
 import {
   getProductOriginalPrice,
@@ -21,23 +20,18 @@ import {
   type FirebaseProduct,
 } from "@/lib/productService";
 import { useCart } from "@/context/CartContext";
-import { Minus, Plus, X, ChevronLeft, ChevronRight, Expand, Camera } from "lucide-react";
+import { Minus, Plus, X, ChevronLeft, ChevronRight, Expand } from "lucide-react";
 import { FaWhatsapp } from "react-icons/fa";
 
 const WHATSAPP_NUMBER = "919207300901";
 
-// Loaded only when the customer taps "Try It On", so the heavy
-// body-detection code never slows down normal page loads.
-const TryOnModal = dynamic(() => import("@/components/TryOnModal"), {
-  ssr: false,
-});
-
 const COLLECTION_LABELS: Record<string, string> = {
   ringer: "Ringer Collection",
-  "raglan-half": "Raglan Half Collection",
-  "raglan-full": "Raglan Full Collection",
-  lovely: "Lovely Collection",
-  terry: "Terry Collection",
+  raglan: "Raglan Collection",
+  waffle: "Waffle Collection",
+  polo: "Polo Collection",
+  slub: "Slub Collection",
+  henley: "Henley Collection",
   signature: "Signature Collection",
 };
 
@@ -55,12 +49,14 @@ function formatPrice(value: number) {
 }
 
 function getCollectionLabel(product: FirebaseProduct) {
-  if (product.collection && COLLECTION_LABELS[product.collection]) {
-    return COLLECTION_LABELS[product.collection];
+  const resolved = resolveCollectionSlug(product.collection);
+
+  if (resolved && COLLECTION_LABELS[resolved]) {
+    return COLLECTION_LABELS[resolved];
   }
 
-  if (product.collection) {
-    return `${product.collection.replace(/-/g, " ")} Collection`;
+  if (resolved) {
+    return `${resolved.replace(/-/g, " ")} Collection`;
   }
 
   return product.category || "JITTOK";
@@ -92,7 +88,6 @@ export default function ProductPage({ initialProduct }: { initialProduct: Fireba
   const [openAccordion, setOpenAccordion] = useState<string | null>(null);
 
   const [lightboxOpen, setLightboxOpen] = useState(false);
-  const [tryOnOpen, setTryOnOpen] = useState(false);
   const [activeImageIndex, setActiveImageIndex] = useState(0);
   const [touchStartX, setTouchStartX] = useState<number | null>(null);
 
@@ -177,7 +172,7 @@ export default function ProductPage({ initialProduct }: { initialProduct: Fireba
   const maximumQuantity = Math.max(Number(product.stock || 1), 1);
   const detailLines = getProductDetailLines(product);
   const collectionLabel = getCollectionLabel(product);
-  const collectionSlug = product.collection || "";
+  const collectionSlug = resolveCollectionSlug(product.collection);
 
   function handleAddToCart() {
     if (!product || isSoldOut) return;
@@ -447,32 +442,6 @@ Please confirm availability, delivery charges, payment method, and the final ord
               >
                 {product.variant}
               </p>
-            ) : null}
-
-            {product.tryOnImage ? (
-              <button
-                type="button"
-                onClick={() => setTryOnOpen(true)}
-                style={{
-                  marginTop: "16px",
-                  height: "44px",
-                  padding: "0 18px",
-                  border: "1px solid #111",
-                  background: "transparent",
-                  color: "#111",
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: "9px",
-                  fontSize: "11px",
-                  fontWeight: 900,
-                  letterSpacing: "1px",
-                  textTransform: "uppercase",
-                  cursor: "pointer",
-                }}
-              >
-                <Camera size={16} />
-                Try It On
-              </button>
             ) : null}
 
             <div
@@ -817,14 +786,6 @@ Please confirm availability, delivery charges, payment method, and the final ord
       </main>
 
       <Footer />
-
-      {tryOnOpen && product.tryOnImage ? (
-        <TryOnModal
-          garmentUrl={product.tryOnImage}
-          productName={product.name}
-          onClose={() => setTryOnOpen(false)}
-        />
-      ) : null}
 
       {/* FULLSCREEN LIGHTBOX */}
       {lightboxOpen && images.length > 0 ? (

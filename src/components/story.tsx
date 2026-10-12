@@ -5,8 +5,10 @@ import Link from "next/link";
 import { useEffect, useRef, useState, type CSSProperties } from "react";
 import {
   getHomeContent,
+  resolveCollectionSlug,
   type StoryCircleItem,
 } from "@/lib/contentService";
+import { getPublicProducts } from "@/lib/productService";
 
 function IOSSpinner({ size, color }: { size: number; color: string }) {
   const tickCount = 8;
@@ -238,7 +240,42 @@ export default function Story() {
     async function loadCircles() {
       try {
         const content = await getHomeContent();
-        setCircles(content.storyCircles || []);
+        let list = content.storyCircles || [];
+
+        // Open circles with fewer than 2 photos borrow product photos
+        // from their own collection so they always show an image.
+        const needsImages = (circle: StoryCircleItem) =>
+          !circle.comingSoon &&
+          circle.images.filter(Boolean).length < 2;
+
+        if (list.some(needsImages)) {
+          try {
+            const products = await getPublicProducts();
+
+            list = list.map((circle) => {
+              if (!needsImages(circle)) return circle;
+
+              const productImages = products
+                .filter(
+                  (product) =>
+                    resolveCollectionSlug(product.collection) ===
+                    resolveCollectionSlug(circle.slug),
+                )
+                .map((product) => product.images?.[0])
+                .filter((image): image is string => Boolean(image));
+
+              const merged = Array.from(
+                new Set([...circle.images.filter(Boolean), ...productImages]),
+              ).slice(0, 4);
+
+              return merged.length > 0 ? { ...circle, images: merged } : circle;
+            });
+          } catch (imageError) {
+            console.error("LOAD CIRCLE PRODUCT IMAGES ERROR:", imageError);
+          }
+        }
+
+        setCircles(list);
       } catch (error) {
         console.error("LOAD STORY CIRCLES ERROR:", error);
       } finally {

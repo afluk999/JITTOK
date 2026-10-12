@@ -15,6 +15,7 @@ import {
   where,
 } from "firebase/firestore";
 import { requireAdmin } from "@/lib/adminAccess";
+import { resolveCollectionSlug } from "@/lib/contentService";
 import { db } from "@/lib/firebase";
 
 export type ProductStatus =
@@ -128,12 +129,6 @@ export type FirebaseProduct = {
   shippingReturns?: string;
   materialCare?: string;
   sizeGuideText?: string;
-
-  /*
-   * Transparent PNG of the item (front view) used by the
-   * virtual try-on camera. Leave empty to hide the Try It On button.
-   */
-  tryOnImage?: string;
 
   homepageOrder?: number;
   bestSellerOrder?: number;
@@ -252,7 +247,7 @@ export async function getPublicProducts(): Promise<FirebaseProduct[]> {
 }
 
 export async function getProductsByCollection(slug: string) {
-  return (await getPublicProducts()).filter(p => p.collection === slug)
+  return (await getPublicProducts()).filter(p => resolveCollectionSlug(p.collection) === resolveCollectionSlug(slug))
     .sort((a,b) => (a.collectionOrder ?? 999) - (b.collectionOrder ?? 999));
 }
 export async function getProductsByCategory(category: string) {
